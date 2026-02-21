@@ -1,3 +1,60 @@
 spring:
   application:
     name: notification-dispatcher
+  profiles:
+    active: local
+
+---
+# Local 환경
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:mysql://localhost:3306/notification?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+    username: app
+    password: app1234
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+---
+# Test 환경 (Testcontainers)
+spring:
+  config:
+    activate:
+      on-profile: test
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+
+---
+# Production 환경
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
