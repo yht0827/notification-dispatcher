@@ -1,0 +1,6 @@
+// Application 모듈: UseCase, Service, Port 정의
+
+dependencies {
+    implementation project(':domain')
+    implementation project(':common')
+}

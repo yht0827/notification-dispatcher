@@ -1,0 +1,24 @@
+// App 모듈: Spring Boot 실행 진입점
+
+plugins {
+    id 'org.springframework.boot'
+}
+
+dependencies {
+    implementation project(':domain')
+    implementation project(':common')
+    implementation project(':application')
+    implementation project(':infrastructure')
+    implementation project(':api')
+
+    implementation 'org.springframework.boot:spring-boot-starter'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+}
+
+bootJar {
+    enabled = true
+}
+
+jar {
+    enabled = false
+}
