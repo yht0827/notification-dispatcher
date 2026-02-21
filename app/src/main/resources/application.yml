@@ -12,17 +12,17 @@ spring:
       on-profile: local
   datasource:
     url: jdbc:mysql://localhost:3306/notification?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
-    username: app
-    password: app1234
+    username: application
+    password: application
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: create
     show-sql: true
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.MySQLDialect
   data:
     redis:
       host: localhost

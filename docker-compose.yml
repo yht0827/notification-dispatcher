@@ -5,8 +5,8 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: notification
-      MYSQL_USER: app
-      MYSQL_PASSWORD: app1234
+      MYSQL_USER: application
+      MYSQL_PASSWORD: application
     ports:
       - "3306:3306"
     volumes:
