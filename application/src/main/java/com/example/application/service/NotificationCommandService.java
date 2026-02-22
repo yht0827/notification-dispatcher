@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.application.port.in.NotificationCommandUseCase;
+import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.NotificationGroupRepository;
 import com.example.application.port.out.OutboxEventRepository;
 import com.example.domain.notification.Notification;
@@ -25,7 +26,7 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 
 	private final NotificationGroupRepository groupRepository;
 	private final OutboxEventRepository outboxEventRepository;
-	private final NotificationDispatchService dispatchService;
+	private final NotificationEventPublisher eventPublisher;
 
 	@Override
 	@Transactional
@@ -37,10 +38,10 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 		}
 		NotificationGroup savedGroup = groupRepository.save(group);
 
-		// 2. Outbox 저장 + 비동기 전송
+		// 2. Outbox 저장 + Redis Stream 발행
 		for (Notification notification : savedGroup.getNotifications()) {
 			saveOutboxEvent(notification);
-			dispatchNotification(notification);
+			publishEvent(notification);
 		}
 
 		return savedGroup;
@@ -52,11 +53,11 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 		outboxEventRepository.save(event);
 	}
 
-	private void dispatchNotification(Notification notification) {
+	private void publishEvent(Notification notification) {
 		try {
-			dispatchService.dispatch(notification);
+			eventPublisher.publish(notification.getId());
 		} catch (Exception e) {
-			log.error("알림 발송 중 예외 발생: id={}, error={}", notification.getId(), e.getMessage());
+			log.error("Redis Stream 발행 실패: id={}, error={}", notification.getId(), e.getMessage());
 		}
 	}
 

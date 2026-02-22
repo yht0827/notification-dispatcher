@@ -1,7 +1,6 @@
 package com.example.application.service;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,7 +9,6 @@ import com.example.application.port.out.NotificationRepository;
 import com.example.application.port.out.NotificationSender;
 import com.example.application.port.out.NotificationSender.SendResult;
 import com.example.domain.notification.Notification;
-import com.example.domain.notification.NotificationStatus;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +27,6 @@ public class NotificationDispatchService {
 	@Transactional
 	public void dispatch(Notification notification) {
 		notification.startSending();
-
 		SendResult result = notificationSender.send(notification);
 
 		if (result.isSuccess()) {
