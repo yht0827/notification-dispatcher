@@ -76,14 +76,10 @@ public class NotificationGroup extends BaseEntity {
 		this.failedCount = 0;
 	}
 
-	public static NotificationGroup createSingle(String clientId, String sender, String title,
-		String content, ChannelType channelType) {
-		return new NotificationGroup(clientId, sender, title, content, GroupType.SINGLE, channelType);
-	}
-
-	public static NotificationGroup createBulk(String clientId, String sender, String title,
-		String content, ChannelType channelType) {
-		return new NotificationGroup(clientId, sender, title, content, GroupType.BULK, channelType);
+	public static NotificationGroup create(String clientId, String sender, String title,
+		String content, ChannelType channelType, int receiverCount) {
+		GroupType groupType = receiverCount == 1 ? GroupType.SINGLE : GroupType.BULK;
+		return new NotificationGroup(clientId, sender, title, content, groupType, channelType);
 	}
 
 	public Notification addNotification(String receiver, String idempotencyKey) {

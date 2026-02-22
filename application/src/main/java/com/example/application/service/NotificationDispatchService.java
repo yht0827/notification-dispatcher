@@ -34,53 +34,12 @@ public class NotificationDispatchService {
 
 		if (result.isSuccess()) {
 			notification.markAsSent();
-			log.info("알림 발송 성공: id={}, receiver={}",
-				notification.getId(), notification.getReceiver());
+			log.info("알림 발송 성공: id={}, receiver={}", notification.getId(), notification.getReceiver());
 		} else {
 			handleFailure(notification, result.failReason());
 		}
 
 		notificationRepository.save(notification);
-	}
-
-	@Transactional
-	public void dispatchPendingNotifications() {
-		List<Notification> pendingNotifications =
-			notificationRepository.findByStatus(NotificationStatus.PENDING);
-
-		log.info("대기 중인 알림 발송 시작: count={}", pendingNotifications.size());
-
-		for (Notification notification : pendingNotifications) {
-			try {
-				dispatch(notification);
-			} catch (Exception e) {
-				log.error("알림 발송 중 예외 발생: id={}, error={}",
-					notification.getId(), e.getMessage());
-			}
-		}
-	}
-
-	@Transactional
-	public void retryFailedNotifications() {
-		List<Notification> retryNotifications =
-			notificationRepository.findByStatusAndNextRetryAtBefore(
-				NotificationStatus.RETRY_WAIT, LocalDateTime.now());
-
-		log.info("재시도 대상 알림 발송 시작: count={}", retryNotifications.size());
-
-		for (Notification notification : retryNotifications) {
-			if (notification.canRetry(MAX_RETRY_ATTEMPTS)) {
-				try {
-					dispatch(notification);
-				} catch (Exception e) {
-					log.error("알림 재시도 중 예외 발생: id={}, error={}",
-						notification.getId(), e.getMessage());
-				}
-			} else {
-				notification.markAsFailed("최대 재시도 횟수 초과");
-				notificationRepository.save(notification);
-			}
-		}
 	}
 
 	private void handleFailure(Notification notification, String reason) {

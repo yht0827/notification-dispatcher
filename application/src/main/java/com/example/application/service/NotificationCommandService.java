@@ -30,15 +30,14 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 	@Override
 	@Transactional
 	public NotificationGroup send(SendCommand command) {
+		// 1. 그룹 및 알림 생성
 		NotificationGroup group = createGroup(command);
-
 		for (String receiver : command.receivers()) {
-			String idempotencyKey = UUID.randomUUID().toString();
-			group.addNotification(receiver, idempotencyKey);
+			group.addNotification(receiver, UUID.randomUUID().toString());
 		}
-
 		NotificationGroup savedGroup = groupRepository.save(group);
 
+		// 2. Outbox 저장 + 비동기 전송
 		for (Notification notification : savedGroup.getNotifications()) {
 			saveOutboxEvent(notification);
 			dispatchNotification(notification);
@@ -62,21 +61,13 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 	}
 
 	private NotificationGroup createGroup(SendCommand command) {
-		if (command.receivers().size() == 1) {
-			return NotificationGroup.createSingle(
-				command.clientId(),
-				command.sender(),
-				command.title(),
-				command.content(),
-				command.channelType()
-			);
-		}
-		return NotificationGroup.createBulk(
+		return NotificationGroup.create(
 			command.clientId(),
 			command.sender(),
 			command.title(),
 			command.content(),
-			command.channelType()
+			command.channelType(),
+			command.receivers().size()
 		);
 	}
 }
