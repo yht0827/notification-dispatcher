@@ -86,8 +86,8 @@ public class NotificationGroup extends BaseEntity {
 		return new NotificationGroup(clientId, sender, title, content, GroupType.BULK, channelType);
 	}
 
-	public Notification addNotification(String receiver) {
-		Notification notification = Notification.create(this, receiver);
+	public Notification addNotification(String receiver, String idempotencyKey) {
+		Notification notification = Notification.create(this, receiver, idempotencyKey);
 		this.notifications.add(notification);
 		this.totalCount++;
 		return notification;

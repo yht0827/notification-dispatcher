@@ -21,31 +21,36 @@ CREATE TABLE notification_group
 
 CREATE TABLE notification
 (
-    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
-    group_id    BIGINT       NULL,
-    receiver    VARCHAR(255) NOT NULL,
-    status      VARCHAR(50)  NOT NULL,
-    sent_at     DATETIME(6)  NULL,
-    fail_reason VARCHAR(500) NULL,
-    created_at  DATETIME(6)  NOT NULL,
-    updated_at  DATETIME(6)  NOT NULL,
-    deleted_at  DATETIME(6)  NULL
+    id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    idempotency_key VARCHAR(255) NULL,
+    group_id        BIGINT       NULL,
+    receiver        VARCHAR(255) NOT NULL,
+    status          VARCHAR(50)  NOT NULL,
+    sent_at         DATETIME(6)  NULL,
+    attempt_count   INT          NOT NULL DEFAULT 0,
+    next_retry_at   DATETIME(6)  NULL,
+    fail_reason     VARCHAR(500) NULL,
+    created_at      DATETIME(6)  NOT NULL,
+    updated_at      DATETIME(6)  NOT NULL,
+    deleted_at      DATETIME(6)  NULL
 );
 
--- 인덱스
+-- =====================
+-- Indexes
+-- =====================
 
 -- notification_group
 CREATE INDEX idx_notification_group_client_id ON notification_group (client_id);
 CREATE INDEX idx_notification_group_group_type ON notification_group (group_type);
 CREATE INDEX idx_notification_group_deleted_at ON notification_group (deleted_at);
-
 CREATE INDEX idx_notification_group_client_created ON notification_group (client_id, created_at);
 
 -- notification
+CREATE UNIQUE INDEX idx_notification_idempotency_key ON notification (idempotency_key);
 CREATE INDEX idx_notification_group_id ON notification (group_id);
 CREATE INDEX idx_notification_receiver ON notification (receiver);
 CREATE INDEX idx_notification_deleted_at ON notification (deleted_at);
-
 CREATE INDEX idx_notification_receiver_status ON notification (receiver, status);
 CREATE INDEX idx_notification_status_created ON notification (status, created_at);
 CREATE INDEX idx_notification_group_status ON notification (group_id, status);
+CREATE INDEX idx_notification_retry ON notification (status, next_retry_at);

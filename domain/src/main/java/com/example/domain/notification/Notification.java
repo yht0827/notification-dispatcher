@@ -6,6 +6,7 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
 import com.example.domain.common.BaseEntity;
+import com.example.domain.exception.InvalidStatusTransitionException;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -34,6 +35,8 @@ public class Notification extends BaseEntity {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
+	private String idempotencyKey;
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "group_id")
 	private NotificationGroup group;
@@ -47,48 +50,46 @@ public class Notification extends BaseEntity {
 
 	private LocalDateTime sentAt;
 
+	private int attemptCount;
+
+	private LocalDateTime nextRetryAt;
+
 	private String failReason;
 
-	private Notification(NotificationGroup group, String receiver) {
+	private Notification(NotificationGroup group, String receiver, String idempotencyKey) {
 		this.group = group;
 		this.receiver = receiver;
+		this.idempotencyKey = idempotencyKey;
 		this.status = NotificationStatus.PENDING;
+		this.attemptCount = 0;
 	}
 
-	public static Notification create(NotificationGroup group, String receiver) {
-		return new Notification(group, receiver);
+	public static Notification create(NotificationGroup group, String receiver, String idempotencyKey) {
+		return new Notification(group, receiver, idempotencyKey);
 	}
 
-	public String getSender() {
-		return group != null ? group.getSender() : null;
-	}
+	// === 상태 전이 메서드 ===
 
-	public String getClientId() {
-		return group != null ? group.getClientId() : null;
-	}
-
-	public String getTitle() {
-		return group != null ? group.getTitle() : null;
-	}
-
-	public String getContent() {
-		return group != null ? group.getContent() : null;
-	}
-
-	public ChannelType getChannelType() {
-		return group != null ? group.getChannelType() : null;
+	public void startSending() {
+		transitionTo(NotificationStatus.SENDING);
+		this.attemptCount++;
 	}
 
 	public void markAsSent() {
-		this.status = NotificationStatus.SENT;
+		transitionTo(NotificationStatus.SENT);
 		this.sentAt = LocalDateTime.now();
 		if (group != null) {
 			group.incrementSentCount();
 		}
 	}
 
+	public void markAsRetryWait(LocalDateTime nextRetryAt) {
+		transitionTo(NotificationStatus.RETRY_WAIT);
+		this.nextRetryAt = nextRetryAt;
+	}
+
 	public void markAsFailed(String reason) {
-		this.status = NotificationStatus.FAILED;
+		transitionTo(NotificationStatus.FAILED);
 		this.failReason = reason;
 		if (group != null) {
 			group.incrementFailedCount();
@@ -96,6 +97,31 @@ public class Notification extends BaseEntity {
 	}
 
 	public void cancel() {
-		this.status = NotificationStatus.CANCELED;
+		transitionTo(NotificationStatus.CANCELED);
+	}
+
+	// === 상태 조회 메서드 ===
+
+	public boolean canRetry(int maxAttempts) {
+		return this.attemptCount < maxAttempts && this.status.isRetryable();
+	}
+
+	public boolean isRetryDue() {
+		return this.status == NotificationStatus.RETRY_WAIT
+			&& this.nextRetryAt != null
+			&& LocalDateTime.now().isAfter(this.nextRetryAt);
+	}
+
+	public boolean isTerminal() {
+		return this.status.isTerminal();
+	}
+
+	// === Private ===
+
+	private void transitionTo(NotificationStatus targetStatus) {
+		if (!this.status.canTransitionTo(targetStatus)) {
+			throw new InvalidStatusTransitionException(this.status, targetStatus);
+		}
+		this.status = targetStatus;
 	}
 }
