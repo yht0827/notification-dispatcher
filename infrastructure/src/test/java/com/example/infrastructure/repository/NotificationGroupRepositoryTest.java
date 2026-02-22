@@ -78,8 +78,8 @@ class NotificationGroupRepositoryTest {
     void saveGroupWithNotifications() {
         // given
         NotificationGroup group = createBulkGroup("test-service");
-        group.addNotification("user1@example.com");
-        group.addNotification("user2@example.com");
+        group.addNotification("user1@example.com", "idem-key-1");
+        group.addNotification("user2@example.com", "idem-key-2");
 
         // when
         NotificationGroup saved = groupRepository.save(group);

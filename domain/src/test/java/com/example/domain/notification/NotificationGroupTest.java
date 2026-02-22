@@ -28,9 +28,9 @@ class NotificationGroupTest {
         NotificationGroup group = createBulkGroup();
 
         // when
-        group.addNotification("user1@example.com");
-        group.addNotification("user2@example.com");
-        group.addNotification("user3@example.com");
+        group.addNotification("user1@example.com", "idem-key-1");
+        group.addNotification("user2@example.com", "idem-key-2");
+        group.addNotification("user3@example.com", "idem-key-3");
 
         // then
         assertThat(group.getTotalCount()).isEqualTo(3);
@@ -42,9 +42,10 @@ class NotificationGroupTest {
     void markAsSent_incrementsSentCount() {
         // given
         NotificationGroup group = createBulkGroup();
-        Notification notification = group.addNotification("user@example.com");
+        Notification notification = group.addNotification("user@example.com", "idem-key-1");
 
         // when
+        notification.startSending();
         notification.markAsSent();
 
         // then
@@ -56,9 +57,10 @@ class NotificationGroupTest {
     void markAsFailed_incrementsFailedCount() {
         // given
         NotificationGroup group = createBulkGroup();
-        Notification notification = group.addNotification("user@example.com");
+        Notification notification = group.addNotification("user@example.com", "idem-key-1");
 
         // when
+        notification.startSending();
         notification.markAsFailed("전송 실패");
 
         // then
@@ -70,11 +72,13 @@ class NotificationGroupTest {
     void getPendingCount() {
         // given
         NotificationGroup group = createBulkGroup();
-        Notification n1 = group.addNotification("user1@example.com");
-        Notification n2 = group.addNotification("user2@example.com");
-        group.addNotification("user3@example.com");
+        Notification n1 = group.addNotification("user1@example.com", "idem-key-1");
+        Notification n2 = group.addNotification("user2@example.com", "idem-key-2");
+        group.addNotification("user3@example.com", "idem-key-3");
 
+        n1.startSending();
         n1.markAsSent();
+        n2.startSending();
         n2.markAsFailed("실패");
 
         // then
@@ -86,11 +90,13 @@ class NotificationGroupTest {
     void isCompleted_true() {
         // given
         NotificationGroup group = createBulkGroup();
-        Notification n1 = group.addNotification("user1@example.com");
-        Notification n2 = group.addNotification("user2@example.com");
+        Notification n1 = group.addNotification("user1@example.com", "idem-key-1");
+        Notification n2 = group.addNotification("user2@example.com", "idem-key-2");
 
         // when
+        n1.startSending();
         n1.markAsSent();
+        n2.startSending();
         n2.markAsFailed("실패");
 
         // then

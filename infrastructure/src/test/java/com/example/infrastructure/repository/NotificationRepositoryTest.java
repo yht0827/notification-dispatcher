@@ -34,7 +34,7 @@ class NotificationRepositoryTest {
     void saveAndFindById() {
         // given
         NotificationGroup group = createAndSaveGroup();
-        Notification notification = group.addNotification("user@example.com");
+        Notification notification = group.addNotification("user@example.com", "idem-key-1");
         groupRepository.save(group);
 
         // when
@@ -50,9 +50,9 @@ class NotificationRepositoryTest {
     void findByReceiver() {
         // given
         NotificationGroup group = createAndSaveGroup();
-        group.addNotification("user@example.com");
-        group.addNotification("user@example.com");
-        group.addNotification("other@example.com");
+        group.addNotification("user@example.com", "idem-key-1");
+        group.addNotification("user@example.com", "idem-key-2");
+        group.addNotification("other@example.com", "idem-key-3");
         groupRepository.save(group);
 
         // when
@@ -67,10 +67,11 @@ class NotificationRepositoryTest {
     void findByReceiverAndStatus() {
         // given
         NotificationGroup group = createAndSaveGroup();
-        Notification n1 = group.addNotification("user@example.com");
-        group.addNotification("user@example.com");
+        Notification n1 = group.addNotification("user@example.com", "idem-key-1");
+        group.addNotification("user@example.com", "idem-key-2");
         groupRepository.save(group);
 
+        n1.startSending();
         n1.markAsSent();
         groupRepository.save(group);
 
@@ -88,12 +89,14 @@ class NotificationRepositoryTest {
     void findByStatus() {
         // given
         NotificationGroup group = createAndSaveGroup();
-        Notification n1 = group.addNotification("user1@example.com");
-        Notification n2 = group.addNotification("user2@example.com");
-        group.addNotification("user3@example.com");
+        Notification n1 = group.addNotification("user1@example.com", "idem-key-1");
+        Notification n2 = group.addNotification("user2@example.com", "idem-key-2");
+        group.addNotification("user3@example.com", "idem-key-3");
         groupRepository.save(group);
 
+        n1.startSending();
         n1.markAsSent();
+        n2.startSending();
         n2.markAsFailed("실패");
         groupRepository.save(group);
 
