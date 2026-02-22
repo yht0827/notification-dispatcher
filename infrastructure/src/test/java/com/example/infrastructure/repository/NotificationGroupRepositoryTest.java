@@ -31,8 +31,8 @@ class NotificationGroupRepositoryTest {
     @DisplayName("그룹을 저장하고 조회한다")
     void saveAndFindById() {
         // given
-        NotificationGroup group = NotificationGroup.createSingle(
-                "test-service", "MyShop", "테스트 제목", "테스트 내용", ChannelType.EMAIL);
+        NotificationGroup group = NotificationGroup.create(
+                "test-service", "MyShop", "테스트 제목", "테스트 내용", ChannelType.EMAIL, 1);
 
         // when
         NotificationGroup saved = groupRepository.save(group);
@@ -90,10 +90,10 @@ class NotificationGroupRepositoryTest {
     }
 
     private NotificationGroup createSingleGroup(String clientId) {
-        return NotificationGroup.createSingle(clientId, "MyShop", "테스트", "테스트 내용", ChannelType.EMAIL);
+        return NotificationGroup.create(clientId, "MyShop", "테스트", "테스트 내용", ChannelType.EMAIL, 1);
     }
 
     private NotificationGroup createBulkGroup(String clientId) {
-        return NotificationGroup.createBulk(clientId, "MyShop", "테스트", "테스트 내용", ChannelType.EMAIL);
+        return NotificationGroup.create(clientId, "MyShop", "테스트", "테스트 내용", ChannelType.EMAIL, 3);
     }
 }

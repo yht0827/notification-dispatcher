@@ -11,8 +11,8 @@ class NotificationGroupTest {
     @DisplayName("그룹 생성 시 카운트는 모두 0이다")
     void createGroup_initialCountsAreZero() {
         // when
-        NotificationGroup group = NotificationGroup.createBulk(
-                "test-service", "MyShop", "테스트 제목", "테스트 내용", ChannelType.EMAIL);
+        NotificationGroup group = NotificationGroup.create(
+                "test-service", "MyShop", "테스트 제목", "테스트 내용", ChannelType.EMAIL, 3);
 
         // then
         assertThat(group.getTotalCount()).isZero();
@@ -104,7 +104,7 @@ class NotificationGroupTest {
     }
 
     private NotificationGroup createBulkGroup() {
-        return NotificationGroup.createBulk(
-                "test-service", "MyShop", "대량 발송 테스트", "테스트 내용입니다.", ChannelType.EMAIL);
+        return NotificationGroup.create(
+                "test-service", "MyShop", "대량 발송 테스트", "테스트 내용입니다.", ChannelType.EMAIL, 3);
     }
 }

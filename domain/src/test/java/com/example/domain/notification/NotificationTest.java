@@ -183,7 +183,7 @@ class NotificationTest {
     }
 
     private NotificationGroup createGroup() {
-        return NotificationGroup.createSingle("test-service", "MyShop", "테스트 제목", "테스트 내용", ChannelType.EMAIL);
+        return NotificationGroup.create("test-service", "MyShop", "테스트 제목", "테스트 내용", ChannelType.EMAIL, 1);
     }
 
     private Notification createNotification() {
