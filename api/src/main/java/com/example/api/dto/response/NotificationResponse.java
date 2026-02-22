@@ -1,9 +1,11 @@
 package com.example.api.dto.response;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
+import com.example.domain.notification.NotificationGroup;
 import com.example.domain.notification.NotificationStatus;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -41,13 +43,15 @@ public record NotificationResponse(
 	LocalDateTime createdAt
 ) {
 	public static NotificationResponse from(Notification notification) {
+		var group = Optional.ofNullable(notification.getGroup());
+
 		return new NotificationResponse(
 			notification.getId(),
-			notification.getGroup() != null ? notification.getGroup().getId() : null,
+			group.map(NotificationGroup::getId).orElse(null),
 			notification.getReceiver(),
-			notification.getSender(),
-			notification.getTitle(),
-			notification.getChannelType(),
+			group.map(NotificationGroup::getSender).orElse(null),
+			group.map(NotificationGroup::getTitle).orElse(null),
+			group.map(NotificationGroup::getChannelType).orElse(null),
 			notification.getStatus(),
 			notification.getSentAt(),
 			notification.getFailReason(),

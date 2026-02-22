@@ -1,30 +1,21 @@
 package com.example.domain.notification;
 
-import java.util.Set;
-
 public enum NotificationStatus {
 
-	PENDING(Set.of()),
-	SENDING(Set.of()),
-	SENT(Set.of()),
-	RETRY_WAIT(Set.of()),
-	FAILED(Set.of()),
-	CANCELED(Set.of());
-
-	private Set<NotificationStatus> allowedTransitions;
-
-	NotificationStatus(Set<NotificationStatus> allowedTransitions) {
-		this.allowedTransitions = allowedTransitions;
-	}
-
-	static {
-		PENDING.allowedTransitions = Set.of(SENDING, CANCELED);
-		SENDING.allowedTransitions = Set.of(SENT, RETRY_WAIT, FAILED);
-		RETRY_WAIT.allowedTransitions = Set.of(SENDING, FAILED);
-	}
+	PENDING,
+	SENDING,
+	SENT,
+	RETRY_WAIT,
+	FAILED,
+	CANCELED;
 
 	public boolean canTransitionTo(NotificationStatus target) {
-		return allowedTransitions.contains(target);
+		return switch (this) {
+			case PENDING -> target == SENDING || target == CANCELED;
+			case SENDING -> target == SENT || target == RETRY_WAIT || target == FAILED;
+			case RETRY_WAIT -> target == SENDING || target == FAILED;
+			case SENT, FAILED, CANCELED -> false;
+		};
 	}
 
 	public boolean isTerminal() {
