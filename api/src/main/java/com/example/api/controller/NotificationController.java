@@ -18,8 +18,9 @@ import com.example.api.dto.response.NotificationResponse;
 import com.example.api.dto.response.NotificationSendResponse;
 import com.example.api.exception.ErrorCode;
 import com.example.api.exception.NotificationException;
-import com.example.application.port.in.NotificationUseCase;
-import com.example.application.port.in.NotificationUseCase.SendCommand;
+import com.example.application.port.in.NotificationCommandUseCase;
+import com.example.application.port.in.NotificationCommandUseCase.SendCommand;
+import com.example.application.port.in.NotificationQueryUseCase;
 import com.example.common.response.ApiResponse;
 import com.example.domain.notification.NotificationGroup;
 
@@ -34,7 +35,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class NotificationController {
 
-	private final NotificationUseCase notificationUseCase;
+	private final NotificationCommandUseCase commandUseCase;
+	private final NotificationQueryUseCase queryUseCase;
 
 	@Operation(summary = "알림 발송", description = "단일 또는 대량 알림을 발송합니다.")
 	@PostMapping
@@ -49,14 +51,14 @@ public class NotificationController {
 			request.receivers()
 		);
 
-		NotificationGroup group = notificationUseCase.send(command);
+		NotificationGroup group = commandUseCase.send(command);
 		return ApiResponse.ok(NotificationSendResponse.of(group.getId(), group.getTotalCount()));
 	}
 
 	@Operation(summary = "알림 그룹 조회")
 	@GetMapping("/groups/{groupId}")
 	public ApiResponse<NotificationGroupResponse> getGroup(@PathVariable Long groupId) {
-		return notificationUseCase.getGroup(groupId)
+		return queryUseCase.getGroup(groupId)
 			.map(NotificationGroupResponse::from)
 			.map(ApiResponse::ok)
 			.orElseThrow(() -> new NotificationException(ErrorCode.NOTIFICATION_GROUP_NOT_FOUND));
@@ -65,7 +67,7 @@ public class NotificationController {
 	@Operation(summary = "클라이언트별 알림 그룹 목록 조회")
 	@GetMapping("/groups")
 	public ApiResponse<List<NotificationGroupResponse>> getGroupsByClientId(@RequestParam("clientId") String clientId) {
-		List<NotificationGroupResponse> responses = notificationUseCase.getGroupsByClientId(clientId)
+		List<NotificationGroupResponse> responses = queryUseCase.getGroupsByClientId(clientId)
 			.stream()
 			.map(NotificationGroupResponse::from)
 			.toList();
@@ -75,7 +77,7 @@ public class NotificationController {
 	@Operation(summary = "개별 알림 조회")
 	@GetMapping("/{notificationId}")
 	public ApiResponse<NotificationResponse> getNotification(@PathVariable Long notificationId) {
-		return notificationUseCase.getNotification(notificationId)
+		return queryUseCase.getNotification(notificationId)
 			.map(NotificationResponse::from)
 			.map(ApiResponse::ok)
 			.orElseThrow(() -> new NotificationException(ErrorCode.NOTIFICATION_NOT_FOUND));
@@ -85,7 +87,7 @@ public class NotificationController {
 	@GetMapping
 	public ApiResponse<List<NotificationResponse>> getNotificationsByReceiver(
 		@RequestParam("receiver") String receiver) {
-		List<NotificationResponse> responses = notificationUseCase.getNotificationsByReceiver(receiver)
+		List<NotificationResponse> responses = queryUseCase.getNotificationsByReceiver(receiver)
 			.stream()
 			.map(NotificationResponse::from)
 			.toList();
