@@ -35,6 +35,18 @@ CREATE TABLE notification
     deleted_at      DATETIME(6)  NULL
 );
 
+CREATE TABLE outbox_event
+(
+    id             BIGINT AUTO_INCREMENT PRIMARY KEY,
+    aggregate_type VARCHAR(100) NOT NULL,
+    aggregate_id   BIGINT       NOT NULL,
+    event_type     VARCHAR(100) NOT NULL,
+    payload        TEXT         NOT NULL,
+    status         VARCHAR(50)  NOT NULL,
+    created_at     DATETIME(6)  NOT NULL,
+    processed_at   DATETIME(6)  NULL
+);
+
 -- =====================
 -- Indexes
 -- =====================
@@ -54,3 +66,7 @@ CREATE INDEX idx_notification_receiver_status ON notification (receiver, status)
 CREATE INDEX idx_notification_status_created ON notification (status, created_at);
 CREATE INDEX idx_notification_group_status ON notification (group_id, status);
 CREATE INDEX idx_notification_retry ON notification (status, next_retry_at);
+
+-- outbox_event
+CREATE INDEX idx_outbox_status_created ON outbox_event (status, created_at);
+CREATE INDEX idx_outbox_aggregate ON outbox_event (aggregate_type, aggregate_id);
