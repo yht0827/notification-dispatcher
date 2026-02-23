@@ -12,7 +12,7 @@ public interface NotificationQueryUseCase {
 
 	Optional<NotificationGroup> getGroupDetail(Long groupId);
 
-	List<NotificationGroup> getRecentGroups();
+	NotificationGroupSlice getRecentGroups(Long cursorId, int size);
 
 	List<NotificationGroup> getGroupsByClientId(String clientId);
 

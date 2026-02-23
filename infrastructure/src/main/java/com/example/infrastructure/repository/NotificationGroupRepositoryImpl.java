@@ -42,9 +42,9 @@ public class NotificationGroupRepositoryImpl implements NotificationGroupReposit
     }
 
     @Override
-    public List<NotificationGroup> findRecent(int limit) {
+    public List<NotificationGroup> findRecentByCursor(Long cursorId, int limit) {
         int normalizedLimit = Math.max(limit, 1);
-        return jpaRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, normalizedLimit));
+        return jpaRepository.findRecentSlice(cursorId, PageRequest.of(0, normalizedLimit));
     }
 
     @Override

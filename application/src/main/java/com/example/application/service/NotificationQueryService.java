@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.application.port.in.NotificationGroupSlice;
 import com.example.application.port.in.NotificationQueryUseCase;
 import com.example.application.port.out.NotificationGroupRepository;
 import com.example.application.port.out.NotificationRepository;
@@ -18,8 +19,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class NotificationQueryService implements NotificationQueryUseCase {
-
-	private static final int DEFAULT_RECENT_GROUP_LIMIT = 20;
 
 	private final NotificationGroupRepository groupRepository;
 	private final NotificationRepository notificationRepository;
@@ -35,8 +34,19 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 	}
 
 	@Override
-	public List<NotificationGroup> getRecentGroups() {
-		return groupRepository.findRecent(DEFAULT_RECENT_GROUP_LIMIT);
+	public NotificationGroupSlice getRecentGroups(Long cursorId, int size) {
+		int normalizedSize = Math.max(size, 1);
+		List<NotificationGroup> fetched = groupRepository.findRecentByCursor(cursorId, normalizedSize + 1);
+
+		boolean hasNext = fetched.size() > normalizedSize;
+		List<NotificationGroup> items = hasNext
+			? List.copyOf(fetched.subList(0, normalizedSize))
+			: List.copyOf(fetched);
+		Long nextCursorId = hasNext && !items.isEmpty()
+			? items.get(items.size() - 1).getId()
+			: null;
+
+		return new NotificationGroupSlice(items, hasNext, nextCursorId);
 	}
 
 	@Override

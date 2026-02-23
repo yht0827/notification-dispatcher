@@ -18,7 +18,7 @@ public interface NotificationGroupRepository {
 
     List<NotificationGroup> findByClientId(String clientId);
 
-    List<NotificationGroup> findRecent(int limit);
+    List<NotificationGroup> findRecentByCursor(Long cursorId, int limit);
 
     List<NotificationGroup> findByGroupType(GroupType groupType);
 
