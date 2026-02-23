@@ -48,10 +48,11 @@ public class NotificationController {
 			request.title(),
 			request.content(),
 			request.channelType(),
-			request.receivers()
+			request.receivers(),
+			request.idempotencyKey()
 		);
 
-		NotificationGroup group = commandUseCase.send(command);
+		NotificationGroup group = commandUseCase.request(command);
 		return ApiResponse.ok(NotificationSendResponse.of(group.getId(), group.getTotalCount()));
 	}
 

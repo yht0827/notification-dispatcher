@@ -26,6 +26,11 @@ public class NotificationGroupRepositoryImpl implements NotificationGroupReposit
     }
 
     @Override
+    public Optional<NotificationGroup> findByClientIdAndIdempotencyKey(String clientId, String idempotencyKey) {
+        return jpaRepository.findByClientIdAndIdempotencyKey(clientId, idempotencyKey);
+    }
+
+    @Override
     public List<NotificationGroup> findByClientId(String clientId) {
         return jpaRepository.findByClientId(clientId);
     }

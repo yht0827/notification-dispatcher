@@ -12,6 +12,8 @@ public interface NotificationGroupRepository {
 
     Optional<NotificationGroup> findById(Long id);
 
+    Optional<NotificationGroup> findByClientIdAndIdempotencyKey(String clientId, String idempotencyKey);
+
     List<NotificationGroup> findByClientId(String clientId);
 
     List<NotificationGroup> findByGroupType(GroupType groupType);

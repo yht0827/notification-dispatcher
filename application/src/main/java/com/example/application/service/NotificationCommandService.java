@@ -1,6 +1,6 @@
 package com.example.application.service;
 
-import java.util.UUID;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -8,10 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.application.port.in.NotificationCommandUseCase;
 import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.NotificationGroupRepository;
-import com.example.application.port.out.OutboxEventRepository;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
-import com.example.domain.outbox.OutboxEvent;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,36 +19,30 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class NotificationCommandService implements NotificationCommandUseCase {
 
-	private static final String AGGREGATE_TYPE = "Notification";
-	private static final String EVENT_TYPE = "NotificationCreated";
-
 	private final NotificationGroupRepository groupRepository;
-	private final OutboxEventRepository outboxEventRepository;
 	private final NotificationEventPublisher eventPublisher;
 
 	@Override
 	@Transactional
-	public NotificationGroup send(SendCommand command) {
-		// 1. 그룹 및 알림 생성
-		NotificationGroup group = createGroup(command);
-		for (String receiver : command.receivers()) {
-			group.addNotification(receiver, UUID.randomUUID().toString());
+	public NotificationGroup request(SendCommand command) {
+		String idempotencyKey = normalizeIdempotencyKey(command.idempotencyKey());
+		if (idempotencyKey != null) {
+			Optional<NotificationGroup> existing = groupRepository.findByClientIdAndIdempotencyKey(command.clientId(),
+				idempotencyKey);
+			if (existing.isPresent()) {
+				log.info("중복 요청 감지: groupId={}", existing.get().getId());
+				return existing.get();
+			}
 		}
-		NotificationGroup savedGroup = groupRepository.save(group);
-
-		// 2. Outbox 저장 + Redis Stream 발행
-		for (Notification notification : savedGroup.getNotifications()) {
-			saveOutboxEvent(notification);
-			publishEvent(notification);
-		}
-
-		return savedGroup;
+		return createAndPublish(command, idempotencyKey);
 	}
 
-	private void saveOutboxEvent(Notification notification) {
-		String payload = String.format("{\"notificationId\":%d}", notification.getId());
-		OutboxEvent event = OutboxEvent.create(AGGREGATE_TYPE, notification.getId(), EVENT_TYPE, payload);
-		outboxEventRepository.save(event);
+	private NotificationGroup createAndPublish(SendCommand command, String idempotencyKey) {
+		NotificationGroup group = createGroup(command, idempotencyKey);
+		command.receivers().forEach(group::addNotification);
+		NotificationGroup savedGroup = groupRepository.save(group);
+		savedGroup.getNotifications().forEach(this::publishEvent);
+		return savedGroup;
 	}
 
 	private void publishEvent(Notification notification) {
@@ -61,14 +53,19 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 		}
 	}
 
-	private NotificationGroup createGroup(SendCommand command) {
+	private NotificationGroup createGroup(SendCommand command, String idempotencyKey) {
 		return NotificationGroup.create(
 			command.clientId(),
+			idempotencyKey,
 			command.sender(),
 			command.title(),
 			command.content(),
 			command.channelType(),
 			command.receivers().size()
 		);
+	}
+
+	private String normalizeIdempotencyKey(String raw) {
+		return (raw == null || raw.isBlank()) ? null : raw.trim();
 	}
 }

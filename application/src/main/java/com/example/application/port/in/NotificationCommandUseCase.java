@@ -7,7 +7,7 @@ import com.example.domain.notification.NotificationGroup;
 
 public interface NotificationCommandUseCase {
 
-	NotificationGroup send(SendCommand command);
+	NotificationGroup request(SendCommand command);
 
 	record SendCommand(
 		String clientId,
@@ -15,7 +15,8 @@ public interface NotificationCommandUseCase {
 		String title,
 		String content,
 		ChannelType channelType,
-		List<String> receivers
+		List<String> receivers,
+		String idempotencyKey
 	) {
 	}
 }

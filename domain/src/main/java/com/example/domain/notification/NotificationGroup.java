@@ -37,6 +37,9 @@ public class NotificationGroup extends BaseEntity {
 	@Column(nullable = false)
 	private String clientId;
 
+	@Column(name = "idempotency_key")
+	private String idempotencyKey;
+
 	@Column(nullable = false)
 	private String sender;
 
@@ -63,9 +66,17 @@ public class NotificationGroup extends BaseEntity {
 	@OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<Notification> notifications = new ArrayList<>();
 
-	private NotificationGroup(String clientId, String sender, String title, String content,
-		GroupType groupType, ChannelType channelType) {
+	private NotificationGroup(
+		String clientId,
+		String idempotencyKey,
+		String sender,
+		String title,
+		String content,
+		GroupType groupType,
+		ChannelType channelType
+	) {
 		this.clientId = clientId;
+		this.idempotencyKey = idempotencyKey;
 		this.sender = sender;
 		this.title = title;
 		this.content = content;
@@ -78,12 +89,24 @@ public class NotificationGroup extends BaseEntity {
 
 	public static NotificationGroup create(String clientId, String sender, String title,
 		String content, ChannelType channelType, int receiverCount) {
-		GroupType groupType = receiverCount == 1 ? GroupType.SINGLE : GroupType.BULK;
-		return new NotificationGroup(clientId, sender, title, content, groupType, channelType);
+		return create(clientId, null, sender, title, content, channelType, receiverCount);
 	}
 
-	public Notification addNotification(String receiver, String idempotencyKey) {
-		Notification notification = Notification.create(this, receiver, idempotencyKey);
+	public static NotificationGroup create(
+		String clientId,
+		String idempotencyKey,
+		String sender,
+		String title,
+		String content,
+		ChannelType channelType,
+		int receiverCount
+	) {
+		GroupType groupType = receiverCount == 1 ? GroupType.SINGLE : GroupType.BULK;
+		return new NotificationGroup(clientId, idempotencyKey, sender, title, content, groupType, channelType);
+	}
+
+	public Notification addNotification(String receiver) {
+		Notification notification = Notification.create(this, receiver);
 		this.notifications.add(notification);
 		this.totalCount++;
 		return notification;

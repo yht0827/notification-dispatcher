@@ -33,6 +33,9 @@ public record NotificationSendRequest(
 
 	@Schema(description = "수신자 목록", example = "[\"user1@email.com\", \"user2@email.com\"]")
 	@NotEmpty(message = "receivers는 최소 1명 이상이어야 합니다")
-	List<String> receivers
+	List<String> receivers,
+
+	@Schema(description = "요청 멱등 키(중복 요청 방지)", example = "order-20260222-0001")
+	String idempotencyKey
 ) {
 }
