@@ -29,6 +29,19 @@ spring:
       host: localhost
       port: 6379
 
+notification:
+  stream:
+    key: notification-stream
+    consumer-group: notification-group
+    consumer-name: consumer-1
+    poll-interval: 1000
+    batch-size: 10
+    block-seconds: 2
+    pending-reclaim-interval: 5000
+    pending-reclaim-batch-size: 100
+    pending-reclaim-idle-millis: 60000
+    dead-letter-key: notification-stream-dlq
+
 ---
 # Test 환경 (Testcontainers)
 spring:
