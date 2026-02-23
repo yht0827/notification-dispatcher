@@ -1,15 +1,17 @@
 package com.example.application.service;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.application.port.in.NotificationCommandUseCase;
-import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.NotificationGroupRepository;
+import com.example.application.port.out.OutboxRepository;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
+import com.example.domain.outbox.Outbox;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,15 +22,15 @@ import lombok.extern.slf4j.Slf4j;
 public class NotificationCommandService implements NotificationCommandUseCase {
 
 	private final NotificationGroupRepository groupRepository;
-	private final NotificationEventPublisher eventPublisher;
+	private final OutboxRepository outboxRepository;
 
 	@Override
 	@Transactional
 	public NotificationGroup request(SendCommand command) {
 		String idempotencyKey = normalizeIdempotencyKey(command.idempotencyKey());
 		if (idempotencyKey != null) {
-			Optional<NotificationGroup> existing = groupRepository.findByClientIdAndIdempotencyKey(command.clientId(),
-				idempotencyKey);
+			Optional<NotificationGroup> existing = groupRepository.findByClientIdAndIdempotencyKey(
+				command.clientId(), idempotencyKey);
 			if (existing.isPresent()) {
 				log.info("중복 요청 감지: groupId={}", existing.get().getId());
 				return existing.get();
@@ -41,16 +43,17 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 		NotificationGroup group = createGroup(command, idempotencyKey);
 		command.receivers().forEach(group::addNotification);
 		NotificationGroup savedGroup = groupRepository.save(group);
-		savedGroup.getNotifications().forEach(this::publishEvent);
+		saveOutboxEvents(savedGroup);
 		return savedGroup;
 	}
 
-	private void publishEvent(Notification notification) {
-		try {
-			eventPublisher.publish(notification.getId());
-		} catch (Exception e) {
-			log.error("Redis Stream 발행 실패: id={}, error={}", notification.getId(), e.getMessage());
-		}
+	private void saveOutboxEvents(NotificationGroup savedGroup) {
+		List<Outbox> outboxes = savedGroup.getNotifications().stream()
+			.map(Notification::getId)
+			.map(Outbox::createNotificationEvent)
+			.toList();
+		outboxRepository.saveAll(outboxes);
+		log.debug("Outbox 저장 완료: count={}", outboxes.size());
 	}
 
 	private NotificationGroup createGroup(SendCommand command, String idempotencyKey) {
