@@ -5,12 +5,14 @@ import com.example.application.port.out.NotificationRepository;
 import com.example.domain.notification.*;
 import com.example.infrastructure.TestApplication;
 import com.example.infrastructure.config.TestcontainersConfig;
+import org.hibernate.Hibernate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -43,6 +45,7 @@ class NotificationRepositoryTest {
         // then
         assertThat(found.getReceiver()).isEqualTo("user@example.com");
         assertThat(found.getStatus()).isEqualTo(NotificationStatus.PENDING);
+        assertThat(Hibernate.isInitialized(found.getGroup())).isTrue();
     }
 
     @Test
@@ -60,6 +63,25 @@ class NotificationRepositoryTest {
 
         // then
         assertThat(notifications).hasSize(2);
+        assertThat(notifications)
+                .allSatisfy(notification -> assertThat(Hibernate.isInitialized(notification.getGroup())).isTrue());
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("findById 조회 결과는 트랜잭션 밖 DTO 매핑에서도 group 필드를 읽을 수 있다")
+    void findById_allowsGroupFieldAccessOutsideTransaction() {
+        // given
+        NotificationGroup group = createAndSaveGroup();
+        Notification notification = group.addNotification("outside-tx@example.com");
+        NotificationGroup saved = groupRepository.save(group);
+
+        // when
+        Notification found = notificationRepository.findById(notification.getId()).orElseThrow();
+
+        // then
+        assertThat(found.getGroup().getSender()).isEqualTo(saved.getSender());
+        assertThat(found.getGroup().getTitle()).isEqualTo(saved.getTitle());
     }
 
     @Test

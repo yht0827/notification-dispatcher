@@ -74,6 +74,12 @@ Content-Type: {{contentType}}
 ### 2) 알림 그룹 조회
 ### ==================================================
 
+### 알림 묶음 목록 조회 (대표 알림 + moreCount)
+GET {{host}}/api/v1/notifications
+
+### 그룹 상세 조회 (groupId 기준)
+GET {{host}}/api/v1/notifications/groups/{{groupId}}
+
 ### clientId로 그룹 목록 조회
 GET {{host}}/api/v1/notifications/groups?clientId=marketing-service
 
@@ -82,7 +88,6 @@ GET {{host}}/api/v1/notifications/groups?clientId=marketing-service
 ### ==================================================
 
 ### 알림 ID 조회
-# @name get_notification_by_id
 GET {{host}}/api/v1/notifications/{{notificationId}}
 
 ### 수신자로 알림 목록 조회
@@ -101,8 +106,11 @@ Content-Type: {{contentType}}
   "sender": "MyShop"
 }
 
-### receiver 값이 비어있는 경우
+### receiver 값이 비어있는 경우 (예상: 400 잘못된 요청)
 GET {{host}}/api/v1/notifications?receiver=
+
+### clientId 값이 비어있는 경우 (예상: 400 잘못된 요청)
+GET {{host}}/api/v1/notifications/groups?clientId=
 
 ### 존재하지 않는 그룹 조회 (404 리소스 없음)
 GET {{host}}/api/v1/notifications/groups/99999
