@@ -101,7 +101,7 @@ public class NotificationGroup extends BaseEntity {
 		ChannelType channelType,
 		int receiverCount
 	) {
-		GroupType groupType = receiverCount == 1 ? GroupType.SINGLE : GroupType.BULK;
+		GroupType groupType = resolveGroupType(receiverCount);
 		return new NotificationGroup(clientId, idempotencyKey, sender, title, content, groupType, channelType);
 	}
 
@@ -121,10 +121,18 @@ public class NotificationGroup extends BaseEntity {
 	}
 
 	public int getPendingCount() {
-		return totalCount - sentCount - failedCount;
+		return totalCount - processedCount();
 	}
 
 	public boolean isCompleted() {
-		return totalCount == (sentCount + failedCount);
+		return totalCount == processedCount();
+	}
+
+	private static GroupType resolveGroupType(int receiverCount) {
+		return receiverCount == 1 ? GroupType.SINGLE : GroupType.BULK;
+	}
+
+	private int processedCount() {
+		return sentCount + failedCount;
 	}
 }

@@ -28,9 +28,9 @@ class NotificationGroupTest {
         NotificationGroup group = createBulkGroup();
 
         // when
-        group.addNotification("user1@example.com", "idem-key-1");
-        group.addNotification("user2@example.com", "idem-key-2");
-        group.addNotification("user3@example.com", "idem-key-3");
+        group.addNotification("user1@example.com");
+        group.addNotification("user2@example.com");
+        group.addNotification("user3@example.com");
 
         // then
         assertThat(group.getTotalCount()).isEqualTo(3);
@@ -42,7 +42,7 @@ class NotificationGroupTest {
     void markAsSent_incrementsSentCount() {
         // given
         NotificationGroup group = createBulkGroup();
-        Notification notification = group.addNotification("user@example.com", "idem-key-1");
+        Notification notification = group.addNotification("user@example.com");
 
         // when
         notification.startSending();
@@ -57,7 +57,7 @@ class NotificationGroupTest {
     void markAsFailed_incrementsFailedCount() {
         // given
         NotificationGroup group = createBulkGroup();
-        Notification notification = group.addNotification("user@example.com", "idem-key-1");
+        Notification notification = group.addNotification("user@example.com");
 
         // when
         notification.startSending();
@@ -72,9 +72,9 @@ class NotificationGroupTest {
     void getPendingCount() {
         // given
         NotificationGroup group = createBulkGroup();
-        Notification n1 = group.addNotification("user1@example.com", "idem-key-1");
-        Notification n2 = group.addNotification("user2@example.com", "idem-key-2");
-        group.addNotification("user3@example.com", "idem-key-3");
+        Notification n1 = group.addNotification("user1@example.com");
+        Notification n2 = group.addNotification("user2@example.com");
+        group.addNotification("user3@example.com");
 
         n1.startSending();
         n1.markAsSent();
@@ -90,8 +90,8 @@ class NotificationGroupTest {
     void isCompleted_true() {
         // given
         NotificationGroup group = createBulkGroup();
-        Notification n1 = group.addNotification("user1@example.com", "idem-key-1");
-        Notification n2 = group.addNotification("user2@example.com", "idem-key-2");
+        Notification n1 = group.addNotification("user1@example.com");
+        Notification n2 = group.addNotification("user2@example.com");
 
         // when
         n1.startSending();

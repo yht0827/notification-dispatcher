@@ -65,8 +65,6 @@ public class Notification extends BaseEntity {
 		return new Notification(group, receiver);
 	}
 
-	// === 상태 전이 메서드 ===
-
 	public void startSending() {
 		transitionTo(NotificationStatus.SENDING);
 		this.attemptCount++;
@@ -75,9 +73,7 @@ public class Notification extends BaseEntity {
 	public void markAsSent() {
 		transitionTo(NotificationStatus.SENT);
 		this.sentAt = LocalDateTime.now();
-		if (group != null) {
-			group.incrementSentCount();
-		}
+		incrementSentCountIfGrouped();
 	}
 
 	public void markAsRetryWait(LocalDateTime nextRetryAt) {
@@ -88,37 +84,37 @@ public class Notification extends BaseEntity {
 	public void markAsFailed(String reason) {
 		transitionTo(NotificationStatus.FAILED);
 		this.failReason = reason;
-		if (group != null) {
-			group.incrementFailedCount();
-		}
+		incrementFailedCountIfGrouped();
 	}
 
 	public void cancel() {
 		transitionTo(NotificationStatus.CANCELED);
 	}
 
-	// === 상태 조회 메서드 ===
-
 	public boolean canRetry(int maxAttempts) {
 		return this.attemptCount < maxAttempts && this.status.isRetryable();
-	}
-
-	public boolean isRetryDue() {
-		return this.status == NotificationStatus.RETRY_WAIT
-			&& this.nextRetryAt != null
-			&& LocalDateTime.now().isAfter(this.nextRetryAt);
 	}
 
 	public boolean isTerminal() {
 		return this.status.isTerminal();
 	}
 
-	// === Private ===
-
 	private void transitionTo(NotificationStatus targetStatus) {
 		if (!this.status.canTransitionTo(targetStatus)) {
 			throw new InvalidStatusTransitionException(this.status, targetStatus);
 		}
 		this.status = targetStatus;
+	}
+
+	private void incrementSentCountIfGrouped() {
+		if (this.group != null) {
+			this.group.incrementSentCount();
+		}
+	}
+
+	private void incrementFailedCountIfGrouped() {
+		if (this.group != null) {
+			this.group.incrementFailedCount();
+		}
 	}
 }

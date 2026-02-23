@@ -19,12 +19,11 @@ class NotificationTest {
         NotificationGroup group = createGroup();
 
         // when
-        Notification notification = Notification.create(group, "user@example.com", "idem-key-123");
+        Notification notification = Notification.create(group, "user@example.com");
 
         // then
         assertThat(notification.getStatus()).isEqualTo(NotificationStatus.PENDING);
         assertThat(notification.getReceiver()).isEqualTo("user@example.com");
-        assertThat(notification.getIdempotencyKey()).isEqualTo("idem-key-123");
         assertThat(notification.getAttemptCount()).isZero();
         assertThat(notification.getSentAt()).isNull();
     }
@@ -187,6 +186,6 @@ class NotificationTest {
     }
 
     private Notification createNotification() {
-        return Notification.create(createGroup(), "user@example.com", "idem-key-123");
+        return Notification.create(createGroup(), "user@example.com");
     }
 }
