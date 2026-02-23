@@ -34,7 +34,7 @@ class NotificationRepositoryTest {
     void saveAndFindById() {
         // given
         NotificationGroup group = createAndSaveGroup();
-        Notification notification = group.addNotification("user@example.com", "idem-key-1");
+        Notification notification = group.addNotification("user@example.com");
         groupRepository.save(group);
 
         // when
@@ -50,9 +50,9 @@ class NotificationRepositoryTest {
     void findByReceiver() {
         // given
         NotificationGroup group = createAndSaveGroup();
-        group.addNotification("user@example.com", "idem-key-1");
-        group.addNotification("user@example.com", "idem-key-2");
-        group.addNotification("other@example.com", "idem-key-3");
+        group.addNotification("user@example.com");
+        group.addNotification("user@example.com");
+        group.addNotification("other@example.com");
         groupRepository.save(group);
 
         // when
@@ -67,8 +67,8 @@ class NotificationRepositoryTest {
     void findByReceiverAndStatus() {
         // given
         NotificationGroup group = createAndSaveGroup();
-        Notification n1 = group.addNotification("user@example.com", "idem-key-1");
-        group.addNotification("user@example.com", "idem-key-2");
+        Notification n1 = group.addNotification("user@example.com");
+        group.addNotification("user@example.com");
         groupRepository.save(group);
 
         n1.startSending();
@@ -89,9 +89,9 @@ class NotificationRepositoryTest {
     void findByStatus() {
         // given
         NotificationGroup group = createAndSaveGroup();
-        Notification n1 = group.addNotification("user1@example.com", "idem-key-1");
-        Notification n2 = group.addNotification("user2@example.com", "idem-key-2");
-        group.addNotification("user3@example.com", "idem-key-3");
+        Notification n1 = group.addNotification("user1@example.com");
+        Notification n2 = group.addNotification("user2@example.com");
+        group.addNotification("user3@example.com");
         groupRepository.save(group);
 
         n1.startSending();
