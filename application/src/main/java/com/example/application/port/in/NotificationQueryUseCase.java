@@ -10,6 +10,10 @@ public interface NotificationQueryUseCase {
 
 	Optional<NotificationGroup> getGroup(Long groupId);
 
+	Optional<NotificationGroup> getGroupDetail(Long groupId);
+
+	List<NotificationGroup> getRecentGroups();
+
 	List<NotificationGroup> getGroupsByClientId(String clientId);
 
 	Optional<Notification> getNotification(Long notificationId);

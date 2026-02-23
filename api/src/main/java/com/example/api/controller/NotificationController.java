@@ -13,7 +13,9 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.api.dto.request.NotificationSendRequest;
+import com.example.api.dto.response.NotificationGroupDetailResponse;
 import com.example.api.dto.response.NotificationGroupResponse;
+import com.example.api.dto.response.NotificationListResponse;
 import com.example.api.dto.response.NotificationResponse;
 import com.example.api.dto.response.NotificationSendResponse;
 import com.example.api.exception.ErrorCode;
@@ -58,9 +60,9 @@ public class NotificationController {
 
 	@Operation(summary = "알림 그룹 조회")
 	@GetMapping("/groups/{groupId}")
-	public ApiResponse<NotificationGroupResponse> getGroup(@PathVariable Long groupId) {
-		return queryUseCase.getGroup(groupId)
-			.map(NotificationGroupResponse::from)
+	public ApiResponse<NotificationGroupDetailResponse> getGroup(@PathVariable Long groupId) {
+		return queryUseCase.getGroupDetail(groupId)
+			.map(NotificationGroupDetailResponse::from)
 			.map(ApiResponse::ok)
 			.orElseThrow(() -> new NotificationException(ErrorCode.NOTIFICATION_GROUP_NOT_FOUND));
 	}
@@ -75,6 +77,16 @@ public class NotificationController {
 		return ApiResponse.ok(responses);
 	}
 
+	@Operation(summary = "알림 묶음 목록 조회")
+	@GetMapping
+	public ApiResponse<List<NotificationListResponse>> getNotificationBundles() {
+		List<NotificationListResponse> responses = queryUseCase.getRecentGroups()
+			.stream()
+			.map(NotificationListResponse::from)
+			.toList();
+		return ApiResponse.ok(responses);
+	}
+
 	@Operation(summary = "개별 알림 조회")
 	@GetMapping("/{notificationId}")
 	public ApiResponse<NotificationResponse> getNotification(@PathVariable Long notificationId) {
@@ -85,7 +97,7 @@ public class NotificationController {
 	}
 
 	@Operation(summary = "수신자별 알림 목록 조회")
-	@GetMapping
+	@GetMapping(params = "receiver")
 	public ApiResponse<List<NotificationResponse>> getNotificationsByReceiver(
 		@RequestParam("receiver") String receiver) {
 		List<NotificationResponse> responses = queryUseCase.getNotificationsByReceiver(receiver)

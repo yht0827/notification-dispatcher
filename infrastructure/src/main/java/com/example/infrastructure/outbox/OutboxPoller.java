@@ -4,12 +4,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.application.port.out.OutboxRepository;
 import com.example.domain.outbox.Outbox;
 import com.example.domain.outbox.OutboxStatus;
+import com.example.infrastructure.config.NotificationConfig;
 import com.example.infrastructure.stream.outbound.RedisStreamPublisher;
 
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = NotificationConfig.STREAM_ENABLED_PROPERTY, havingValue = "true")
 public class OutboxPoller {
 
 	private static final int BATCH_SIZE = 100;

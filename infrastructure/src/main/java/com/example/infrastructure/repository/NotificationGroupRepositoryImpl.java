@@ -4,6 +4,7 @@ import com.example.application.port.out.NotificationGroupRepository;
 import com.example.domain.notification.GroupType;
 import com.example.domain.notification.NotificationGroup;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -26,6 +27,11 @@ public class NotificationGroupRepositoryImpl implements NotificationGroupReposit
     }
 
     @Override
+    public Optional<NotificationGroup> findByIdWithNotifications(Long id) {
+        return jpaRepository.findByIdWithNotifications(id);
+    }
+
+    @Override
     public Optional<NotificationGroup> findByClientIdAndIdempotencyKey(String clientId, String idempotencyKey) {
         return jpaRepository.findByClientIdAndIdempotencyKey(clientId, idempotencyKey);
     }
@@ -33,6 +39,12 @@ public class NotificationGroupRepositoryImpl implements NotificationGroupReposit
     @Override
     public List<NotificationGroup> findByClientId(String clientId) {
         return jpaRepository.findByClientId(clientId);
+    }
+
+    @Override
+    public List<NotificationGroup> findRecent(int limit) {
+        int normalizedLimit = Math.max(limit, 1);
+        return jpaRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, normalizedLimit));
     }
 
     @Override

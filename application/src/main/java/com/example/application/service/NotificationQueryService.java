@@ -19,12 +19,24 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 public class NotificationQueryService implements NotificationQueryUseCase {
 
+	private static final int DEFAULT_RECENT_GROUP_LIMIT = 20;
+
 	private final NotificationGroupRepository groupRepository;
 	private final NotificationRepository notificationRepository;
 
 	@Override
 	public Optional<NotificationGroup> getGroup(Long groupId) {
 		return groupRepository.findById(groupId);
+	}
+
+	@Override
+	public Optional<NotificationGroup> getGroupDetail(Long groupId) {
+		return groupRepository.findByIdWithNotifications(groupId);
+	}
+
+	@Override
+	public List<NotificationGroup> getRecentGroups() {
+		return groupRepository.findRecent(DEFAULT_RECENT_GROUP_LIMIT);
 	}
 
 	@Override
