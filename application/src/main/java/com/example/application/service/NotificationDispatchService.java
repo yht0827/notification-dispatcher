@@ -1,10 +1,9 @@
 package com.example.application.service;
 
-import java.time.LocalDateTime;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.application.port.in.NotificationDispatchUseCase;
 import com.example.application.port.out.NotificationRepository;
 import com.example.application.port.out.NotificationSender;
 import com.example.application.port.out.NotificationSender.SendResult;
@@ -16,39 +15,43 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class NotificationDispatchService {
-
-	private static final int MAX_RETRY_ATTEMPTS = 3;
-	private static final int RETRY_DELAY_MINUTES = 5;
+public class NotificationDispatchService implements NotificationDispatchUseCase {
 
 	private final NotificationRepository notificationRepository;
 	private final NotificationSender notificationSender;
 
+	@Override
 	@Transactional
-	public void dispatch(Notification notification) {
-		notification.startSending();
-		SendResult result = notificationSender.send(notification);
-
-		if (result.isSuccess()) {
-			notification.markAsSent();
-			log.info("알림 발송 성공: id={}, receiver={}", notification.getId(), notification.getReceiver());
-		} else {
-			handleFailure(notification, result.failReason());
+	public DispatchResult dispatch(Notification notification) {
+		if (notification.isTerminal()) {
+			log.debug("이미 종결 상태인 알림 발송 생략: id={}, status={}",
+				notification.getId(), notification.getStatus());
+			return DispatchResult.success();
 		}
 
-		notificationRepository.save(notification);
+		notification.startSending();
+		Notification managedNotification = notificationRepository.save(notification);
+
+		SendResult sendResult = notificationSender.send(managedNotification);
+
+		if (sendResult.isSuccess()) {
+			managedNotification.markAsSent();
+			notificationRepository.save(managedNotification);
+			log.info("알림 발송 성공: id={}, receiver={}", managedNotification.getId(), managedNotification.getReceiver());
+			return DispatchResult.success();
+		} else {
+			log.warn("알림 발송 실패: id={}, reason={}", managedNotification.getId(), sendResult.failReason());
+			return DispatchResult.fail(sendResult.failReason());
+		}
 	}
 
-	private void handleFailure(Notification notification, String reason) {
-		if (notification.canRetry(MAX_RETRY_ATTEMPTS)) {
-			LocalDateTime nextRetryAt = LocalDateTime.now().plusMinutes(RETRY_DELAY_MINUTES);
-			notification.markAsRetryWait(nextRetryAt);
-			log.warn("알림 발송 실패, 재시도 예정: id={}, attempt={}, nextRetry={}",
-				notification.getId(), notification.getAttemptCount(), nextRetryAt);
-		} else {
+	@Override
+	@Transactional
+	public void markAsFailed(Long notificationId, String reason) {
+		notificationRepository.findById(notificationId).ifPresent(notification -> {
 			notification.markAsFailed(reason);
-			log.error("알림 발송 최종 실패: id={}, reason={}",
-				notification.getId(), reason);
-		}
+			notificationRepository.save(notification);
+			log.error("알림 최종 실패: id={}, reason={}", notificationId, reason);
+		});
 	}
 }
