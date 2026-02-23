@@ -74,12 +74,38 @@ class NotificationGroupRepositoryTest {
     }
 
     @Test
+    @DisplayName("clientId와 idempotencyKey로 기존 그룹을 조회한다")
+    void findByClientIdAndIdempotencyKey() {
+        // given
+        NotificationGroup group = NotificationGroup.create(
+                "service-a",
+                "idem-order-1001",
+                "MyShop",
+                "테스트",
+                "테스트 내용",
+                ChannelType.EMAIL,
+                1
+        );
+        NotificationGroup saved = groupRepository.save(group);
+
+        // when
+        NotificationGroup found = groupRepository
+                .findByClientIdAndIdempotencyKey("service-a", "idem-order-1001")
+                .orElseThrow();
+
+        // then
+        assertThat(found.getId()).isEqualTo(saved.getId());
+        assertThat(found.getClientId()).isEqualTo("service-a");
+        assertThat(found.getIdempotencyKey()).isEqualTo("idem-order-1001");
+    }
+
+    @Test
     @DisplayName("그룹에 알림을 추가하면 함께 저장된다")
     void saveGroupWithNotifications() {
         // given
         NotificationGroup group = createBulkGroup("test-service");
-        group.addNotification("user1@example.com", "idem-key-1");
-        group.addNotification("user2@example.com", "idem-key-2");
+        group.addNotification("user1@example.com");
+        group.addNotification("user2@example.com");
 
         // when
         NotificationGroup saved = groupRepository.save(group);
