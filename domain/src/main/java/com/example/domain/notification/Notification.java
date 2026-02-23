@@ -35,8 +35,6 @@ public class Notification extends BaseEntity {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	private String idempotencyKey;
-
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "group_id")
 	private NotificationGroup group;
@@ -56,16 +54,15 @@ public class Notification extends BaseEntity {
 
 	private String failReason;
 
-	private Notification(NotificationGroup group, String receiver, String idempotencyKey) {
+	private Notification(NotificationGroup group, String receiver) {
 		this.group = group;
 		this.receiver = receiver;
-		this.idempotencyKey = idempotencyKey;
 		this.status = NotificationStatus.PENDING;
 		this.attemptCount = 0;
 	}
 
-	public static Notification create(NotificationGroup group, String receiver, String idempotencyKey) {
-		return new Notification(group, receiver, idempotencyKey);
+	public static Notification create(NotificationGroup group, String receiver) {
+		return new Notification(group, receiver);
 	}
 
 	// === 상태 전이 메서드 ===
