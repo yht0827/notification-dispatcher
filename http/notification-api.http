@@ -1,12 +1,15 @@
-### 변수 설정
+### 실행 환경 변수
 @host = http://localhost:8080
 @contentType = application/json
+@groupId = 1
+@notificationId = 1
 
-### ===================================
-### 알림 발송
-### ===================================
+### ==================================================
+### 1) 알림 발송
+### ==================================================
 
-### 단일 알림 발송
+### 단일 알림 발송 (멱등 키 포함)
+# @name send_single_notification
 POST {{host}}/api/v1/notifications
 Content-Type: {{contentType}}
 
@@ -16,10 +19,12 @@ Content-Type: {{contentType}}
   "title": "주문 완료",
   "content": "주문이 완료되었습니다. 주문번호: #12345",
   "channelType": "EMAIL",
-  "receivers": ["user@example.com"]
+  "receivers": ["user@example.com"],
+  "idempotencyKey": "order-12345"
 }
 
 ### 대량 알림 발송
+# @name send_bulk_notification
 POST {{host}}/api/v1/notifications
 Content-Type: {{contentType}}
 
@@ -33,10 +38,11 @@ Content-Type: {{contentType}}
     "user1@example.com",
     "user2@example.com",
     "user3@example.com"
-  ]
+  ],
+  "idempotencyKey": "marketing-campaign-20260223"
 }
 
-### 카카오톡 알림 발송
+### 카카오 알림 발송
 POST {{host}}/api/v1/notifications
 Content-Type: {{contentType}}
 
@@ -46,7 +52,8 @@ Content-Type: {{contentType}}
   "title": "결제 완료",
   "content": "10,000원이 결제되었습니다.",
   "channelType": "KAKAO",
-  "receivers": ["kakao_user_123"]
+  "receivers": ["kakao_user_123"],
+  "idempotencyKey": "payment-10000"
 }
 
 ### SMS 알림 발송
@@ -59,34 +66,33 @@ Content-Type: {{contentType}}
   "title": "배송 시작",
   "content": "상품이 배송을 시작했습니다.",
   "channelType": "SMS",
-  "receivers": ["010-1234-5678"]
+  "receivers": ["010-1234-5678"],
+  "idempotencyKey": "delivery-12345"
 }
 
-### ===================================
-### 알림 그룹 조회
-### ===================================
+### ==================================================
+### 2) 알림 그룹 조회
+### ==================================================
 
-### 그룹 ID로 조회
-GET {{host}}/api/v1/notifications/groups/2
-
-### 클라이언트 ID로 그룹 목록 조회
+### clientId로 그룹 목록 조회
 GET {{host}}/api/v1/notifications/groups?clientId=marketing-service
 
-### ===================================
-### 개별 알림 조회
-### ===================================
+### ==================================================
+### 3) 개별 알림 조회
+### ==================================================
 
-### 알림 ID로 조회
-GET {{host}}/api/v1/notifications/1
+### 알림 ID 조회
+# @name get_notification_by_id
+GET {{host}}/api/v1/notifications/{{notificationId}}
 
 ### 수신자로 알림 목록 조회
 GET {{host}}/api/v1/notifications?receiver=user@example.com
 
-### ===================================
-### 에러 케이스
-### ===================================
+### ==================================================
+### 4) 오류 케이스
+### ==================================================
 
-### 필수 필드 누락 (400 Bad Request)
+### 필수 필드 누락 (400 잘못된 요청)
 POST {{host}}/api/v1/notifications
 Content-Type: {{contentType}}
 
@@ -95,8 +101,11 @@ Content-Type: {{contentType}}
   "sender": "MyShop"
 }
 
-### 존재하지 않는 그룹 조회 (404 Not Found)
+### receiver 값이 비어있는 경우
+GET {{host}}/api/v1/notifications?receiver=
+
+### 존재하지 않는 그룹 조회 (404 리소스 없음)
 GET {{host}}/api/v1/notifications/groups/99999
 
-### 존재하지 않는 알림 조회 (404 Not Found)
+### 존재하지 않는 알림 조회 (404 리소스 없음)
 GET {{host}}/api/v1/notifications/99999

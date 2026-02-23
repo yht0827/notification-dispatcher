@@ -115,6 +115,44 @@ class NotificationGroupRepositoryTest {
         assertThat(saved.getNotifications()).hasSize(2);
     }
 
+    @Test
+    @DisplayName("그룹 상세 조회 시 알림 목록을 함께 가져온다")
+    void findByIdWithNotifications() {
+        // given
+        NotificationGroup group = createBulkGroup("detail-service");
+        group.addNotification("detail-user1@example.com");
+        group.addNotification("detail-user2@example.com");
+        NotificationGroup saved = groupRepository.save(group);
+
+        // when
+        NotificationGroup found = groupRepository.findByIdWithNotifications(saved.getId()).orElseThrow();
+
+        // then
+        assertThat(found.getId()).isEqualTo(saved.getId());
+        assertThat(found.getNotifications()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("최근 생성된 그룹을 최신순으로 조회한다")
+    void findRecent() throws InterruptedException {
+        // given
+        NotificationGroup first = groupRepository.save(createSingleGroup("recent-a"));
+        Thread.sleep(5);
+        NotificationGroup second = groupRepository.save(createSingleGroup("recent-b"));
+        Thread.sleep(5);
+        NotificationGroup third = groupRepository.save(createSingleGroup("recent-c"));
+
+        // when
+        List<NotificationGroup> groups = groupRepository.findRecent(2);
+
+        // then
+        assertThat(groups).hasSize(2);
+        assertThat(groups.get(0).getId()).isEqualTo(third.getId());
+        assertThat(groups.get(1).getId()).isEqualTo(second.getId());
+        assertThat(groups.get(0).getId()).isNotEqualTo(first.getId());
+        assertThat(groups.get(1).getId()).isNotEqualTo(first.getId());
+    }
+
     private NotificationGroup createSingleGroup(String clientId) {
         return NotificationGroup.create(clientId, "MyShop", "테스트", "테스트 내용", ChannelType.EMAIL, 1);
     }

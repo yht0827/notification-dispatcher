@@ -2,7 +2,7 @@ package com.example.application.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -20,8 +20,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.example.application.port.in.NotificationCommandUseCase.SendCommand;
-import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.NotificationGroupRepository;
+import com.example.application.port.out.OutboxRepository;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.NotificationGroup;
 
@@ -32,7 +32,7 @@ class NotificationCommandServiceTest {
 	private NotificationGroupRepository groupRepository;
 
 	@Mock
-	private NotificationEventPublisher eventPublisher;
+	private OutboxRepository outboxRepository;
 
 	@InjectMocks
 	private NotificationCommandService commandService;
@@ -69,12 +69,12 @@ class NotificationCommandServiceTest {
 		// then
 		assertThat(result).isSameAs(existingGroup);
 		verify(groupRepository, never()).save(any(NotificationGroup.class));
-		verifyNoInteractions(eventPublisher);
+		verifyNoInteractions(outboxRepository);
 	}
 
 	@Test
-	@DisplayName("신규 idempotencyKey 요청이면 그룹을 생성하고 수신자 수만큼 발행한다")
-	void request_createsGroupAndPublishesEventsWhenIdempotencyKeyIsNew() {
+	@DisplayName("신규 idempotencyKey 요청이면 그룹을 생성하고 Outbox 이벤트를 저장한다")
+	void request_createsGroupAndSavesOutboxEventsWhenIdempotencyKeyIsNew() {
 		// given
 		SendCommand command = new SendCommand(
 			"order-service",
@@ -98,11 +98,11 @@ class NotificationCommandServiceTest {
 		assertThat(result.getIdempotencyKey()).isEqualTo("idem-order-2001");
 		assertThat(result.getNotifications()).hasSize(2);
 		verify(groupRepository, times(1)).save(any(NotificationGroup.class));
-		verify(eventPublisher, times(2)).publish(nullable(Long.class));
+		verify(outboxRepository, times(1)).saveAll(argThat(outboxes -> outboxes.size() == 2));
 	}
 
 	@Test
-	@DisplayName("idempotencyKey가 비어 있으면 중복 조회 없이 발행한다")
+	@DisplayName("idempotencyKey가 비어 있으면 중복 조회 없이 Outbox 이벤트를 저장한다")
 	void request_skipsIdempotencyLookupWhenKeyIsBlank() {
 		// given
 		SendCommand command = new SendCommand(
@@ -124,6 +124,6 @@ class NotificationCommandServiceTest {
 		assertThat(result.getIdempotencyKey()).isNull();
 		verify(groupRepository, never()).findByClientIdAndIdempotencyKey(any(), any());
 		verify(groupRepository, times(1)).save(any(NotificationGroup.class));
-		verify(eventPublisher, times(1)).publish(nullable(Long.class));
+		verify(outboxRepository, times(1)).saveAll(argThat(outboxes -> outboxes.size() == 1));
 	}
 }

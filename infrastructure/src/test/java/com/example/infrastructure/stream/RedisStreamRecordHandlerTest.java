@@ -1,6 +1,7 @@
 package com.example.infrastructure.stream;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -15,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.example.application.port.in.NotificationDispatchUseCase;
 import com.example.application.port.in.NotificationDispatchUseCase.DispatchResult;
+import com.example.application.port.out.DispatchLockManager;
 import com.example.application.port.out.NotificationRepository;
 import com.example.domain.exception.InvalidStatusTransitionException;
 import com.example.domain.exception.UnsupportedChannelException;
@@ -38,11 +40,15 @@ class RedisStreamRecordHandlerTest {
 	@Mock
 	private NotificationStreamProperties properties;
 
+	@Mock
+	private DispatchLockManager lockManager;
+
 	private RedisStreamRecordHandler recordHandler;
 
 	@BeforeEach
 	void setUp() {
-		recordHandler = new RedisStreamRecordHandler(notificationRepository, dispatchService, properties);
+		when(lockManager.tryAcquire(any())).thenReturn(true);
+		recordHandler = new RedisStreamRecordHandler(notificationRepository, dispatchService, properties, lockManager);
 	}
 
 	@Test
