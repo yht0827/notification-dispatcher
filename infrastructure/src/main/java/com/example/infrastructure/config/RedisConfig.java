@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import com.example.infrastructure.stream.NotificationStreamProperties;
+import com.example.infrastructure.stream.config.NotificationStreamProperties;
 
 @Configuration
 @EnableConfigurationProperties(NotificationStreamProperties.class)
