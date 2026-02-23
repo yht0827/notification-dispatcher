@@ -132,26 +132,48 @@ class NotificationGroupRepositoryTest {
         assertThat(found.getNotifications()).hasSize(2);
     }
 
-    @Test
-    @DisplayName("최근 생성된 그룹을 최신순으로 조회한다")
-    void findRecent() throws InterruptedException {
-        // given
-        NotificationGroup first = groupRepository.save(createSingleGroup("recent-a"));
-        Thread.sleep(5);
-        NotificationGroup second = groupRepository.save(createSingleGroup("recent-b"));
-        Thread.sleep(5);
-        NotificationGroup third = groupRepository.save(createSingleGroup("recent-c"));
+	@Test
+	@DisplayName("커서 없이 최근 그룹을 최신순으로 조회한다")
+	void findRecentByCursor_withoutCursor() throws InterruptedException {
+		// given
+		NotificationGroup first = groupRepository.save(createSingleGroup("recent-a"));
+		Thread.sleep(5);
+		NotificationGroup second = groupRepository.save(createSingleGroup("recent-b"));
+		Thread.sleep(5);
+		NotificationGroup third = groupRepository.save(createSingleGroup("recent-c"));
 
-        // when
-        List<NotificationGroup> groups = groupRepository.findRecent(2);
+		// when
+		List<NotificationGroup> groups = groupRepository.findRecentByCursor(null, 2);
 
-        // then
-        assertThat(groups).hasSize(2);
-        assertThat(groups.get(0).getId()).isEqualTo(third.getId());
-        assertThat(groups.get(1).getId()).isEqualTo(second.getId());
-        assertThat(groups.get(0).getId()).isNotEqualTo(first.getId());
-        assertThat(groups.get(1).getId()).isNotEqualTo(first.getId());
-    }
+		// then
+		assertThat(groups).hasSize(2);
+		assertThat(groups.get(0).getId()).isEqualTo(third.getId());
+		assertThat(groups.get(1).getId()).isEqualTo(second.getId());
+		assertThat(groups.get(0).getId()).isNotEqualTo(first.getId());
+		assertThat(groups.get(1).getId()).isNotEqualTo(first.getId());
+	}
+
+	@Test
+	@DisplayName("커서를 전달하면 다음 그룹 목록을 조회한다")
+	void findRecentByCursor_withCursor() throws InterruptedException {
+		// given
+		NotificationGroup first = groupRepository.save(createSingleGroup("cursor-a"));
+		Thread.sleep(5);
+		NotificationGroup second = groupRepository.save(createSingleGroup("cursor-b"));
+		Thread.sleep(5);
+		groupRepository.save(createSingleGroup("cursor-c"));
+
+		// when
+		List<NotificationGroup> firstSlice = groupRepository.findRecentByCursor(null, 2);
+		Long cursorId = firstSlice.get(1).getId();
+		List<NotificationGroup> secondSlice = groupRepository.findRecentByCursor(cursorId, 2);
+
+		// then
+		assertThat(firstSlice).hasSize(2);
+		assertThat(secondSlice).hasSize(1);
+		assertThat(secondSlice.get(0).getId()).isEqualTo(first.getId());
+		assertThat(secondSlice.get(0).getId()).isNotEqualTo(second.getId());
+	}
 
     private NotificationGroup createSingleGroup(String clientId) {
         return NotificationGroup.create(clientId, "MyShop", "테스트", "테스트 내용", ChannelType.EMAIL, 1);

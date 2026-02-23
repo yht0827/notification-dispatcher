@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.example.application.port.in.NotificationGroupSlice;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.NotificationGroup;
 
@@ -54,5 +55,31 @@ class NotificationBundleResponseTest {
 		assertThat(response.notifications()).hasSize(2);
 		assertThat(response.notifications().get(0).receiver()).isEqualTo("user1@example.com");
 		assertThat(response.notifications().get(1).receiver()).isEqualTo("user2@example.com");
+	}
+
+	@Test
+	@DisplayName("알림 묶음 커서 응답은 아이템과 커서 정보를 포함한다")
+	void listSliceResponseIncludesCursorMetadata() {
+		NotificationGroup group = NotificationGroup.create(
+			"news-service",
+			"NewsBot",
+			"속보",
+			"시장 마감 브리핑",
+			ChannelType.EMAIL,
+			1
+		);
+
+		NotificationGroupSlice slice = new NotificationGroupSlice(
+			java.util.List.of(group),
+			true,
+			99L
+		);
+
+		NotificationListSliceResponse response = NotificationListSliceResponse.from(slice);
+
+		assertThat(response.items()).hasSize(1);
+		assertThat(response.items().get(0).title()).isEqualTo("속보");
+		assertThat(response.hasNext()).isTrue();
+		assertThat(response.nextCursorId()).isEqualTo(99L);
 	}
 }
