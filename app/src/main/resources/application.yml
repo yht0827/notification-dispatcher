@@ -4,6 +4,10 @@ spring:
   profiles:
     active: local
 
+notification:
+  stream:
+    enabled: true
+
 ---
 # Local 환경
 spring:
@@ -16,12 +20,13 @@ spring:
     password: application
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: create
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
   flyway:
     enabled: false
   data:
@@ -36,11 +41,11 @@ notification:
     consumer-name: consumer-1
     poll-interval: 1000
     batch-size: 10
-    block-seconds: 2
-    pending-reclaim-interval: 5000
-    pending-reclaim-batch-size: 100
-    pending-reclaim-idle-millis: 60000
     dead-letter-key: notification-stream-dlq
+    wait-key: notification-stream-wait
+    max-retry-count: 3
+    retry-base-delay-millis: 5000
+    wait-poll-interval-millis: 1000
 
 ---
 # Test 환경 (Testcontainers)
@@ -49,6 +54,7 @@ spring:
     activate:
       on-profile: test
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: create-drop
     show-sql: true
@@ -67,6 +73,7 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: validate
     show-sql: false
