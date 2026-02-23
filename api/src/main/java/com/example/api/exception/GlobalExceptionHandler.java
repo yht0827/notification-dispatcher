@@ -2,10 +2,12 @@ package com.example.api.exception;
 
 import java.util.List;
 
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 import com.example.api.dto.response.ErrorResponse;
 import com.example.common.response.ApiResponse;
@@ -37,6 +39,22 @@ public class GlobalExceptionHandler {
 		return ResponseEntity
 			.badRequest()
 			.body(ErrorResponse.of(ErrorCode.INVALID_REQUEST.name(), "입력값이 올바르지 않습니다.", fieldErrors));
+	}
+
+	@ExceptionHandler(HandlerMethodValidationException.class)
+	public ResponseEntity<ErrorResponse> handleHandlerMethodValidationException(HandlerMethodValidationException e) {
+		log.warn("HandlerMethodValidationException: {}", e.getMessage());
+		return ResponseEntity
+			.badRequest()
+			.body(ErrorResponse.of(ErrorCode.INVALID_REQUEST.name(), "입력값이 올바르지 않습니다."));
+	}
+
+	@ExceptionHandler(ConstraintViolationException.class)
+	public ResponseEntity<ErrorResponse> handleConstraintViolationException(ConstraintViolationException e) {
+		log.warn("ConstraintViolationException: {}", e.getMessage());
+		return ResponseEntity
+			.badRequest()
+			.body(ErrorResponse.of(ErrorCode.INVALID_REQUEST.name(), "입력값이 올바르지 않습니다."));
 	}
 
 	@ExceptionHandler(Exception.class)

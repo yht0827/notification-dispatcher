@@ -3,6 +3,7 @@ package com.example.api.controller;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,12 +30,14 @@ import com.example.domain.notification.NotificationGroup;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 
 @Tag(name = "Notification", description = "알림 발송 API")
 @RestController
 @RequestMapping("/api/v1/notifications")
 @RequiredArgsConstructor
+@Validated
 public class NotificationController {
 
 	private final NotificationCommandUseCase commandUseCase;
@@ -69,7 +72,8 @@ public class NotificationController {
 
 	@Operation(summary = "클라이언트별 알림 그룹 목록 조회")
 	@GetMapping("/groups")
-	public ApiResponse<List<NotificationGroupResponse>> getGroupsByClientId(@RequestParam("clientId") String clientId) {
+	public ApiResponse<List<NotificationGroupResponse>> getGroupsByClientId(
+		@RequestParam("clientId") @NotBlank(message = "clientId는 필수입니다") String clientId) {
 		List<NotificationGroupResponse> responses = queryUseCase.getGroupsByClientId(clientId)
 			.stream()
 			.map(NotificationGroupResponse::from)
@@ -99,7 +103,7 @@ public class NotificationController {
 	@Operation(summary = "수신자별 알림 목록 조회")
 	@GetMapping(params = "receiver")
 	public ApiResponse<List<NotificationResponse>> getNotificationsByReceiver(
-		@RequestParam("receiver") String receiver) {
+		@RequestParam("receiver") @NotBlank(message = "receiver는 필수입니다") String receiver) {
 		List<NotificationResponse> responses = queryUseCase.getNotificationsByReceiver(receiver)
 			.stream()
 			.map(NotificationResponse::from)
