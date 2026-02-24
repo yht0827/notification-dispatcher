@@ -171,8 +171,8 @@ class NotificationGroupRepositoryTest {
 		// then
 		assertThat(firstSlice).hasSize(2);
 		assertThat(secondSlice).hasSize(1);
-		assertThat(secondSlice.get(0).getId()).isEqualTo(first.getId());
-		assertThat(secondSlice.get(0).getId()).isNotEqualTo(second.getId());
+		assertThat(secondSlice.getFirst().getId()).isEqualTo(first.getId());
+		assertThat(secondSlice.getFirst().getId()).isNotEqualTo(second.getId());
 	}
 
     private NotificationGroup createSingleGroup(String clientId) {

@@ -14,7 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class RedisDispatchLockManager implements DispatchLockManager {
+public class DispatchLockManagerImpl implements DispatchLockManager {
 
 	private static final String KEY_PREFIX = "dispatch-lock:";
 	private static final long LOCK_WAIT_TIME = 0;  // 대기 없이 즉시 반환

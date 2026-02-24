@@ -25,10 +25,10 @@ import com.example.infrastructure.config.TestcontainersConfig;
 @SpringBootTest(classes = TestApplication.class)
 @Import({TestcontainersConfig.class, MockStreamConfig.class})
 @ActiveProfiles("test")
-class RedisDispatchLockManagerTest {
+class DispatchLockManagerImplTest {
 
 	@Autowired
-	private RedisDispatchLockManager lockManager;
+	private DispatchLockManagerImpl lockManager;
 
 	@Test
 	@DisplayName("동일 notificationId에 대해 하나의 스레드만 락을 획득한다")

@@ -10,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 
 @Component
 @RequiredArgsConstructor
-public class NotificationSenderAdapter implements NotificationSender {
+public class NotificationSenderImpl implements NotificationSender {
 
 	private final ChannelSenderFactory senderFactory;
 

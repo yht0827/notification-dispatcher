@@ -1,4 +1,4 @@
-package com.example.infrastructure.stream.config;
+package com.example.infrastructure.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

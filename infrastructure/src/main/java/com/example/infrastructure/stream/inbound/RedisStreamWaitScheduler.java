@@ -11,8 +11,8 @@ import org.springframework.data.redis.connection.stream.StreamRecords;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 
-import com.example.infrastructure.stream.config.NotificationStreamProperties;
-import com.example.infrastructure.stream.config.StreamKeyType;
+import com.example.infrastructure.config.NotificationStreamProperties;
+import com.example.infrastructure.config.StreamKeyType;
 import com.example.infrastructure.stream.payload.NotificationStreamPayload;
 import com.example.infrastructure.stream.payload.NotificationWaitPayload;
 

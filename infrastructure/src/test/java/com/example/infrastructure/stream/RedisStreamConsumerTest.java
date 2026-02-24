@@ -16,7 +16,7 @@ import org.springframework.data.redis.connection.stream.StreamRecords;
 import org.springframework.data.redis.core.StreamOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import com.example.infrastructure.stream.config.NotificationStreamProperties;
+import com.example.infrastructure.config.NotificationStreamProperties;
 import com.example.infrastructure.stream.inbound.RedisStreamConsumer;
 import com.example.infrastructure.stream.inbound.RedisStreamRecordHandler;
 import com.example.infrastructure.stream.exception.NonRetryableStreamMessageException;

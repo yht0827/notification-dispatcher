@@ -9,8 +9,8 @@ import org.springframework.data.redis.connection.stream.PendingMessages;
 import org.springframework.data.redis.connection.stream.RecordId;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import com.example.infrastructure.stream.config.NotificationStreamProperties;
-import com.example.infrastructure.stream.config.StreamKeyType;
+import com.example.infrastructure.config.NotificationStreamProperties;
+import com.example.infrastructure.config.StreamKeyType;
 import com.example.infrastructure.stream.outbound.RedisStreamWaitPublisher;
 import com.example.infrastructure.stream.payload.NotificationStreamPayload;
 

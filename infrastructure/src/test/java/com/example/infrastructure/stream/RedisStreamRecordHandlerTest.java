@@ -23,7 +23,7 @@ import com.example.domain.exception.UnsupportedChannelException;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
-import com.example.infrastructure.stream.config.NotificationStreamProperties;
+import com.example.infrastructure.config.NotificationStreamProperties;
 import com.example.infrastructure.stream.inbound.RedisStreamRecordHandler;
 import com.example.infrastructure.stream.exception.NonRetryableStreamMessageException;
 import com.example.infrastructure.stream.exception.RetryableStreamMessageException;

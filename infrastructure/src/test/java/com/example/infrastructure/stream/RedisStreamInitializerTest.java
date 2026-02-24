@@ -25,7 +25,7 @@ import org.springframework.data.redis.connection.stream.StreamRecords;
 import org.springframework.data.redis.core.StreamOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import com.example.infrastructure.stream.config.NotificationStreamProperties;
+import com.example.infrastructure.config.NotificationStreamProperties;
 import com.example.infrastructure.stream.inbound.RedisStreamInitializer;
 import com.example.infrastructure.stream.outbound.RedisStreamWaitPublisher;
 import com.example.infrastructure.stream.payload.NotificationStreamPayload;

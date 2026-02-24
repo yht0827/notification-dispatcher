@@ -14,8 +14,8 @@ import org.springframework.data.redis.connection.stream.StreamOffset;
 import org.springframework.data.redis.stream.StreamMessageListenerContainer;
 import org.springframework.data.redis.stream.Subscription;
 
-import com.example.infrastructure.stream.config.NotificationStreamProperties;
-import com.example.infrastructure.stream.config.StreamKeyType;
+import com.example.infrastructure.config.NotificationStreamProperties;
+import com.example.infrastructure.config.StreamKeyType;
 import com.example.infrastructure.stream.inbound.RedisStreamConsumer;
 import com.example.infrastructure.stream.inbound.RedisStreamInitializer;
 import com.example.infrastructure.stream.inbound.RedisStreamRecordHandler;
