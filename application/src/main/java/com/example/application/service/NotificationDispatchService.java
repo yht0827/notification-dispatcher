@@ -29,12 +29,15 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 			return DispatchResult.success();
 		}
 
+		// PENDING → SENDING
 		notification.startSending();
 		Notification managedNotification = notificationRepository.save(notification);
 
+		// API 전송
 		SendResult sendResult = notificationSender.send(managedNotification);
 
 		if (sendResult.isSuccess()) {
+			// SENDING → SENT
 			managedNotification.markAsSent();
 			notificationRepository.save(managedNotification);
 			log.info("알림 발송 성공: id={}, receiver={}", managedNotification.getId(), managedNotification.getReceiver());
@@ -48,6 +51,7 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 	@Override
 	@Transactional
 	public void markAsFailed(Long notificationId, String reason) {
+		// SENDING → FAILED
 		notificationRepository.findById(notificationId).ifPresent(notification -> {
 			notification.markAsFailed(reason);
 			notificationRepository.save(notification);

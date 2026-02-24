@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.application.port.in.NotificationCommandUseCase;
 import com.example.application.port.out.NotificationGroupRepository;
+import com.example.application.port.out.OutboxEventPublisher;
 import com.example.application.port.out.OutboxRepository;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
@@ -23,10 +24,13 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 
 	private final NotificationGroupRepository groupRepository;
 	private final OutboxRepository outboxRepository;
+	private final OutboxEventPublisher outboxEventPublisher;
 
 	@Override
 	@Transactional
 	public NotificationGroup request(SendCommand command) {
+
+		// 멱등성 키 조회 (client_id, idempotency_key)
 		String idempotencyKey = normalizeIdempotencyKey(command.idempotencyKey());
 		if (idempotencyKey != null) {
 			Optional<NotificationGroup> existing = groupRepository.findByClientIdAndIdempotencyKey(
@@ -42,17 +46,23 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 	private NotificationGroup createAndPublish(SendCommand command, String idempotencyKey) {
 		NotificationGroup group = createGroup(command, idempotencyKey);
 		command.receivers().forEach(group::addNotification);
+
 		NotificationGroup savedGroup = groupRepository.save(group);
 		saveOutboxEvents(savedGroup);
 		return savedGroup;
 	}
 
 	private void saveOutboxEvents(NotificationGroup savedGroup) {
-		List<Outbox> outboxes = savedGroup.getNotifications().stream()
+		List<Long> notificationIds = savedGroup.getNotifications().stream()
 			.map(Notification::getId)
+			.toList();
+
+		List<Outbox> outboxes = notificationIds.stream()
 			.map(Outbox::createNotificationEvent)
 			.toList();
+
 		outboxRepository.saveAll(outboxes);
+		outboxEventPublisher.publishAfterCommit(notificationIds);
 		log.debug("Outbox 저장 완료: count={}", outboxes.size());
 	}
 

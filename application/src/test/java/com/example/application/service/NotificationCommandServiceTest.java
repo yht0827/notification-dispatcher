@@ -21,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.example.application.port.in.NotificationCommandUseCase.SendCommand;
 import com.example.application.port.out.NotificationGroupRepository;
+import com.example.application.port.out.OutboxEventPublisher;
 import com.example.application.port.out.OutboxRepository;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.NotificationGroup;
@@ -33,6 +34,9 @@ class NotificationCommandServiceTest {
 
 	@Mock
 	private OutboxRepository outboxRepository;
+
+	@Mock
+	private OutboxEventPublisher outboxEventPublisher;
 
 	@InjectMocks
 	private NotificationCommandService commandService;
@@ -70,6 +74,7 @@ class NotificationCommandServiceTest {
 		assertThat(result).isSameAs(existingGroup);
 		verify(groupRepository, never()).save(any(NotificationGroup.class));
 		verifyNoInteractions(outboxRepository);
+		verifyNoInteractions(outboxEventPublisher);
 	}
 
 	@Test
@@ -99,6 +104,7 @@ class NotificationCommandServiceTest {
 		assertThat(result.getNotifications()).hasSize(2);
 		verify(groupRepository, times(1)).save(any(NotificationGroup.class));
 		verify(outboxRepository, times(1)).saveAll(argThat(outboxes -> outboxes.size() == 2));
+		verify(outboxEventPublisher, times(1)).publishAfterCommit(argThat(ids -> ids.size() == 2));
 	}
 
 	@Test
@@ -125,5 +131,6 @@ class NotificationCommandServiceTest {
 		verify(groupRepository, never()).findByClientIdAndIdempotencyKey(any(), any());
 		verify(groupRepository, times(1)).save(any(NotificationGroup.class));
 		verify(outboxRepository, times(1)).saveAll(argThat(outboxes -> outboxes.size() == 1));
+		verify(outboxEventPublisher, times(1)).publishAfterCommit(argThat(ids -> ids.size() == 1));
 	}
 }

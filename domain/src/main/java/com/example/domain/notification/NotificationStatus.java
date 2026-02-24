@@ -2,27 +2,21 @@ package com.example.domain.notification;
 
 public enum NotificationStatus {
 
-	PENDING,
-	SENDING,
-	SENT,
-	RETRY_WAIT,
-	FAILED,
-	CANCELED;
+	PENDING,  // 발송 대기
+	SENDING,  // 발송 중
+	SENT,     // 발송 완료
+	FAILED,   // 발송 실패
+	CANCELED; // 발송 취소
 
 	public boolean canTransitionTo(NotificationStatus target) {
 		return switch (this) {
 			case PENDING -> target == SENDING || target == CANCELED;
-			case SENDING -> target == SENT || target == RETRY_WAIT || target == FAILED;
-			case RETRY_WAIT -> target == SENDING || target == FAILED;
+			case SENDING -> target == SENT || target == FAILED;
 			case SENT, FAILED, CANCELED -> false;
 		};
 	}
 
 	public boolean isTerminal() {
 		return this == SENT || this == FAILED || this == CANCELED;
-	}
-
-	public boolean isRetryable() {
-		return this == RETRY_WAIT || this == FAILED;
 	}
 }

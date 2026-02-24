@@ -3,7 +3,6 @@ package com.example.application.port.out;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationStatus;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,11 +14,9 @@ public interface NotificationRepository {
 
     List<Notification> findByReceiver(String receiver);
 
-    List<Notification> findByReceiverAndStatus(String receiver, NotificationStatus status);
+	List<Notification> findByReceiverAndStatus(String receiver, NotificationStatus status);
 
-    List<Notification> findByStatus(NotificationStatus status);
+	List<Notification> findByStatus(NotificationStatus status);
 
-    List<Notification> findByStatusAndNextRetryAtBefore(NotificationStatus status, LocalDateTime time);
-
-    void delete(Notification notification);
+	void delete(Notification notification);
 }

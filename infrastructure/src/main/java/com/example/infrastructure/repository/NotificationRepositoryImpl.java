@@ -1,6 +1,5 @@
 package com.example.infrastructure.repository;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -38,18 +37,13 @@ public class NotificationRepositoryImpl implements NotificationRepository {
         return jpaRepository.findByReceiverAndStatus(receiver, status);
     }
 
-    @Override
-    public List<Notification> findByStatus(NotificationStatus status) {
-        return jpaRepository.findByStatus(status);
-    }
+	@Override
+	public List<Notification> findByStatus(NotificationStatus status) {
+		return jpaRepository.findByStatus(status);
+	}
 
-    @Override
-    public List<Notification> findByStatusAndNextRetryAtBefore(NotificationStatus status, LocalDateTime time) {
-        return jpaRepository.findByStatusAndNextRetryAtBefore(status, time);
-    }
-
-    @Override
-    public void delete(Notification notification) {
-        jpaRepository.delete(notification);
+	@Override
+	public void delete(Notification notification) {
+		jpaRepository.delete(notification);
     }
 }

@@ -12,8 +12,4 @@ public class NotificationException extends RuntimeException {
 		this.errorCode = errorCode;
 	}
 
-	public NotificationException(ErrorCode errorCode, String message) {
-		super(message);
-		this.errorCode = errorCode;
-	}
 }

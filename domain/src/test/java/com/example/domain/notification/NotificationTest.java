@@ -3,8 +3,6 @@ package com.example.domain.notification;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
-
 import com.example.domain.exception.InvalidStatusTransitionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -58,22 +56,6 @@ class NotificationTest {
     }
 
     @Test
-    @DisplayName("알림을 재시도 대기 처리하면 상태가 RETRY_WAIT로 변경된다")
-    void markAsRetryWait_statusChangesToRetryWait() {
-        // given
-        Notification notification = createNotification();
-        notification.startSending();
-        LocalDateTime nextRetry = LocalDateTime.now().plusMinutes(5);
-
-        // when
-        notification.markAsRetryWait(nextRetry);
-
-        // then
-        assertThat(notification.getStatus()).isEqualTo(NotificationStatus.RETRY_WAIT);
-        assertThat(notification.getNextRetryAt()).isEqualTo(nextRetry);
-    }
-
-    @Test
     @DisplayName("알림을 발송 실패 처리하면 상태가 FAILED로 변경된다")
     void markAsFailed_statusChangesToFailed() {
         // given
@@ -124,34 +106,6 @@ class NotificationTest {
         // when & then
         assertThatThrownBy(notification::markAsSent)
             .isInstanceOf(InvalidStatusTransitionException.class);
-    }
-
-    @Test
-    @DisplayName("재시도 가능 여부를 확인할 수 있다")
-    void canRetry_returnsTrueWhenRetryWaitAndUnderMaxAttempts() {
-        // given
-        Notification notification = createNotification();
-        notification.startSending();
-        notification.markAsRetryWait(LocalDateTime.now().plusMinutes(5));
-
-        // when & then
-        assertThat(notification.canRetry(3)).isTrue();
-    }
-
-    @Test
-    @DisplayName("최대 시도 횟수 초과 시 재시도 불가능하다")
-    void canRetry_returnsFalseWhenOverMaxAttempts() {
-        // given
-        Notification notification = createNotification();
-        notification.startSending();
-        notification.markAsRetryWait(LocalDateTime.now().plusMinutes(5));
-        notification.startSending();
-        notification.markAsRetryWait(LocalDateTime.now().plusMinutes(5));
-        notification.startSending();
-        notification.markAsRetryWait(LocalDateTime.now().plusMinutes(5));
-
-        // when & then
-        assertThat(notification.canRetry(3)).isFalse();
     }
 
     @Test
