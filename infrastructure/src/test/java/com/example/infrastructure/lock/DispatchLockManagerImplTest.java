@@ -6,8 +6,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -92,41 +94,23 @@ class DispatchLockManagerImplTest {
 
 	@Test
 	@DisplayName("락을 획득한 상태에서 다른 스레드는 획득 실패한다")
-	void failsToAcquireWhenAlreadyLocked() throws InterruptedException {
-		// given
+	void failsToAcquireWhenAlreadyLocked() throws InterruptedException, ExecutionException {
 		Long notificationId = 3L;
-		CountDownLatch lockHeldLatch = new CountDownLatch(1);
-		CountDownLatch testCompleteLatch = new CountDownLatch(1);
-		AtomicInteger secondThreadResult = new AtomicInteger(-1);
 
-		// 첫 번째 스레드가 락 획득
-		Thread lockHolder = new Thread(() -> {
-			boolean acquired = lockManager.tryAcquire(notificationId);
-			assertThat(acquired).isTrue();
-			lockHeldLatch.countDown();
+		boolean firstAcquired = lockManager.tryAcquire(notificationId);
+		assertThat(firstAcquired).isTrue();
 
-			try {
-				testCompleteLatch.await(5, TimeUnit.SECONDS);
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			} finally {
-				lockManager.release(notificationId);
-			}
-		});
+		ExecutorService executor = Executors.newSingleThreadExecutor();
+		try {
+			Future<Boolean> secondAttempt = executor.submit(() -> lockManager.tryAcquire(notificationId));
+			boolean secondAcquired = secondAttempt.get();
 
-		// when
-		lockHolder.start();
-		lockHeldLatch.await(5, TimeUnit.SECONDS);
-
-		// 두 번째 스레드가 락 획득 시도
-		boolean secondAcquired = lockManager.tryAcquire(notificationId);
-		secondThreadResult.set(secondAcquired ? 1 : 0);
-
-		testCompleteLatch.countDown();
-		lockHolder.join(5000);
-
-		// then
-		assertThat(secondThreadResult.get()).isEqualTo(0);
+			assertThat(secondAcquired).isFalse();
+		} finally {
+			lockManager.release(notificationId);
+			executor.shutdownNow();
+			executor.awaitTermination(3, TimeUnit.SECONDS);
+		}
 	}
 
 	@Test

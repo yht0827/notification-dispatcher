@@ -8,18 +8,20 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Range;
 import org.springframework.data.redis.connection.Limit;
 import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.connection.stream.ObjectRecord;
+import org.springframework.data.redis.connection.stream.Record;
 import org.springframework.data.redis.connection.stream.RecordId;
 import org.springframework.data.redis.connection.stream.StreamRecords;
 import org.springframework.data.redis.core.StreamOperations;
@@ -28,6 +30,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import com.example.infrastructure.config.NotificationStreamProperties;
 import com.example.infrastructure.stream.inbound.RedisStreamWaitScheduler;
 import com.example.infrastructure.stream.payload.NotificationStreamPayload;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(MockitoExtension.class)
 class RedisStreamWaitSchedulerTest {
@@ -39,11 +42,10 @@ class RedisStreamWaitSchedulerTest {
 	private StreamOperations<String, Object, Object> streamOperations;
 
 	private RedisStreamWaitScheduler scheduler;
-	private NotificationStreamProperties properties;
 
 	@BeforeEach
 	void setUp() {
-		properties = new NotificationStreamProperties(
+		NotificationStreamProperties properties = new NotificationStreamProperties(
 			"notification-stream",
 			"notification-group",
 			"consumer-1",
@@ -62,7 +64,7 @@ class RedisStreamWaitSchedulerTest {
 		// given
 		when(streamOperations.range(
 			eq("notification-stream-wait"),
-			any(Range.class),
+			ArgumentMatchers.any(),
 			any(Limit.class)
 		)).thenReturn(Collections.emptyList());
 
@@ -70,14 +72,15 @@ class RedisStreamWaitSchedulerTest {
 		scheduler.processWaitingMessages();
 
 		// then
-		verify(streamOperations, never()).add(any(ObjectRecord.class));
+		verify(streamOperations, never()).add(ArgumentMatchers.<Record<String, ?>>any());
 		verify(streamOperations, never()).delete(anyString(), any(RecordId.class));
 	}
 
 	@Test
 	@DisplayName("nextRetryAt 시간이 지난 메시지는 WORK 스트림으로 재발행한다")
-	@SuppressWarnings("unchecked")
 	void processWaitingMessages_republishesExpiredMessages() {
+		AtomicReference<ObjectRecord<String, NotificationStreamPayload>> capturedRecord = new AtomicReference<>();
+
 		// given
 		Map<Object, Object> waitPayload = new HashMap<>();
 		waitPayload.put("notificationId", "100");
@@ -93,24 +96,26 @@ class RedisStreamWaitSchedulerTest {
 
 		when(streamOperations.range(
 			eq("notification-stream-wait"),
-			any(Range.class),
+			ArgumentMatchers.any(),
 			any(Limit.class)
 		)).thenReturn(List.of(waitRecord));
 
-		when(streamOperations.add(any(ObjectRecord.class))).thenReturn(RecordId.of("2-0"));
+		when(streamOperations.add(ArgumentMatchers.<Record<String, ?>>any())).thenAnswer(invocation -> {
+			ObjectRecord<String, NotificationStreamPayload> record = invocation.getArgument(0);
+			capturedRecord.set(record);
+			return RecordId.of("2-0");
+		});
 
 		// when
 		scheduler.processWaitingMessages();
 
 		// then
-		ArgumentCaptor<ObjectRecord<String, NotificationStreamPayload>> captor =
-			ArgumentCaptor.forClass(ObjectRecord.class);
-		verify(streamOperations).add(captor.capture());
+		verify(streamOperations).add(ArgumentMatchers.<Record<String, ?>>any());
 
-		ObjectRecord<String, NotificationStreamPayload> captured = captor.getValue();
-		assert captured.getStream().equals("notification-stream");
-		assert captured.getValue().notificationIdAsLong() == 100L;
-		assert captured.getValue().getRetryCount() == 2; // retryCount + 1
+		ObjectRecord<String, NotificationStreamPayload> captured = capturedRecord.get();
+		assertThat(captured.getStream()).isEqualTo("notification-stream");
+		assertThat(captured.getValue().notificationIdAsLong()).isEqualTo(100L);
+		assertThat(captured.getValue().getRetryCount()).isEqualTo(2); // retryCount + 1
 
 		verify(streamOperations).delete("notification-stream-wait", waitRecordId);
 	}
@@ -133,7 +138,7 @@ class RedisStreamWaitSchedulerTest {
 
 		when(streamOperations.range(
 			eq("notification-stream-wait"),
-			any(Range.class),
+			ArgumentMatchers.any(),
 			any(Limit.class)
 		)).thenReturn(List.of(waitRecord));
 
@@ -141,7 +146,7 @@ class RedisStreamWaitSchedulerTest {
 		scheduler.processWaitingMessages();
 
 		// then
-		verify(streamOperations, never()).add(any(ObjectRecord.class));
+		verify(streamOperations, never()).add(ArgumentMatchers.<Record<String, ?>>any());
 		verify(streamOperations, never()).delete(anyString(), any(RecordId.class));
 	}
 
@@ -151,7 +156,7 @@ class RedisStreamWaitSchedulerTest {
 		// given
 		when(streamOperations.range(
 			eq("notification-stream-wait"),
-			any(Range.class),
+			ArgumentMatchers.any(),
 			any(Limit.class)
 		)).thenThrow(new RuntimeException("Redis connection failed"));
 
@@ -159,12 +164,11 @@ class RedisStreamWaitSchedulerTest {
 		scheduler.processWaitingMessages();
 
 		// then - 예외 없이 정상 종료
-		verify(streamOperations, never()).add(any(ObjectRecord.class));
+		verify(streamOperations, never()).add(ArgumentMatchers.<Record<String, ?>>any());
 	}
 
 	@Test
 	@DisplayName("재발행 실패 시 해당 메시지만 건너뛰고 계속 진행한다")
-	@SuppressWarnings("unchecked")
 	void processWaitingMessages_continuesOnRepublishFailure() {
 		// given
 		long pastTime = System.currentTimeMillis() - 1000;
@@ -193,12 +197,12 @@ class RedisStreamWaitSchedulerTest {
 
 		when(streamOperations.range(
 			eq("notification-stream-wait"),
-			any(Range.class),
+			ArgumentMatchers.<Range<String>>any(),
 			any(Limit.class)
 		)).thenReturn(List.of(record1, record2));
 
 		// 첫 번째 재발행 실패
-		when(streamOperations.add(any(ObjectRecord.class)))
+		when(streamOperations.add(ArgumentMatchers.<Record<String, ?>>any()))
 			.thenThrow(new RuntimeException("Publish failed"))
 			.thenReturn(RecordId.of("3-0"));
 
@@ -206,7 +210,7 @@ class RedisStreamWaitSchedulerTest {
 		scheduler.processWaitingMessages();
 
 		// then - 두 번째 메시지는 성공
-		verify(streamOperations, times(2)).add(any(ObjectRecord.class));
+		verify(streamOperations, times(2)).add(ArgumentMatchers.<Record<String, ?>>any());
 		verify(streamOperations).delete("notification-stream-wait", RecordId.of("2-0"));
 		verify(streamOperations, never()).delete(eq("notification-stream-wait"), eq(RecordId.of("1-0")));
 	}
@@ -226,7 +230,7 @@ class RedisStreamWaitSchedulerTest {
 
 		when(streamOperations.range(
 			eq("notification-stream-wait"),
-			any(Range.class),
+			ArgumentMatchers.any(),
 			any(Limit.class)
 		)).thenReturn(List.of(record));
 
@@ -234,7 +238,7 @@ class RedisStreamWaitSchedulerTest {
 		scheduler.processWaitingMessages();
 
 		// then - 예외 없이 정상 종료, 재발행 없음
-		verify(streamOperations, never()).add(any(ObjectRecord.class));
+		verify(streamOperations, never()).add(ArgumentMatchers.<Record<String, ?>>any());
 		verify(streamOperations, never()).delete(anyString(), any(RecordId.class));
 	}
 }

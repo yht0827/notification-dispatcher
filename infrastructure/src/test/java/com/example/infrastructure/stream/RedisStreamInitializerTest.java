@@ -46,11 +46,10 @@ class RedisStreamInitializerTest {
 	private PendingMessages emptyPendingMessages;
 
 	private RedisStreamInitializer initializer;
-	private NotificationStreamProperties properties;
 
 	@BeforeEach
 	void setUp() {
-		properties = new NotificationStreamProperties(
+		NotificationStreamProperties properties = new NotificationStreamProperties(
 			"notification-stream",
 			"notification-group",
 			"consumer-1",

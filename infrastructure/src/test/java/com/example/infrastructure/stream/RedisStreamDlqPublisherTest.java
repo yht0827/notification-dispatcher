@@ -2,16 +2,17 @@ package com.example.infrastructure.stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.connection.stream.ObjectRecord;
+import org.springframework.data.redis.connection.stream.Record;
 import org.springframework.data.redis.connection.stream.RecordId;
 import org.springframework.data.redis.core.StreamOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -33,6 +34,8 @@ class RedisStreamDlqPublisherTest {
 	@Test
 	@DisplayName("deadLetterKey가 있으면 해당 키로 DLQ를 발행한다")
 	void publish_usesConfiguredDeadLetterKey() {
+		AtomicReference<ObjectRecord<String, NotificationDeadLetterPayload>> capturedRecord = new AtomicReference<>();
+
 		NotificationStreamProperties properties = new NotificationStreamProperties(
 			"notification-stream",
 			"notification-group",
@@ -48,17 +51,17 @@ class RedisStreamDlqPublisherTest {
 		RedisStreamDlqPublisher publisher = new RedisStreamDlqPublisher(redisTemplate, properties);
 
 		when(redisTemplate.opsForStream()).thenReturn(streamOperations);
-		when(streamOperations.add(any(ObjectRecord.class))).thenReturn(RecordId.of("1-0"));
+		when(streamOperations.add(org.mockito.ArgumentMatchers.<Record<String, ?>>any())).thenAnswer(invocation -> {
+			ObjectRecord<String, NotificationDeadLetterPayload> record = invocation.getArgument(0);
+			capturedRecord.set(record);
+			return RecordId.of("1-0");
+		});
 
 		publisher.publish(RecordId.of("10-0"), new NotificationStreamPayload(10L), 10L, "non-retryable");
 
-		ArgumentCaptor<ObjectRecord> recordCaptor = ArgumentCaptor.forClass(ObjectRecord.class);
-		verify(streamOperations).add(recordCaptor.capture());
-
-		ObjectRecord<?, ?> record = recordCaptor.getValue();
+		ObjectRecord<String, NotificationDeadLetterPayload> record = capturedRecord.get();
 		assertThat(record.getStream()).isEqualTo("custom-dlq");
-		assertThat(record.getValue()).isInstanceOf(NotificationDeadLetterPayload.class);
-		NotificationDeadLetterPayload message = (NotificationDeadLetterPayload)record.getValue();
+		NotificationDeadLetterPayload message = record.getValue();
 		assertThat(message.recordId()).isEqualTo("10-0");
 		assertThat(message.notificationId()).isEqualTo("10");
 		assertThat(message.reason()).isEqualTo("non-retryable");
@@ -69,6 +72,8 @@ class RedisStreamDlqPublisherTest {
 	@Test
 	@DisplayName("deadLetterKey가 비어 있으면 기본 suffix 키를 사용한다")
 	void publish_usesDefaultSuffixWhenDeadLetterKeyBlank() {
+		AtomicReference<ObjectRecord<String, NotificationDeadLetterPayload>> capturedRecord = new AtomicReference<>();
+
 		NotificationStreamProperties properties = new NotificationStreamProperties(
 			"main-stream",
 			"notification-group",
@@ -84,12 +89,14 @@ class RedisStreamDlqPublisherTest {
 		RedisStreamDlqPublisher publisher = new RedisStreamDlqPublisher(redisTemplate, properties);
 
 		when(redisTemplate.opsForStream()).thenReturn(streamOperations);
-		when(streamOperations.add(any(ObjectRecord.class))).thenReturn(RecordId.of("2-0"));
+		when(streamOperations.add(org.mockito.ArgumentMatchers.<Record<String, ?>>any())).thenAnswer(invocation -> {
+			ObjectRecord<String, NotificationDeadLetterPayload> record = invocation.getArgument(0);
+			capturedRecord.set(record);
+			return RecordId.of("2-0");
+		});
 
 		publisher.publish(RecordId.of("20-0"), "payload", 20L, "reason");
 
-		ArgumentCaptor<ObjectRecord> recordCaptor = ArgumentCaptor.forClass(ObjectRecord.class);
-		verify(streamOperations).add(recordCaptor.capture());
-		assertThat(recordCaptor.getValue().getStream()).isEqualTo("main-stream-dlq");
+		assertThat(capturedRecord.get().getStream()).isEqualTo("main-stream-dlq");
 	}
 }
