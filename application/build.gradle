@@ -2,7 +2,6 @@
 
 dependencies {
     implementation project(':domain')
-    implementation project(':common')
 
     // Spring
     implementation 'org.springframework:spring-context'

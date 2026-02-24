@@ -24,7 +24,7 @@ import com.example.api.exception.NotificationException;
 import com.example.application.port.in.NotificationCommandUseCase;
 import com.example.application.port.in.NotificationCommandUseCase.SendCommand;
 import com.example.application.port.in.NotificationQueryUseCase;
-import com.example.common.response.ApiResponse;
+import com.example.api.response.ApiResponse;
 import com.example.domain.notification.NotificationGroup;
 
 import io.swagger.v3.oas.annotations.Operation;

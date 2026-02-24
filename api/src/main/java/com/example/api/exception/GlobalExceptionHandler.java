@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 import com.example.api.dto.response.ErrorResponse;
-import com.example.common.response.ApiResponse;
+import com.example.api.response.ApiResponse;
 
 import lombok.extern.slf4j.Slf4j;
 

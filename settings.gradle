@@ -8,7 +8,6 @@ pluginManagement {
 rootProject.name = 'notification-dispatcher'
 
 include 'domain'
-include 'common'
 include 'application'
 include 'infrastructure'
 include 'api'
