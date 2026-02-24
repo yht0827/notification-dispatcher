@@ -24,37 +24,49 @@ public class RedisStreamRecordHandler {
 	private final DispatchLockManager lockManager;
 
 	public void process(Long notificationId, int retryCount) {
-		// 1. 락 획득 시도
+		runWithDispatchLock(notificationId, () -> processInternal(notificationId, retryCount));
+	}
+
+	private void runWithDispatchLock(Long notificationId, Runnable action) {
+		// 락 획득
 		if (!lockManager.tryAcquire(notificationId)) {
 			log.info("이미 처리 중인 알림 스킵: notificationId={}", notificationId);
 			return;
 		}
 
-		boolean shouldReleaseLock = false;
 		try {
-			// 2. 실제 처리
-			Notification notification = loadNotification(notificationId);
-			DispatchResult dispatchResult = dispatchSafely(notificationId, notification);
-			if (dispatchResult.isFailure()) {
-				handleSendFailure(notificationId, retryCount, dispatchResult.failReason());
-			}
-			// 성공 시 락 유지 (TTL로 자동 만료)
-		} catch (RetryableStreamMessageException e) {
-			// 재시도 가능 → 락 해제
-			shouldReleaseLock = true;
-			throw e;
-		} catch (NonRetryableStreamMessageException e) {
-			// 재시도 불가 → 락 유지 (중복 처리 방지)
-			throw e;
+			action.run();
 		} catch (Exception e) {
-			// 예상치 못한 예외 → 락 해제 (재시도 가능하도록)
-			shouldReleaseLock = true;
-			log.error("예상치 못한 예외 발생: notificationId={}", notificationId, e);
-			throw new RetryableStreamMessageException("예상치 못한 오류: " + e.getMessage(), e);
-		} finally {
-			if (shouldReleaseLock) {
-				lockManager.release(notificationId);
-			}
+			throw translateExceptionWithLockPolicy(notificationId, e);
+		}
+	}
+
+	private void processInternal(Long notificationId, int retryCount) {
+		Notification notification = loadNotification(notificationId);
+		DispatchResult dispatchResult = dispatchSafely(notificationId, notification);
+		throwRetryExceptionIfDispatchFailed(notificationId, retryCount, dispatchResult);
+	}
+
+	private RuntimeException translateExceptionWithLockPolicy(Long notificationId, Exception e) {
+		// non-retryable은 DLQ 경로로 넘기고 락을 유지(중복 소비 방지)
+		if (e instanceof NonRetryableStreamMessageException nonRetryable) {
+			return nonRetryable;
+		}
+
+		// retryable/예상치 못한 예외는 즉시 락 해제 후 재처리 가능하게 함
+		lockManager.release(notificationId);
+		if (e instanceof RetryableStreamMessageException retryable) {
+			return retryable;
+		}
+
+		log.error("예상치 못한 예외 발생: notificationId={}", notificationId, e);
+		return new RetryableStreamMessageException("예상치 못한 오류: " + e.getMessage(), e);
+	}
+
+	private void throwRetryExceptionIfDispatchFailed(Long notificationId, int retryCount,
+		DispatchResult dispatchResult) {
+		if (dispatchResult.isFailure()) {
+			handleSendFailure(notificationId, retryCount, dispatchResult.failReason());
 		}
 	}
 
@@ -88,9 +100,11 @@ public class RedisStreamRecordHandler {
 	}
 
 	private void handleSendFailure(Long notificationId, int retryCount, String reason) {
+		// 재시도 한도 초과 시 DB 실패 상태를 남기고 non-retryable로 전환
 		if (retryCount >= properties.resolveMaxRetryCount()) {
 			throw toNonRetryableAfterMarkFailed(notificationId, reason, "재시도 한도 초과: " + reason, null);
 		}
+		// 재시도 가능 실패는 WAIT 스트림 경로로 전달
 		throw new RetryableStreamMessageException("알림 발송 실패: " + reason);
 	}
 

@@ -2,7 +2,9 @@ package com.example.infrastructure.stream;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
@@ -81,6 +83,7 @@ class RedisStreamRecordHandlerTest {
 		assertThatThrownBy(() -> recordHandler.process(1L, 0))
 			.isInstanceOf(RetryableStreamMessageException.class)
 			.hasMessageContaining("발송 실패");
+		verify(lockManager).release(1L);
 	}
 
 	@Test
@@ -115,6 +118,32 @@ class RedisStreamRecordHandlerTest {
 		assertThatThrownBy(() -> recordHandler.process(999L, 0))
 			.isInstanceOf(NonRetryableStreamMessageException.class)
 			.hasMessageContaining("알림을 찾을 수 없음");
+		verify(lockManager, never()).release(999L);
+	}
+
+	@Test
+	@DisplayName("락 획득에 실패하면 처리 로직을 스킵한다")
+	void process_skipsWhenLockNotAcquired() {
+		when(lockManager.tryAcquire(10L)).thenReturn(false);
+
+		recordHandler.process(10L, 0);
+
+		verifyNoInteractions(notificationRepository, dispatchService, properties);
+		verify(lockManager, never()).release(10L);
+	}
+
+	@Test
+	@DisplayName("예상치 못한 예외는 retryable로 감싸고 락을 해제한다")
+	void process_wrapsUnexpectedExceptionAndReleasesLock() {
+		Notification notification = createNotification();
+		when(notificationRepository.findById(20L)).thenReturn(Optional.of(notification));
+		when(dispatchService.dispatch(notification)).thenThrow(new IllegalStateException("boom"));
+
+		assertThatThrownBy(() -> recordHandler.process(20L, 0))
+			.isInstanceOf(RetryableStreamMessageException.class)
+			.hasMessageContaining("예상치 못한 오류");
+
+		verify(lockManager).release(20L);
 	}
 
 	@Test
