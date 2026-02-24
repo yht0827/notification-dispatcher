@@ -11,4 +11,6 @@ import com.example.domain.outbox.OutboxStatus;
 public interface OutboxJpaRepository extends JpaRepository<Outbox, Long> {
 
 	List<Outbox> findByStatusOrderByCreatedAtAsc(OutboxStatus status, Pageable pageable);
+
+	void deleteByAggregateId(Long aggregateId);
 }

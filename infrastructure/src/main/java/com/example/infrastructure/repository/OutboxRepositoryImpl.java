@@ -41,4 +41,9 @@ public class OutboxRepositoryImpl implements OutboxRepository {
 	public void deleteAll(List<Outbox> outboxes) {
 		jpaRepository.deleteAll(outboxes);
 	}
+
+	@Override
+	public void deleteByAggregateId(Long aggregateId) {
+		jpaRepository.deleteByAggregateId(aggregateId);
+	}
 }

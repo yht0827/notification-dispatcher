@@ -16,4 +16,6 @@ public interface OutboxRepository {
 	void delete(Outbox outbox);
 
 	void deleteAll(List<Outbox> outboxes);
+
+	void deleteByAggregateId(Long aggregateId);
 }
