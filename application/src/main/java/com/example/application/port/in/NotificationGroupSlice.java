@@ -9,4 +9,15 @@ public record NotificationGroupSlice(
 	boolean hasNext,
 	Long nextCursorId
 ) {
+	public static NotificationGroupSlice of(List<NotificationGroup> fetched, int requestedSize) {
+		boolean hasNext = fetched.size() > requestedSize;
+		List<NotificationGroup> items = List.copyOf(
+			hasNext ? fetched.subList(0, requestedSize) : fetched
+		);
+		return new NotificationGroupSlice(
+			items,
+			hasNext,
+			hasNext ? items.getLast().getId() : null
+		);
+	}
 }

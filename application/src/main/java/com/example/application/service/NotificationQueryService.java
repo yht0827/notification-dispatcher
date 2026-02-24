@@ -35,18 +35,9 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 
 	@Override
 	public NotificationGroupSlice getRecentGroups(Long cursorId, int size) {
-		int normalizedSize = Math.max(size, 1);
-		List<NotificationGroup> fetched = groupRepository.findRecentByCursor(cursorId, normalizedSize + 1);
-
-		boolean hasNext = fetched.size() > normalizedSize;
-		List<NotificationGroup> items = hasNext
-			? List.copyOf(fetched.subList(0, normalizedSize))
-			: List.copyOf(fetched);
-		Long nextCursorId = hasNext && !items.isEmpty()
-			? items.get(items.size() - 1).getId()
-			: null;
-
-		return new NotificationGroupSlice(items, hasNext, nextCursorId);
+		int limit = Math.max(size, 1);
+		List<NotificationGroup> fetched = groupRepository.findRecentByCursor(cursorId, limit + 1);
+		return NotificationGroupSlice.of(fetched, limit);
 	}
 
 	@Override
