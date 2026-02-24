@@ -74,3 +74,21 @@ POST /api/v1/notifications
   - 재시도 가능: WAIT 스트림 이동 -> WaitScheduler가 재발행
   - 재시도 불가/한도 초과: DLQ 스트림 이동
 ```
+
+### 3) 전체 흐름도 (Service + Outbox + Redis Streams)
+
+```mermaid
+flowchart TD
+    Client["Client"] --> Api["API Service"]
+    Api --> Db["MySQL\n(notification + outbox)"]
+    Db --> Outbox["Outbox Publisher/Poller"]
+    Outbox --> Work["Redis WORK Stream"]
+
+    Work --> Worker["Consumer + Dispatch"]
+    Worker --> Channel["Channel Sender\n(EMAIL/SMS/KAKAO)"]
+    Worker --> Db
+
+    Worker -- "retry" --> Wait["Redis WAIT Stream"]
+    Wait --> Work
+    Worker -- "fail" --> Dlq["Redis DLQ Stream"]
+```
