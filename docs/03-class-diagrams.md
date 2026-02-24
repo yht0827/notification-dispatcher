@@ -124,11 +124,9 @@ classDiagram
       +status
       +attemptCount
       +sentAt
-      +nextRetryAt
       +failReason
       +startSending()
       +markAsSent()
-      +markAsRetryWait(nextRetryAt)
       +markAsFailed(reason)
       +cancel()
       +isTerminal() boolean
@@ -151,7 +149,6 @@ classDiagram
       PENDING
       SENDING
       SENT
-      RETRY_WAIT
       FAILED
       CANCELED
     }

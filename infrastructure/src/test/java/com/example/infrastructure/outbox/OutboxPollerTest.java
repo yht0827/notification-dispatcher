@@ -15,6 +15,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.example.application.port.out.OutboxRepository;
 import com.example.domain.outbox.Outbox;
+import com.example.domain.outbox.OutboxAggregateType;
+import com.example.domain.outbox.OutboxEventType;
 import com.example.domain.outbox.OutboxStatus;
 import com.example.infrastructure.stream.outbound.RedisStreamPublisher;
 
@@ -142,7 +144,12 @@ class OutboxPollerTest {
 	}
 
 	private Outbox createOutbox(Long id, Long aggregateId) {
-		Outbox outbox = Outbox.create("NOTIFICATION", aggregateId, "NotificationCreated", "{}");
+		Outbox outbox = Outbox.create(
+			OutboxAggregateType.NOTIFICATION,
+			aggregateId,
+			OutboxEventType.NOTIFICATION_CREATED,
+			"{}"
+		);
 		// Reflection으로 ID 설정 (테스트용)
 		try {
 			var idField = Outbox.class.getDeclaredField("id");

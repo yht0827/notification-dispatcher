@@ -50,8 +50,6 @@ public class Notification extends BaseEntity {
 
 	private int attemptCount;
 
-	private LocalDateTime nextRetryAt;
-
 	private String failReason;
 
 	private Notification(NotificationGroup group, String receiver) {
@@ -76,11 +74,6 @@ public class Notification extends BaseEntity {
 		incrementSentCountIfGrouped();
 	}
 
-	public void markAsRetryWait(LocalDateTime nextRetryAt) {
-		transitionTo(NotificationStatus.RETRY_WAIT);
-		this.nextRetryAt = nextRetryAt;
-	}
-
 	public void markAsFailed(String reason) {
 		transitionTo(NotificationStatus.FAILED);
 		this.failReason = reason;
@@ -89,10 +82,6 @@ public class Notification extends BaseEntity {
 
 	public void cancel() {
 		transitionTo(NotificationStatus.CANCELED);
-	}
-
-	public boolean canRetry(int maxAttempts) {
-		return this.attemptCount < maxAttempts && this.status.isRetryable();
 	}
 
 	public boolean isTerminal() {

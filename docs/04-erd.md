@@ -114,10 +114,9 @@ erDiagram
 | id | BIGINT | PK, AUTO_INCREMENT | 알림 식별자 |
 | group_id | BIGINT | FK(NULL 허용) | 소속 그룹 |
 | receiver | VARCHAR(255) | NOT NULL | 수신자 |
-| status | VARCHAR(50) | NOT NULL | `PENDING/SENDING/SENT/RETRY_WAIT/FAILED/CANCELED` |
+| status | VARCHAR(50) | NOT NULL | `PENDING/SENDING/SENT/FAILED/CANCELED` |
 | sent_at | DATETIME(6) | NULL | 발송 완료 시각 |
 | attempt_count | INT | NOT NULL DEFAULT 0 | 발송 시도 횟수 |
-| next_retry_at | DATETIME(6) | NULL | 다음 재시도 예정시각 |
 | fail_reason | VARCHAR(500) | NULL | 실패 사유 |
 | created_at | DATETIME(6) | NOT NULL | 생성 시각 |
 | updated_at | DATETIME(6) | NOT NULL | 수정 시각 |

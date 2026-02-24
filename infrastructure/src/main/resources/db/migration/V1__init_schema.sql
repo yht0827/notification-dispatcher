@@ -28,11 +28,24 @@ CREATE TABLE notification
     status        VARCHAR(50)  NOT NULL,
     sent_at       DATETIME(6)  NULL,
     attempt_count INT          NOT NULL DEFAULT 0,
-    next_retry_at DATETIME(6)  NULL,
     fail_reason   VARCHAR(500) NULL,
     created_at    DATETIME(6)  NOT NULL,
     updated_at    DATETIME(6)  NOT NULL,
     deleted_at    DATETIME(6)  NULL
+);
+
+CREATE TABLE outbox
+(
+    id             BIGINT AUTO_INCREMENT PRIMARY KEY,
+    aggregate_type VARCHAR(255) NOT NULL,
+    aggregate_id   BIGINT       NOT NULL,
+    event_type     VARCHAR(255) NOT NULL,
+    payload        TEXT         NULL,
+    status         VARCHAR(50)  NOT NULL,
+    processed_at   DATETIME(6)  NULL,
+    created_at     DATETIME(6)  NOT NULL,
+    updated_at     DATETIME(6)  NOT NULL,
+    deleted_at     DATETIME(6)  NULL
 );
 
 -- =====================
@@ -53,4 +66,5 @@ CREATE INDEX idx_notification_deleted_at ON notification (deleted_at);
 CREATE INDEX idx_notification_receiver_status ON notification (receiver, status);
 CREATE INDEX idx_notification_status_created ON notification (status, created_at);
 CREATE INDEX idx_notification_group_status ON notification (group_id, status);
-CREATE INDEX idx_notification_retry ON notification (status, next_retry_at);
+
+CREATE INDEX idx_outbox_status_created ON outbox (status, created_at);

@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import com.example.domain.common.BaseEntity;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -19,9 +20,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
-@Table(name = "outbox", indexes = {
-	@Index(name = "idx_outbox_status_created", columnList = "status, createdAt")
-})
+@Table(name = "outbox")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Outbox extends BaseEntity {
 
@@ -29,14 +28,16 @@ public class Outbox extends BaseEntity {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
+	@Convert(converter = OutboxAggregateTypeConverter.class)
 	@Column(nullable = false)
-	private String aggregateType;
+	private OutboxAggregateType aggregateType;
 
 	@Column(nullable = false)
 	private Long aggregateId;
 
+	@Convert(converter = OutboxEventTypeConverter.class)
 	@Column(nullable = false)
-	private String eventType;
+	private OutboxEventType eventType;
 
 	@Column(columnDefinition = "TEXT")
 	private String payload;
@@ -47,7 +48,7 @@ public class Outbox extends BaseEntity {
 
 	private LocalDateTime processedAt;
 
-	private Outbox(String aggregateType, Long aggregateId, String eventType, String payload) {
+	private Outbox(OutboxAggregateType aggregateType, Long aggregateId, OutboxEventType eventType, String payload) {
 		this.aggregateType = aggregateType;
 		this.aggregateId = aggregateId;
 		this.eventType = eventType;
@@ -55,12 +56,14 @@ public class Outbox extends BaseEntity {
 		this.status = OutboxStatus.PENDING;
 	}
 
-	public static Outbox create(String aggregateType, Long aggregateId, String eventType, String payload) {
+	public static Outbox create(OutboxAggregateType aggregateType, Long aggregateId, OutboxEventType eventType,
+		String payload) {
 		return new Outbox(aggregateType, aggregateId, eventType, payload);
 	}
 
 	public static Outbox createNotificationEvent(Long notificationId) {
-		return new Outbox("Notification", notificationId, "NotificationCreated", null);
+		return new Outbox(OutboxAggregateType.NOTIFICATION, notificationId, OutboxEventType.NOTIFICATION_CREATED,
+			null);
 	}
 
 	public void markAsProcessed() {

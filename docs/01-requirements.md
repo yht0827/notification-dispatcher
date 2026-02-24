@@ -321,11 +321,8 @@ Client
 
 ```text
 PENDING -> SENDING -> SENT
-                   -> RETRY_WAIT
                    -> FAILED
 PENDING -> CANCELED
-RETRY_WAIT -> SENDING
-RETRY_WAIT -> FAILED
 ```
 
 | 상태 | 설명 | 종결 여부 |
@@ -333,11 +330,10 @@ RETRY_WAIT -> FAILED
 | `PENDING` | 발송 대기 | X |
 | `SENDING` | 발송 시도 중 | X |
 | `SENT` | 발송 성공 | O |
-| `RETRY_WAIT` | 재시도 대기 | X |
 | `FAILED` | 최종 실패 | O |
 | `CANCELED` | 취소 | O |
 
-> 구현 메모: 현재 비동기 처리에서는 재시도 대기를 Redis WAIT 스트림으로 관리하며, 엔티티의 `RETRY_WAIT` 상태 전이는 기본 플로우에서 직접 사용하지 않는다.
+> 구현 메모: 재시도는 Redis WAIT 스트림에서 관리하며, Notification 엔티티는 최종 결과(SENT/FAILED)만 기록한다.
 
 ### Outbox 상태
 
