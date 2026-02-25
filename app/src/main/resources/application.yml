@@ -8,6 +8,10 @@ notification:
   stream:
     enabled: true
 
+outbox:
+  poll-interval-millis: 1000
+  batch-size: 100
+
 ---
 # Local 환경
 spring:
@@ -41,13 +45,13 @@ notification:
     key: notification-stream
     consumer-group: notification-group
     consumer-name: consumer-1
-    poll-interval: 1000
-    batch-size: 10
+    poll-interval: 1000                        # XREADGROUP 타임아웃(ms)
+    batch-size: 10                             # 한 번에 읽을 최대 개수
     dead-letter-key: notification-stream-dlq
     wait-key: notification-stream-wait
-    max-retry-count: 3
-    retry-base-delay-millis: 5000
-    wait-poll-interval-millis: 1000
+    max-retry-count: 3                         # 재시도 최대 횟수
+    retry-base-delay-millis: 5000              # WAIT 재시도 기본 지연(ms)
+    wait-poll-interval-millis: 1000            # WAIT 스케줄러 실행 주기
 
 ---
 # Test 환경 (Testcontainers)
