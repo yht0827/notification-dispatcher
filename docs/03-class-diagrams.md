@@ -120,6 +120,7 @@ classDiagram
 
     class Notification {
       +id
+      +version
       +receiver
       +status
       +attemptCount
@@ -141,7 +142,7 @@ classDiagram
       +status
       +processedAt
       +markAsProcessed()
-      +markAsFailed()
+      +isPending()
     }
 
     class NotificationStatus {
@@ -283,7 +284,7 @@ classDiagram
       +send(notification) SendResult
     }
 
-    class NotificationSenderAdapter {
+    class NotificationSenderImpl {
       +send(notification) SendResult
     }
 
@@ -301,8 +302,8 @@ classDiagram
     class SmsSender
     class KakaoSender
 
-    NotificationSender <|.. NotificationSenderAdapter
-    NotificationSenderAdapter --> ChannelSenderFactory
+    NotificationSender <|.. NotificationSenderImpl
+    NotificationSenderImpl --> ChannelSenderFactory
 
     ChannelSender <|.. EmailSender
     ChannelSender <|.. SmsSender
@@ -325,5 +326,5 @@ classDiagram
 | `RedisStreamConsumer` | Infrastructure | WORK 메시지 소비 및 ACK 제어 |
 | `RedisStreamRecordHandler` | Infrastructure | 분산 락/재시도 분기/실패 처리 |
 | `RedisStreamWaitScheduler` | Infrastructure | WAIT 만료 메시지 재발행 |
-| `NotificationSenderAdapter` | Infrastructure | 채널별 Sender 전략 선택 |
-| `RedisDispatchLockManager` | Infrastructure | notificationId 단위 락 획득/해제 |
+| `NotificationSenderImpl` | Infrastructure | 채널별 Sender 전략 선택 |
+| `DispatchLockManagerImpl` | Infrastructure | notificationId 단위 락 획득/해제 |

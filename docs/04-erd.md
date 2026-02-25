@@ -46,8 +46,8 @@ erDiagram
       varchar status
       datetime sent_at
       int attempt_count
-      datetime next_retry_at
       varchar fail_reason
+      bigint version
       datetime created_at
       datetime updated_at
       datetime deleted_at
@@ -118,6 +118,7 @@ erDiagram
 | sent_at | DATETIME(6) | NULL | 발송 완료 시각 |
 | attempt_count | INT | NOT NULL DEFAULT 0 | 발송 시도 횟수 |
 | fail_reason | VARCHAR(500) | NULL | 실패 사유 |
+| version | BIGINT | NOT NULL DEFAULT 0 | 낙관적 락 버전 |
 | created_at | DATETIME(6) | NOT NULL | 생성 시각 |
 | updated_at | DATETIME(6) | NOT NULL | 수정 시각 |
 | deleted_at | DATETIME(6) | NULL | 소프트 삭제 |
@@ -130,7 +131,6 @@ erDiagram
 - `idx_notification_receiver_status`: `(receiver, status)`
 - `idx_notification_status_created`: `(status, created_at)`
 - `idx_notification_group_status`: `(group_id, status)`
-- `idx_notification_retry`: `(status, next_retry_at)`
 
 ### outbox
 
@@ -159,6 +159,6 @@ erDiagram
 
 - 중복 요청 제어: `notification_group(client_id, idempotency_key)`
 - 중복 처리 제어: Redis 분산 락 `dispatch-lock:{notificationId}`
-- 재시도 조회 최적화: `notification(status, next_retry_at)` 인덱스
+- 낙관적 락: `notification.version` 컬럼으로 동시 수정 충돌 감지
 - 커서 조회 최적화: 그룹 조회는 `id DESC` 및 `cursorId` 조건으로 동작
 - 소프트 삭제 적용: `deleted_at` 조건이 JPA 조회에 기본 반영됨

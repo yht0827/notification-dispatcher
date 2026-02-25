@@ -104,7 +104,7 @@ sequenceDiagram
     participant L as DispatchLockManager
     participant NR as NotificationRepository
     participant DS as NotificationDispatchService
-    participant SA as NotificationSenderAdapter
+    participant SA as NotificationSenderImpl
     participant SF as ChannelSenderFactory
     participant CS as ChannelSender
     participant DB as MySQL
