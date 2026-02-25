@@ -1,5 +1,7 @@
 package com.example.infrastructure.stream.inbound;
 
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+
 import com.example.application.port.in.NotificationDispatchUseCase;
 import com.example.application.port.in.NotificationDispatchUseCase.DispatchResult;
 import com.example.application.port.out.DispatchLockManager;
@@ -37,6 +39,7 @@ public class RedisStreamRecordHandler {
 			if (dispatchResult.isFailure()) {
 				throw toDispatchFailureException(notificationId, retryCount, dispatchResult.failReason());
 			}
+			lockManager.release(notificationId);
 		} catch (RuntimeException e) {
 			throw handleException(notificationId, e);
 		}
@@ -65,6 +68,11 @@ public class RedisStreamRecordHandler {
 		if (exception instanceof NonRetryableStreamMessageException
 			|| exception instanceof RetryableStreamMessageException) {
 			return exception;
+		}
+
+		if (exception instanceof ObjectOptimisticLockingFailureException) {
+			log.info("낙관적 락 충돌 (이미 처리됨): notificationId={}", notificationId);
+			return new NonRetryableStreamMessageException("낙관적 락 충돌: 이미 다른 인스턴스에서 처리됨", exception);
 		}
 
 		if (exception instanceof InvalidStatusTransitionException e) {

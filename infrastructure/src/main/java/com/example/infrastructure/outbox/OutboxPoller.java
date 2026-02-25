@@ -8,12 +8,12 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.OutboxRepository;
 import com.example.domain.outbox.Outbox;
 import com.example.domain.outbox.OutboxStatus;
 import com.example.infrastructure.config.NotificationStreamConfig;
 import com.example.infrastructure.config.OutboxProperties;
-import com.example.infrastructure.stream.outbound.RedisStreamPublisher;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 public class OutboxPoller {
 
 	private final OutboxRepository outboxRepository;
-	private final RedisStreamPublisher streamPublisher;
+	private final NotificationEventPublisher streamPublisher;
 	private final OutboxProperties outboxProperties;
 
 	@Scheduled(fixedDelayString = "${outbox.poll-interval-millis:1000}")
