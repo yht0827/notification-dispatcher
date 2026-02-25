@@ -78,17 +78,36 @@ POST /api/v1/notifications
 ### 3) 전체 흐름도 (Service + Outbox + Redis Streams)
 
 ```mermaid
-flowchart TD
-    Client["Client"] --> Api["API Service"]
-    Api --> Db["MySQL\n(notification + outbox)"]
-    Db --> Outbox["Outbox Publisher/Poller"]
-    Outbox --> Work["Redis WORK Stream"]
+flowchart LR
+    subgraph S1["1) 요청 저장 (동기)"]
+        Client["Client"] --> Api["Notification API"]
+        Api --> Command["Command Service"]
+        Command --> Db[("MySQL\nnotification_group\nnotification\noutbox")]
+        Command --> Response["201 Created"]
+    end
 
-    Work --> Worker["Consumer + Dispatch"]
-    Worker --> Channel["Channel Sender\n(EMAIL/SMS/KAKAO)"]
-    Worker --> Db
+    subgraph S2["2) Outbox 발행 (비동기)"]
+        Poller["OutboxPoller"] --> Db
+        Db -->|"PENDING outbox"| Publisher["RedisStreamPublisher"]
+        Publisher --> Work[("Redis Stream\nWORK")]
+    end
 
-    Worker -- "retry" --> Wait["Redis WAIT Stream"]
-    Wait --> Work
-    Worker -- "fail" --> Dlq["Redis DLQ Stream"]
+    subgraph S3["3) WORK 소비 + 발송"]
+        Work --> Consumer["RedisStreamConsumer"]
+        Consumer --> Lock{"DispatchLockManager\n락 획득?"}
+        Lock -->|"No"| Skip["중복 처리 방지 후 스킵"]
+        Lock -->|"Yes"| Handler["RedisStreamRecordHandler"]
+        Handler --> Sender["ChannelSender\n(EMAIL/SMS/KAKAO)"]
+        Sender --> Result{"결과"}
+    end
+
+    Result -->|"성공"| Ack["ACK + 상태 저장"]
+    Ack --> Db
+
+    Result -->|"재시도 가능\n(한도 미만)"| Wait[("Redis Stream\nWAIT")]
+    Wait --> WaitScheduler["RedisStreamWaitScheduler"]
+    WaitScheduler -->|"nextRetryAt 도달"| Work
+
+    Result -->|"재시도 불가\n또는 한도 초과"| Dlq[("Redis Stream\nDLQ")]
+    Dlq --> Ops["모니터링 / 수동 대응"]
 ```
