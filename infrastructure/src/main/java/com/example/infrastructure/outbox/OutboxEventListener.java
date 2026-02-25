@@ -1,5 +1,7 @@
 package com.example.infrastructure.outbox;
 
+import java.util.List;
+
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -23,24 +25,24 @@ public class OutboxEventListener {
 
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onOutboxCreated(OutboxCreatedEvent event) {
-		int successCount = 0;
-		for (Long notificationId : event.notificationIds()) {
-			if (tryPublishAndDelete(notificationId)) {
-				successCount++;
-			}
-		}
-		if (successCount > 0) {
-			log.info("즉시 발행 완료: success={}, total={}", successCount, event.notificationIds().size());
+		List<Long> ids = event.notificationIds();
+
+		long success = ids.stream()
+			.filter(this::publishAndDeleteIfPossible)
+			.count();
+
+		if (success > 0) {
+			log.info("즉시 발행 완료: success={}, total={}", success, ids.size());
 		}
 	}
 
-	private boolean tryPublishAndDelete(Long notificationId) {
+	private boolean publishAndDeleteIfPossible(Long notificationId) {
 		try {
 			streamPublisher.publish(notificationId);
 			outboxRepository.deleteByAggregateId(notificationId);
 			return true;
 		} catch (Exception e) {
-			log.debug("즉시 발행 실패, Poller가 재시도 예정: notificationId={}, reason={}",
+			log.debug("즉시 발행 실패(재시도 예정): notificationId={}, reason={}",
 				notificationId, e.getMessage());
 			return false;
 		}

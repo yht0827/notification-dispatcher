@@ -21,6 +21,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RequiredArgsConstructor
 public class RedisStreamInitializer {
+	private static final int PENDING_FETCH_SIZE = 100;
+	private static final String BUSYGROUP_CODE = "BUSYGROUP";
 
 	private final StringRedisTemplate redisTemplate;
 	private final RedisStreamWaitPublisher waitPublisher;
@@ -33,63 +35,68 @@ public class RedisStreamInitializer {
 	}
 
 	private void createConsumerGroupIfNotExists() {
+		String workKey = properties.resolveKey(StreamKeyType.WORK);
+		String group = properties.consumerGroup();
+
 		try {
-			redisTemplate.opsForStream().createGroup(properties.resolveKey(StreamKeyType.WORK), properties.consumerGroup());
-			log.info("Consumer Group 생성 완료: streamKey={}, group={}", properties.resolveKey(StreamKeyType.WORK), properties.consumerGroup());
-		} catch (Exception e) {
-			if (containsErrorCode(e)) {
-				log.debug("Consumer Group 이미 존재: streamKey={}, group={}", properties.resolveKey(StreamKeyType.WORK), properties.consumerGroup());
+			redisTemplate.opsForStream().createGroup(workKey, group);
+			log.info("Consumer Group 생성 완료: streamKey={}, group={}", workKey, group);
+		} catch (RuntimeException e) {
+			if (isBusyGroupError(e)) {
+				log.debug("Consumer Group 이미 존재: streamKey={}, group={}", workKey, group);
 			} else {
 				log.warn("Consumer Group 생성 실패: streamKey={}, group={}, reason={}",
-					properties.resolveKey(StreamKeyType.WORK), properties.consumerGroup(), extractMostSpecificMessage(e));
+					workKey, group, mostSpecificMessage(e));
 			}
 		}
 	}
 
-	private boolean containsErrorCode(Throwable throwable) {
-		Throwable current = throwable;
-		while (current != null) {
-			String message = current.getMessage();
-			if (message != null && message.contains("BUSYGROUP")) {
-				return true;
-			}
-			current = current.getCause();
-		}
-		return false;
+	private boolean isBusyGroupError(Throwable throwable) {
+		return mostSpecificMessage(throwable).contains(BUSYGROUP_CODE);
 	}
 
-	private String extractMostSpecificMessage(Throwable throwable) {
+	private String mostSpecificMessage(Throwable throwable) {
 		Throwable current = throwable;
-		String fallback = throwable.getMessage();
+		String message = throwable.getMessage();
 
 		while (current != null) {
 			if (current.getMessage() != null && !current.getMessage().isBlank()) {
-				fallback = current.getMessage();
+				message = current.getMessage();
 			}
 			current = current.getCause();
 		}
 
-		return fallback != null ? fallback : throwable.getClass().getSimpleName();
+		return message != null ? message : throwable.getClass().getSimpleName();
 	}
 
 	private void recoverPendingMessages() {
-		try {
-			PendingMessages pending = redisTemplate.opsForStream().pending(
-				properties.resolveKey(StreamKeyType.WORK), properties.consumerGroup(), Range.closed("-", "+"), 100);
+		PendingMessages pending = readPendingMessages();
+		if (pending == null || pending.isEmpty()) {
+			return;
+		}
 
-			if (pending.isEmpty()) {
-				return;
+		int recovered = 0;
+		for (PendingMessage pm : pending) {
+			if (recoverSinglePending(pm.getId())) {
+				recovered++;
 			}
-
-			int recovered = 0;
-			for (PendingMessage pm : pending) {
-				if (recoverSinglePending(pm.getId())) {
-					recovered++;
-				}
-			}
+		}
+		if (recovered > 0) {
 			log.info("시작 시 Pending 메시지 복구 완료: count={}", recovered);
-		} catch (Exception e) {
-			log.warn("Pending 메시지 복구 실패: reason={}", e.getMessage());
+		}
+	}
+
+	private PendingMessages readPendingMessages() {
+		try {
+			return redisTemplate.opsForStream().pending(
+				properties.resolveKey(StreamKeyType.WORK),
+				properties.consumerGroup(),
+				Range.closed("-", "+"),
+				PENDING_FETCH_SIZE
+			);
+		} catch (RuntimeException e) {
+			log.warn("Pending 메시지 조회 실패: reason={}", mostSpecificMessage(e));
+			return null;
 		}
 	}
 
@@ -109,10 +116,11 @@ public class RedisStreamInitializer {
 			NotificationStreamPayload payload = record.getValue();
 
 			waitPublisher.publish(payload.notificationIdAsLong(), payload.getRetryCount(), "시작 시 Pending 복구");
-			redisTemplate.opsForStream().acknowledge(properties.resolveKey(StreamKeyType.WORK), properties.consumerGroup(), record.getId());
+			redisTemplate.opsForStream()
+				.acknowledge(properties.resolveKey(StreamKeyType.WORK), properties.consumerGroup(), record.getId());
 			return true;
-		} catch (Exception e) {
-			log.warn("Pending 메시지 복구 실패: recordId={}, reason={}", recordId, e.getMessage());
+		} catch (RuntimeException e) {
+			log.warn("Pending 메시지 복구 실패: recordId={}, reason={}", recordId, mostSpecificMessage(e));
 			return false;
 		}
 	}

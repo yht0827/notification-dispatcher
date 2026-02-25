@@ -20,6 +20,7 @@ public class RedisStreamWaitPublisher {
 	private final NotificationStreamProperties properties;
 
 	public void publish(Long notificationId, int retryCount, String lastError) {
+		// 재시도 정책에 따라 다음 재처리 시각(epoch millis)을 계산
 		long nextRetryAt = System.currentTimeMillis() + properties.calculateRetryDelayMillis(retryCount);
 
 		NotificationWaitPayload payload = NotificationWaitPayload.of(
@@ -33,6 +34,7 @@ public class RedisStreamWaitPublisher {
 			.objectBacked(payload)
 			.withStreamKey(properties.resolveKey(StreamKeyType.WAIT));
 
+		// WaitScheduler가 nextRetryAt 이후 WORK로 재발행
 		RecordId recordId = redisTemplate.opsForStream().add(record);
 		log.info("WAIT 스트림 발행: recordId={}, notificationId={}, retryCount={}, nextRetryAt={}",
 			recordId, notificationId, retryCount, nextRetryAt);

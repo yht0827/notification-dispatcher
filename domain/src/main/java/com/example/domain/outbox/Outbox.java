@@ -12,7 +12,6 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -69,10 +68,6 @@ public class Outbox extends BaseEntity {
 	public void markAsProcessed() {
 		this.status = OutboxStatus.PROCESSED;
 		this.processedAt = LocalDateTime.now();
-	}
-
-	public void markAsFailed() {
-		this.status = OutboxStatus.FAILED;
 	}
 
 	public boolean isPending() {

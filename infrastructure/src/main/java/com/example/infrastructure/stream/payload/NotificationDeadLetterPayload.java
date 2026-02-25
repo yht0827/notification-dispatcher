@@ -1,6 +1,7 @@
 package com.example.infrastructure.stream.payload;
 
 import java.time.OffsetDateTime;
+import java.util.Objects;
 
 import org.springframework.data.redis.connection.stream.RecordId;
 
@@ -16,10 +17,18 @@ public record NotificationDeadLetterPayload(
 		String reason) {
 		return new NotificationDeadLetterPayload(
 			sourceRecordId.getValue(),
-			notificationId == null ? "" : String.valueOf(notificationId),
-			String.valueOf(payload),
-			reason == null ? "" : reason,
+			toNotificationId(notificationId),
+			Objects.toString(payload, ""),
+			nullToEmpty(reason),
 			OffsetDateTime.now().toString()
 		);
+	}
+
+	private static String toNotificationId(Long notificationId) {
+		return Objects.toString(notificationId, "");
+	}
+
+	private static String nullToEmpty(String value) {
+		return Objects.requireNonNullElse(value, "");
 	}
 }

@@ -19,6 +19,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import com.example.infrastructure.config.NotificationStreamProperties;
 import com.example.infrastructure.stream.inbound.RedisStreamConsumer;
 import com.example.infrastructure.stream.inbound.RedisStreamRecordHandler;
+import com.example.infrastructure.stream.exception.DeadLetterPublishException;
 import com.example.infrastructure.stream.exception.NonRetryableStreamMessageException;
 import com.example.infrastructure.stream.exception.RetryableStreamMessageException;
 import com.example.infrastructure.stream.outbound.RedisStreamDlqPublisher;
@@ -157,12 +158,12 @@ class RedisStreamConsumerTest {
 		doThrow(new NonRetryableStreamMessageException("max retry exceeded"))
 			.when(recordHandler)
 			.process(40L, 0);
-		doThrow(new IllegalStateException("dlq publish failed"))
+		doThrow(new DeadLetterPublishException("dlq publish failed"))
 			.when(dlqPublisher)
 			.publish(RecordId.of("5-0"), record.getValue(), 40L, "max retry exceeded");
 
 		assertThatThrownBy(() -> consumer.onMessage(record))
-			.isInstanceOf(IllegalStateException.class)
+			.isInstanceOf(DeadLetterPublishException.class)
 			.hasMessageContaining("dlq publish failed");
 
 		verify(streamOperations, never()).acknowledge("notification-stream", "notification-group", RecordId.of("5-0"));

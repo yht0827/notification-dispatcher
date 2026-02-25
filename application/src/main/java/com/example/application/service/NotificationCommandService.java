@@ -30,11 +30,11 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 	@Transactional
 	public NotificationGroup request(SendCommand command) {
 
-		// 멱등성 키 조회 (client_id, idempotency_key)
 		String idempotencyKey = normalizeIdempotencyKey(command.idempotencyKey());
 		if (idempotencyKey != null) {
-			Optional<NotificationGroup> existing = groupRepository.findByClientIdAndIdempotencyKey(
-				command.clientId(), idempotencyKey);
+			Optional<NotificationGroup> existing =
+				groupRepository.findByClientIdAndIdempotencyKey(command.clientId(), idempotencyKey);
+
 			if (existing.isPresent()) {
 				log.info("중복 요청 감지: groupId={}", existing.get().getId());
 				return existing.get();
@@ -44,10 +44,13 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 	}
 
 	private NotificationGroup createAndPublish(SendCommand command, String idempotencyKey) {
+		// Notification 그룹 생성
 		NotificationGroup group = createGroup(command, idempotencyKey);
 		command.receivers().forEach(group::addNotification);
 
 		NotificationGroup savedGroup = groupRepository.save(group);
+
+		// Outbox 저장
 		saveOutboxEvents(savedGroup);
 		return savedGroup;
 	}
@@ -62,6 +65,8 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 			.toList();
 
 		outboxRepository.saveAll(outboxes);
+
+		// 이벤트 발행
 		outboxEventPublisher.publishAfterCommit(notificationIds);
 		log.debug("Outbox 저장 완료: count={}", outboxes.size());
 	}
@@ -78,7 +83,12 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 		);
 	}
 
-	private String normalizeIdempotencyKey(String raw) {
-		return (raw == null || raw.isBlank()) ? null : raw.trim();
+	private String normalizeIdempotencyKey(String idempotencyKey) {
+		if (idempotencyKey == null) {
+			return null;
+		}
+
+		String normalized = idempotencyKey.trim();
+		return normalized.isBlank() ? null : normalized;
 	}
 }

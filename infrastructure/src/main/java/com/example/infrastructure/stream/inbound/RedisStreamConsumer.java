@@ -29,29 +29,40 @@ public class RedisStreamConsumer implements StreamListener<String, ObjectRecord<
 	@Override
 	public void onMessage(ObjectRecord<String, NotificationStreamPayload> record) {
 		NotificationStreamPayload payload = record.getValue();
+		int retryCount = payload.getRetryCount();
 		Long notificationId = null;
-		int retryCount = 0;
 
 		try {
-			// WORK
-			notificationId = extractNotificationId(payload);
-			retryCount = payload.getRetryCount();
+			notificationId = resolveNotificationId(payload);
 			recordHandler.process(notificationId, retryCount);
-			handleSuccess(record.getId(), notificationId);
-		} catch (NonRetryableStreamMessageException e) {
-			// DEAD
-			handleNonRetryableException(record, notificationId, e);
-		} catch (RetryableStreamMessageException e) {
-			// WAIT
-			handleRetryableException(record, notificationId, retryCount, e);
-		} catch (Exception e) {
-			log.error("예상치 못한 예외로 메시지 처리 실패: recordId={}, notificationId={}, reason={}",
-				record.getId(), notificationId, e.getMessage(), e);
-			throw e;
+			acknowledge(record.getId());
+			log.debug("메시지 ACK 완료: recordId={}, notificationId={}", record.getId(), notificationId);
+		} catch (RuntimeException e) {
+			handleFailure(record, payload, notificationId, retryCount, e);
 		}
 	}
 
-	private Long extractNotificationId(NotificationStreamPayload payload) {
+	private void handleFailure(ObjectRecord<String, NotificationStreamPayload> record,
+		NotificationStreamPayload payload,
+		Long notificationId,
+		int retryCount,
+		RuntimeException exception) {
+		if (exception instanceof NonRetryableStreamMessageException nonRetryable) {
+			publishToDeadLetter(record, payload, notificationId, nonRetryable.getMessage());
+			return;
+		}
+
+		if (exception instanceof RetryableStreamMessageException retryable) {
+			publishToWait(record, notificationId, retryCount, retryable.getMessage());
+			return;
+		}
+
+		log.error("예상치 못한 예외로 메시지 처리 실패: recordId={}, notificationId={}, reason={}",
+			record.getId(), notificationId, exception.getMessage(), exception);
+		throw exception;
+	}
+
+	private Long resolveNotificationId(NotificationStreamPayload payload) {
 		if (payload == null) {
 			throw new NonRetryableStreamMessageException("payload 값이 비어 있습니다.");
 		}
@@ -66,29 +77,26 @@ public class RedisStreamConsumer implements StreamListener<String, ObjectRecord<
 		}
 	}
 
-	private void handleSuccess(RecordId recordId, Long notificationId) {
-		acknowledge(recordId);
-		log.debug("메시지 ACK 완료: recordId={}, notificationId={}", recordId, notificationId);
-	}
-
-	private void handleNonRetryableException(ObjectRecord<String, NotificationStreamPayload> record,
-		Long notificationId, NonRetryableStreamMessageException e) {
-
-		dlqPublisher.publish(record.getId(), record.getValue(), notificationId, e.getMessage());
+	private void publishToDeadLetter(ObjectRecord<String, NotificationStreamPayload> record,
+		NotificationStreamPayload payload,
+		Long notificationId,
+		String reason) {
+		dlqPublisher.publish(record.getId(), payload, notificationId, reason);
 		acknowledge(record.getId());
 
 		log.warn("재시도 불필요 메시지 DLQ 전송: recordId={}, notificationId={}, reason={}",
-			record.getId(), notificationId, e.getMessage());
+			record.getId(), notificationId, reason);
 	}
 
-	private void handleRetryableException(ObjectRecord<String, NotificationStreamPayload> record,
-		Long notificationId, int retryCount, Exception e) {
-
-		waitPublisher.publish(notificationId, retryCount, e.getMessage());
+	private void publishToWait(ObjectRecord<String, NotificationStreamPayload> record,
+		Long notificationId,
+		int retryCount,
+		String reason) {
+		waitPublisher.publish(notificationId, retryCount, reason);
 		acknowledge(record.getId());
 
 		log.info("WAIT 스트림 이동: recordId={}, notificationId={}, retryCount={}, reason={}",
-			record.getId(), notificationId, retryCount, e.getMessage());
+			record.getId(), notificationId, retryCount, reason);
 	}
 
 	private void acknowledge(RecordId recordId) {

@@ -7,6 +7,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 
 import com.example.infrastructure.config.NotificationStreamProperties;
 import com.example.infrastructure.config.StreamKeyType;
+import com.example.infrastructure.stream.exception.DeadLetterPublishException;
 import com.example.infrastructure.stream.payload.NotificationDeadLetterPayload;
 
 import lombok.RequiredArgsConstructor;
@@ -26,11 +27,11 @@ public class RedisStreamDlqPublisher {
 				.withStreamKey(properties.resolveKey(StreamKeyType.DEAD_LETTER));
 
 			RecordId dlqRecordId = redisTemplate.opsForStream().add(dlqRecord);
-			log.warn("DLQ 전송 완료: dlqRecordId={}, sourceRecordId={}, notificationId={}",
-				dlqRecordId, sourceRecordId, notificationId);
+			log.warn("DLQ 전송 완료: dlqRecordId={}, sourceRecordId={}, notificationId={}", dlqRecordId, sourceRecordId,
+				notificationId);
 		} catch (Exception e) {
 			log.error("DLQ 전송 실패: sourceRecordId={}, error={}", sourceRecordId, e.getMessage(), e);
-			throw new IllegalStateException("DLQ 전송 실패", e);
+			throw new DeadLetterPublishException("DLQ 전송 실패", e);
 		}
 	}
 }

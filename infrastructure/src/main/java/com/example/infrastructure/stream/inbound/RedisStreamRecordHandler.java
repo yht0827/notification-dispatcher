@@ -24,88 +24,78 @@ public class RedisStreamRecordHandler {
 	private final DispatchLockManager lockManager;
 
 	public void process(Long notificationId, int retryCount) {
-		runWithDispatchLock(notificationId, () -> processInternal(notificationId, retryCount));
-	}
+		validateNotificationId(notificationId);
 
-	private void runWithDispatchLock(Long notificationId, Runnable action) {
-		// 락 획득
 		if (!lockManager.tryAcquire(notificationId)) {
 			log.info("이미 처리 중인 알림 스킵: notificationId={}", notificationId);
 			return;
 		}
 
 		try {
-			action.run();
-		} catch (Exception e) {
-			throw translateExceptionWithLockPolicy(notificationId, e);
+			Notification notification = loadNotification(notificationId);
+			DispatchResult dispatchResult = dispatchService.dispatch(notification);
+			if (dispatchResult.isFailure()) {
+				throw toDispatchFailureException(notificationId, retryCount, dispatchResult.failReason());
+			}
+		} catch (RuntimeException e) {
+			throw handleException(notificationId, e);
 		}
 	}
 
-	private void processInternal(Long notificationId, int retryCount) {
-		Notification notification = loadNotification(notificationId);
-		DispatchResult dispatchResult = dispatchSafely(notificationId, notification);
-		throwRetryExceptionIfDispatchFailed(notificationId, retryCount, dispatchResult);
-	}
-
-	private RuntimeException translateExceptionWithLockPolicy(Long notificationId, Exception e) {
-		// non-retryable은 DLQ 경로로 넘기고 락을 유지(중복 소비 방지)
-		if (e instanceof NonRetryableStreamMessageException nonRetryable) {
-			return nonRetryable;
-		}
-
-		// retryable/예상치 못한 예외는 즉시 락 해제 후 재처리 가능하게 함
-		lockManager.release(notificationId);
-		if (e instanceof RetryableStreamMessageException retryable) {
-			return retryable;
-		}
-
-		log.error("예상치 못한 예외 발생: notificationId={}", notificationId, e);
-		return new RetryableStreamMessageException("예상치 못한 오류: " + e.getMessage(), e);
-	}
-
-	private void throwRetryExceptionIfDispatchFailed(Long notificationId, int retryCount,
-		DispatchResult dispatchResult) {
-		if (dispatchResult.isFailure()) {
-			handleSendFailure(notificationId, retryCount, dispatchResult.failReason());
+	private void validateNotificationId(Long notificationId) {
+		if (notificationId == null) {
+			throw new NonRetryableStreamMessageException("notificationId 값이 비어 있습니다.");
 		}
 	}
 
 	private Notification loadNotification(Long notificationId) {
-		if (notificationId == null) {
-			throw new NonRetryableStreamMessageException("notificationId 값이 비어 있습니다.");
-		}
-
 		return notificationRepository.findById(notificationId)
 			.orElseThrow(() -> new NonRetryableStreamMessageException("알림을 찾을 수 없음: " + notificationId));
 	}
 
-	private DispatchResult dispatchSafely(Long notificationId, Notification notification) {
-		try {
-			return dispatchService.dispatch(notification);
-		} catch (InvalidStatusTransitionException e) {
-			throw toNonRetryableAfterMarkFailed(
+	private RuntimeException handleException(Long notificationId, RuntimeException exception) {
+		RuntimeException streamException = mapToStreamException(notificationId, exception);
+		if (!(streamException instanceof NonRetryableStreamMessageException)) {
+			lockManager.release(notificationId);
+		}
+		return streamException;
+	}
+
+	private RuntimeException mapToStreamException(Long notificationId, RuntimeException exception) {
+		if (exception instanceof NonRetryableStreamMessageException
+			|| exception instanceof RetryableStreamMessageException) {
+			return exception;
+		}
+
+		if (exception instanceof InvalidStatusTransitionException e) {
+			return toNonRetryableAfterMarkFailed(
 				notificationId,
 				"상태 전이 오류",
 				"알림 상태 전이 오류로 재시도하지 않습니다.",
 				e
 			);
-		} catch (UnsupportedChannelException e) {
-			throw toNonRetryableAfterMarkFailed(
+		}
+
+		if (exception instanceof UnsupportedChannelException unsupportedChannel) {
+			String reason = unsupportedChannel.getMessage();
+			return toNonRetryableAfterMarkFailed(
 				notificationId,
-				e.getMessage(),
-				"지원하지 않는 채널로 재시도하지 않습니다: " + e.getMessage(),
-				e
+				reason,
+				"지원하지 않는 채널로 재시도하지 않습니다: " + reason,
+				unsupportedChannel
 			);
 		}
+
+		log.error("예상치 못한 예외 발생: notificationId={}", notificationId, exception);
+		return new RetryableStreamMessageException("예상치 못한 오류: " + exception.getMessage(), exception);
 	}
 
-	private void handleSendFailure(Long notificationId, int retryCount, String reason) {
-		// 재시도 한도 초과 시 DB 실패 상태를 남기고 non-retryable로 전환
+	private RuntimeException toDispatchFailureException(Long notificationId, int retryCount, String reason) {
+		String failureReason = normalizeReason(reason);
 		if (retryCount >= properties.resolveMaxRetryCount()) {
-			throw toNonRetryableAfterMarkFailed(notificationId, reason, "재시도 한도 초과: " + reason, null);
+			return toNonRetryableAfterMarkFailed(notificationId, failureReason, "재시도 한도 초과: " + failureReason, null);
 		}
-		// 재시도 가능 실패는 WAIT 스트림 경로로 전달
-		throw new RetryableStreamMessageException("알림 발송 실패: " + reason);
+		return new RetryableStreamMessageException("알림 발송 실패: " + failureReason);
 	}
 
 	private NonRetryableStreamMessageException toNonRetryableAfterMarkFailed(Long notificationId, String reason,
@@ -115,5 +105,12 @@ public class RedisStreamRecordHandler {
 			return new NonRetryableStreamMessageException(message);
 		}
 		return new NonRetryableStreamMessageException(message, cause);
+	}
+
+	private String normalizeReason(String reason) {
+		if (reason == null || reason.isBlank()) {
+			return "알 수 없는 오류";
+		}
+		return reason;
 	}
 }

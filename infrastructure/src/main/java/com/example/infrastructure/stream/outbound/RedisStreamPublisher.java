@@ -25,6 +25,7 @@ public class RedisStreamPublisher implements NotificationEventPublisher {
 		ObjectRecord<String, NotificationStreamPayload> record = StreamRecords
 			.objectBacked(new NotificationStreamPayload(notificationId))
 			.withStreamKey(properties.resolveKey(StreamKeyType.WORK));
+
 		RecordId recordId = redisTemplate.opsForStream().add(record);
 		log.info("Redis Stream 발행: recordId={}, notificationId={}", recordId, notificationId);
 	}

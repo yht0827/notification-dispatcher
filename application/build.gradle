@@ -1,7 +1,8 @@
 // Application 모듈: UseCase, Service, Port 정의
-
 dependencies {
+
     implementation project(':domain')
+
 
     // Spring
     implementation 'org.springframework:spring-context'

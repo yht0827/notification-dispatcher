@@ -69,12 +69,17 @@ public class RedisStreamWaitScheduler {
 
 	private boolean tryRepublish(MapRecord<String, Object, Object> record) {
 		NotificationWaitPayload payload = mapToPayload(record.getValue());
+
+		// 재시도 시간이 아직 안 됐으면 건너뛴다.
 		if (payload == null || System.currentTimeMillis() < payload.getNextRetryAt()) {
 			return false;
 		}
 
 		try {
+			// WORK 스트림 재발행 하면서 retryCount를 1 증가
 			republishToWork(payload.notificationIdAsLong(), payload.getRetryCount() + 1);
+
+			// 재발행 성공 시 WAIT 스트림 원본을 삭제해 중복 재처리를 방지
 			redisTemplate.opsForStream().delete(properties.resolveKey(StreamKeyType.WAIT), record.getId());
 			return true;
 		} catch (Exception e) {

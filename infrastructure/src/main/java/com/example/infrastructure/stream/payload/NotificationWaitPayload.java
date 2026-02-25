@@ -1,5 +1,7 @@
 package com.example.infrastructure.stream.payload;
 
+import java.util.Objects;
+
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -23,11 +25,19 @@ public class NotificationWaitPayload {
 
 	public static NotificationWaitPayload of(Long notificationId, int retryCount, long nextRetryAt, String lastError) {
 		return new NotificationWaitPayload(
-			notificationId != null ? String.valueOf(notificationId) : null,
+			toNotificationId(notificationId),
 			retryCount,
 			nextRetryAt,
-			lastError != null ? lastError : ""
+			nullToEmpty(lastError)
 		);
+	}
+
+	private static String toNotificationId(Long notificationId) {
+		return Objects.toString(notificationId, null);
+	}
+
+	private static String nullToEmpty(String value) {
+		return Objects.requireNonNullElse(value, "");
 	}
 
 	public Long notificationIdAsLong() {

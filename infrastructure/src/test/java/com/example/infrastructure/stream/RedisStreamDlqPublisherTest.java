@@ -1,6 +1,7 @@
 package com.example.infrastructure.stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -18,6 +19,7 @@ import org.springframework.data.redis.core.StreamOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import com.example.infrastructure.config.NotificationStreamProperties;
+import com.example.infrastructure.stream.exception.DeadLetterPublishException;
 import com.example.infrastructure.stream.outbound.RedisStreamDlqPublisher;
 import com.example.infrastructure.stream.payload.NotificationDeadLetterPayload;
 import com.example.infrastructure.stream.payload.NotificationStreamPayload;
@@ -98,5 +100,32 @@ class RedisStreamDlqPublisherTest {
 		publisher.publish(RecordId.of("20-0"), "payload", 20L, "reason");
 
 		assertThat(capturedRecord.get().getStream()).isEqualTo("main-stream-dlq");
+	}
+
+	@Test
+	@DisplayName("DLQ 적재 중 오류가 발생하면 DeadLetterPublishException을 던진다")
+	void publish_throwsDeadLetterPublishExceptionWhenAddFails() {
+		NotificationStreamProperties properties = new NotificationStreamProperties(
+			"notification-stream",
+			"notification-group",
+			"consumer-1",
+			1000,
+			10,
+			"notification-stream-dlq",
+			"notification-stream-wait",
+			3,
+			5000,
+			1000
+		);
+		RedisStreamDlqPublisher publisher = new RedisStreamDlqPublisher(redisTemplate, properties);
+
+		when(redisTemplate.opsForStream()).thenReturn(streamOperations);
+		when(streamOperations.add(org.mockito.ArgumentMatchers.<Record<String, ?>>any()))
+			.thenThrow(new RuntimeException("redis down"));
+
+		assertThatThrownBy(() -> publisher.publish(RecordId.of("30-0"), "payload", 30L, "reason"))
+			.isInstanceOf(DeadLetterPublishException.class)
+			.hasMessageContaining("DLQ 전송 실패")
+			.hasCauseInstanceOf(RuntimeException.class);
 	}
 }

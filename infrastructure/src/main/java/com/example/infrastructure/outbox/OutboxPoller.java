@@ -3,8 +3,8 @@ package com.example.infrastructure.outbox;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,6 +12,7 @@ import com.example.application.port.out.OutboxRepository;
 import com.example.domain.outbox.Outbox;
 import com.example.domain.outbox.OutboxStatus;
 import com.example.infrastructure.config.NotificationConfig;
+import com.example.infrastructure.config.OutboxProperties;
 import com.example.infrastructure.stream.outbound.RedisStreamPublisher;
 
 import lombok.RequiredArgsConstructor;
@@ -23,16 +24,18 @@ import lombok.extern.slf4j.Slf4j;
 @ConditionalOnProperty(name = NotificationConfig.STREAM_ENABLED_PROPERTY, havingValue = "true")
 public class OutboxPoller {
 
-	private static final int BATCH_SIZE = 100;
-
 	private final OutboxRepository outboxRepository;
 	private final RedisStreamPublisher streamPublisher;
+	private final OutboxProperties outboxProperties;
 
 	@Scheduled(fixedDelayString = "${outbox.poll-interval-millis:1000}")
 	@Transactional
 	public void pollAndPublish() {
 		// 1. PENDING 상태 Outbox 조회
-		List<Outbox> pendingOutboxes = outboxRepository.findByStatus(OutboxStatus.PENDING, BATCH_SIZE);
+		List<Outbox> pendingOutboxes = outboxRepository.findByStatus(
+			OutboxStatus.PENDING,
+			outboxProperties.resolveBatchSize()
+		);
 		if (pendingOutboxes.isEmpty()) {
 			return;
 		}

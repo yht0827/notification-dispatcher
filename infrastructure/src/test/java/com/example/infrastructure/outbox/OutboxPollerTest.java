@@ -3,6 +3,7 @@ package com.example.infrastructure.outbox;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.List;
 
@@ -18,10 +19,14 @@ import com.example.domain.outbox.Outbox;
 import com.example.domain.outbox.OutboxAggregateType;
 import com.example.domain.outbox.OutboxEventType;
 import com.example.domain.outbox.OutboxStatus;
+import com.example.infrastructure.config.OutboxProperties;
 import com.example.infrastructure.stream.outbound.RedisStreamPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class OutboxPollerTest {
+
+	private static final Field OUTBOX_ID_FIELD = outboxIdField();
+	private static final int BATCH_SIZE = 100;
 
 	@Mock
 	private OutboxRepository outboxRepository;
@@ -33,14 +38,14 @@ class OutboxPollerTest {
 
 	@BeforeEach
 	void setUp() {
-		outboxPoller = new OutboxPoller(outboxRepository, streamPublisher);
+		outboxPoller = new OutboxPoller(outboxRepository, streamPublisher, new OutboxProperties(BATCH_SIZE));
 	}
 
 	@Test
 	@DisplayName("PENDING 상태 Outbox가 없으면 아무 작업도 하지 않는다")
 	void pollAndPublish_doesNothingWhenNoPendingOutboxes() {
 		// given
-		when(outboxRepository.findByStatus(OutboxStatus.PENDING, 100))
+		when(outboxRepository.findByStatus(OutboxStatus.PENDING, BATCH_SIZE))
 			.thenReturn(Collections.emptyList());
 
 		// when
@@ -58,7 +63,7 @@ class OutboxPollerTest {
 		Outbox outbox1 = createOutbox(1L, 100L);
 		Outbox outbox2 = createOutbox(2L, 200L);
 
-		when(outboxRepository.findByStatus(OutboxStatus.PENDING, 100))
+		when(outboxRepository.findByStatus(OutboxStatus.PENDING, BATCH_SIZE))
 			.thenReturn(List.of(outbox1, outbox2));
 
 		// when
@@ -78,7 +83,7 @@ class OutboxPollerTest {
 		Outbox outbox2 = createOutbox(2L, 200L);
 		Outbox outbox3 = createOutbox(3L, 300L);
 
-		when(outboxRepository.findByStatus(OutboxStatus.PENDING, 100))
+		when(outboxRepository.findByStatus(OutboxStatus.PENDING, BATCH_SIZE))
 			.thenReturn(List.of(outbox1, outbox2, outbox3));
 
 		// outbox2 발행 실패
@@ -99,7 +104,7 @@ class OutboxPollerTest {
 		// given
 		Outbox outbox = createOutbox(1L, 100L);
 
-		when(outboxRepository.findByStatus(OutboxStatus.PENDING, 100))
+		when(outboxRepository.findByStatus(OutboxStatus.PENDING, BATCH_SIZE))
 			.thenReturn(List.of(outbox));
 		doThrow(new RuntimeException("Redis connection failed")).when(streamPublisher).publish(100L);
 
@@ -116,7 +121,7 @@ class OutboxPollerTest {
 		// given
 		Outbox outbox = spy(createOutbox(1L, 100L));
 
-		when(outboxRepository.findByStatus(OutboxStatus.PENDING, 100))
+		when(outboxRepository.findByStatus(OutboxStatus.PENDING, BATCH_SIZE))
 			.thenReturn(List.of(outbox));
 
 		// when
@@ -132,7 +137,7 @@ class OutboxPollerTest {
 		// given
 		Outbox outbox = spy(createOutbox(1L, 100L));
 
-		when(outboxRepository.findByStatus(OutboxStatus.PENDING, 100))
+		when(outboxRepository.findByStatus(OutboxStatus.PENDING, BATCH_SIZE))
 			.thenReturn(List.of(outbox));
 		doThrow(new RuntimeException("Redis connection failed")).when(streamPublisher).publish(100L);
 
@@ -150,14 +155,25 @@ class OutboxPollerTest {
 			OutboxEventType.NOTIFICATION_CREATED,
 			"{}"
 		);
-		// Reflection으로 ID 설정 (테스트용)
-		try {
-			var idField = Outbox.class.getDeclaredField("id");
-			idField.setAccessible(true);
-			idField.set(outbox, id);
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
+		setOutboxId(outbox, id);
 		return outbox;
+	}
+
+	private static Field outboxIdField() {
+		try {
+			Field field = Outbox.class.getDeclaredField("id");
+			field.setAccessible(true);
+			return field;
+		} catch (NoSuchFieldException e) {
+			throw new IllegalStateException("Outbox id 필드를 찾을 수 없습니다.", e);
+		}
+	}
+
+	private void setOutboxId(Outbox outbox, Long id) {
+		try {
+			OUTBOX_ID_FIELD.set(outbox, id);
+		} catch (IllegalAccessException e) {
+			throw new IllegalStateException("Outbox id 필드 설정에 실패했습니다.", e);
+		}
 	}
 }
