@@ -4,25 +4,16 @@ import com.example.application.port.out.NotificationGroupRepository;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.GroupType;
 import com.example.domain.notification.NotificationGroup;
-import com.example.infrastructure.TestApplication;
-import com.example.infrastructure.config.TestcontainersConfig;
+import com.example.infrastructure.support.IntegrationTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest(classes = TestApplication.class)
-@ActiveProfiles("test")
-@Import(TestcontainersConfig.class)
-@Transactional
-class NotificationGroupRepositoryTest {
+class NotificationGroupRepositoryTest extends IntegrationTestSupport {
 
     @Autowired
     private NotificationGroupRepository groupRepository;

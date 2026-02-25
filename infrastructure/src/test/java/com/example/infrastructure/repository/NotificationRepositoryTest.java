@@ -3,15 +3,11 @@ package com.example.infrastructure.repository;
 import com.example.application.port.out.NotificationGroupRepository;
 import com.example.application.port.out.NotificationRepository;
 import com.example.domain.notification.*;
-import com.example.infrastructure.TestApplication;
-import com.example.infrastructure.config.TestcontainersConfig;
+import com.example.infrastructure.support.IntegrationTestSupport;
 import org.hibernate.Hibernate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,11 +15,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest(classes = TestApplication.class)
-@ActiveProfiles("test")
-@Import(TestcontainersConfig.class)
-@Transactional
-class NotificationRepositoryTest {
+class NotificationRepositoryTest extends IntegrationTestSupport {
 
     @Autowired
     private NotificationRepository notificationRepository;

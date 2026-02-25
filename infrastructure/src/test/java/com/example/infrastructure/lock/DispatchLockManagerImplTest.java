@@ -16,18 +16,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
 
-import com.example.infrastructure.TestApplication;
-import com.example.infrastructure.config.MockStreamConfig;
-import com.example.infrastructure.config.TestcontainersConfig;
+import com.example.infrastructure.support.IntegrationTestSupportNoTx;
 
-@SpringBootTest(classes = TestApplication.class)
-@Import({TestcontainersConfig.class, MockStreamConfig.class})
-@ActiveProfiles("test")
-class DispatchLockManagerImplTest {
+class DispatchLockManagerImplTest extends IntegrationTestSupportNoTx {
 
 	@Autowired
 	private DispatchLockManagerImpl lockManager;
