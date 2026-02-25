@@ -48,7 +48,8 @@ class RedisStreamDlqPublisherTest {
 			"notification-stream-wait",
 			3,
 			5000,
-			1000
+			1000,
+			100
 		);
 		RedisStreamDlqPublisher publisher = new RedisStreamDlqPublisher(redisTemplate, properties);
 
@@ -86,7 +87,8 @@ class RedisStreamDlqPublisherTest {
 			"main-stream-wait",
 			3,
 			5000,
-			1000
+			1000,
+			100
 		);
 		RedisStreamDlqPublisher publisher = new RedisStreamDlqPublisher(redisTemplate, properties);
 
@@ -115,7 +117,8 @@ class RedisStreamDlqPublisherTest {
 			"notification-stream-wait",
 			3,
 			5000,
-			1000
+			1000,
+			100
 		);
 		RedisStreamDlqPublisher publisher = new RedisStreamDlqPublisher(redisTemplate, properties);
 

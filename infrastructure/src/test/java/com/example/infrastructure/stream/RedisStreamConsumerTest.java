@@ -58,7 +58,8 @@ class RedisStreamConsumerTest {
 			"notification-stream-wait",
 			3,
 			5000,
-			1000
+			1000,
+			100
 		);
 		consumer = new RedisStreamConsumer(redisTemplate, recordHandler, dlqPublisher, waitPublisher, properties);
 		lenient().when(redisTemplate.opsForStream()).thenReturn(streamOperations);
@@ -86,10 +87,10 @@ class RedisStreamConsumerTest {
 	}
 
 	@Test
-	@DisplayName("notificationId 형식 오류는 DLQ 전송 후 ACK 한다")
-	void onMessage_sendsDlqAndAckWhenNotificationIdInvalid() {
+	@DisplayName("notificationId가 null이면 DLQ 전송 후 ACK 한다")
+	void onMessage_sendsDlqAndAckWhenNotificationIdNull() {
 		NotificationStreamPayload payload = new NotificationStreamPayload();
-		payload.setNotificationId("invalid-id");
+		payload.setNotificationId(null);
 		payload.setRetryCount(0);
 
 		ObjectRecord<String, NotificationStreamPayload> record = StreamRecords
@@ -103,7 +104,7 @@ class RedisStreamConsumerTest {
 			eq(RecordId.of("2-1")),
 			eq(payload),
 			isNull(),
-			contains("notificationId 형식이 올바르지 않습니다")
+			contains("notificationId 값이 비어 있습니다")
 		);
 		verify(streamOperations).acknowledge("notification-stream", "notification-group", RecordId.of("2-1"));
 	}

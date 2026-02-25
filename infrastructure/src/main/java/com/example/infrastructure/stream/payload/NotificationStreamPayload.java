@@ -9,7 +9,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class NotificationStreamPayload {
 
-	private String notificationId;
+	private Long notificationId;
 	private int retryCount;
 
 	public NotificationStreamPayload(Long notificationId) {
@@ -17,14 +17,7 @@ public class NotificationStreamPayload {
 	}
 
 	public NotificationStreamPayload(Long notificationId, int retryCount) {
-		this.notificationId = notificationId != null ? String.valueOf(notificationId) : null;
+		this.notificationId = notificationId;
 		this.retryCount = retryCount;
-	}
-
-	public Long notificationIdAsLong() {
-		if (notificationId == null || notificationId.isBlank()) {
-			return null;
-		}
-		return Long.parseLong(notificationId);
 	}
 }

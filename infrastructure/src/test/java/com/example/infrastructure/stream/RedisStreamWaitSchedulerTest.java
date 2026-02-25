@@ -6,8 +6,6 @@ import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.anyString;
 
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -19,7 +17,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Range;
 import org.springframework.data.redis.connection.Limit;
-import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.connection.stream.ObjectRecord;
 import org.springframework.data.redis.connection.stream.Record;
 import org.springframework.data.redis.connection.stream.RecordId;
@@ -30,6 +27,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import com.example.infrastructure.config.NotificationStreamProperties;
 import com.example.infrastructure.stream.inbound.RedisStreamWaitScheduler;
 import com.example.infrastructure.stream.payload.NotificationStreamPayload;
+import com.example.infrastructure.stream.payload.NotificationWaitPayload;
 
 @ExtendWith(MockitoExtension.class)
 class RedisStreamWaitSchedulerTest {
@@ -78,7 +76,7 @@ class RedisStreamWaitSchedulerTest {
 
 		ObjectRecord<String, NotificationStreamPayload> captured = capturedRecord.get();
 		assertThat(captured.getStream()).isEqualTo(WORK_KEY);
-		assertThat(captured.getValue().notificationIdAsLong()).isEqualTo(100L);
+		assertThat(captured.getValue().getNotificationId()).isEqualTo(100L);
 		assertThat(captured.getValue().getRetryCount()).isEqualTo(2);
 
 		verify(streamOperations).delete(WAIT_KEY, waitRecordId);
@@ -100,6 +98,7 @@ class RedisStreamWaitSchedulerTest {
 	@DisplayName("WAIT 스트림 조회 실패 시 예외를 전파하지 않는다")
 	void processWaitingMessages_handlesQueryFailure() {
 		when(streamOperations.range(
+			eq(NotificationWaitPayload.class),
 			eq(WAIT_KEY),
 			ArgumentMatchers.<Range<String>>any(),
 			any(Limit.class)
@@ -115,9 +114,9 @@ class RedisStreamWaitSchedulerTest {
 	void processWaitingMessages_continuesOnRepublishFailure() {
 		long pastTime = expiredTime();
 
-		MapRecord<String, Object, Object> record1 = waitRecord(RecordId.of("1-0"),
+		ObjectRecord<String, NotificationWaitPayload> record1 = waitRecord(RecordId.of("1-0"),
 			waitPayload(100L, 1, pastTime, "error1"));
-		MapRecord<String, Object, Object> record2 = waitRecord(RecordId.of("2-0"),
+		ObjectRecord<String, NotificationWaitPayload> record2 = waitRecord(RecordId.of("2-0"),
 			waitPayload(200L, 0, pastTime, "error2"));
 		stubWaitRecords(record1, record2);
 
@@ -133,11 +132,9 @@ class RedisStreamWaitSchedulerTest {
 	}
 
 	@Test
-	@DisplayName("잘못된 페이로드 형식은 건너뛴다")
-	void processWaitingMessages_skipsInvalidPayload() {
-		Map<Object, Object> invalidPayload = new HashMap<>();
-		invalidPayload.put("notificationId", "invalid-id");
-		invalidPayload.put("retryCount", "not-a-number");
+	@DisplayName("notificationId가 null인 페이로드는 건너뛴다")
+	void processWaitingMessages_skipsNullNotificationIdPayload() {
+		NotificationWaitPayload invalidPayload = new NotificationWaitPayload(null, 0, expiredTime(), "error");
 
 		stubWaitRecords(waitRecord(RecordId.of("1-0"), invalidPayload));
 
@@ -155,28 +152,24 @@ class RedisStreamWaitSchedulerTest {
 			1000, 10,
 			"notification-stream-dlq",
 			WAIT_KEY,
-			3, 5000, 1000
+			3, 5000, 1000, 100
 		);
 	}
 
-	private Map<Object, Object> waitPayload(long notificationId, int retryCount, long nextRetryAt, String lastError) {
-		Map<Object, Object> payload = new HashMap<>();
-		payload.put("notificationId", String.valueOf(notificationId));
-		payload.put("retryCount", String.valueOf(retryCount));
-		payload.put("nextRetryAt", String.valueOf(nextRetryAt));
-		payload.put("lastError", lastError);
-		return payload;
+	private NotificationWaitPayload waitPayload(long notificationId, int retryCount, long nextRetryAt, String lastError) {
+		return NotificationWaitPayload.of(notificationId, retryCount, nextRetryAt, lastError);
 	}
 
-	private MapRecord<String, Object, Object> waitRecord(RecordId recordId, Map<Object, Object> payload) {
+	private ObjectRecord<String, NotificationWaitPayload> waitRecord(RecordId recordId, NotificationWaitPayload payload) {
 		return StreamRecords
-			.mapBacked(payload)
+			.objectBacked(payload)
 			.withStreamKey(WAIT_KEY)
 			.withId(recordId);
 	}
 
-	private void stubWaitRecords(MapRecord<String, Object, Object>... records) {
+	private void stubWaitRecords(ObjectRecord<String, NotificationWaitPayload>... records) {
 		when(streamOperations.range(
+			eq(NotificationWaitPayload.class),
 			eq(WAIT_KEY),
 			ArgumentMatchers.any(),
 			any(Limit.class)

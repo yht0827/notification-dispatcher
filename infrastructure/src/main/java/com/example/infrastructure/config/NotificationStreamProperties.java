@@ -13,11 +13,13 @@ public record NotificationStreamProperties(
 	String waitKey,
 	int maxRetryCount,
 	int retryBaseDelayMillis,
-	int waitPollIntervalMillis
+	int waitPollIntervalMillis,
+	int waitBatchSize
 ) {
 
 	private static final int DEFAULT_MAX_RETRY_COUNT = 3;
 	private static final int DEFAULT_RETRY_BASE_DELAY_MILLIS = 5000;
+	private static final int DEFAULT_WAIT_BATCH_SIZE = 100;
 
 	public String resolveKey(StreamKeyType streamKeyType) {
 		String explicitKey = switch (streamKeyType) {
@@ -39,5 +41,9 @@ public record NotificationStreamProperties(
 
 	public long calculateRetryDelayMillis(int retryCount) {
 		return (long)resolveRetryBaseDelayMillis() * (1L << Math.min(retryCount, 10));
+	}
+
+	public int resolveWaitBatchSize() {
+		return waitBatchSize > 0 ? waitBatchSize : DEFAULT_WAIT_BATCH_SIZE;
 	}
 }

@@ -21,7 +21,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RequiredArgsConstructor
 public class RedisStreamInitializer {
-	private static final int PENDING_FETCH_SIZE = 100;
 	private static final String BUSYGROUP_CODE = "BUSYGROUP";
 
 	private final StringRedisTemplate redisTemplate;
@@ -92,7 +91,7 @@ public class RedisStreamInitializer {
 				properties.resolveKey(StreamKeyType.WORK),
 				properties.consumerGroup(),
 				Range.closed("-", "+"),
-				PENDING_FETCH_SIZE
+				properties.resolveWaitBatchSize()
 			);
 		} catch (RuntimeException e) {
 			log.warn("Pending 메시지 조회 실패: reason={}", mostSpecificMessage(e));
@@ -115,7 +114,7 @@ public class RedisStreamInitializer {
 			ObjectRecord<String, NotificationStreamPayload> record = records.getFirst();
 			NotificationStreamPayload payload = record.getValue();
 
-			waitPublisher.publish(payload.notificationIdAsLong(), payload.getRetryCount(), "시작 시 Pending 복구");
+			waitPublisher.publish(payload.getNotificationId(), payload.getRetryCount(), "시작 시 Pending 복구");
 			redisTemplate.opsForStream()
 				.acknowledge(properties.resolveKey(StreamKeyType.WORK), properties.consumerGroup(), record.getId());
 			return true;

@@ -142,7 +142,7 @@ class RedisStreamInitializerTest {
 			1000, 10,
 			"notification-stream-dlq",
 			"notification-stream-wait",
-			3, 5000, 1000
+			3, 5000, 1000, 100
 		);
 	}
 

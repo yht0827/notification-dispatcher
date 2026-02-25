@@ -33,7 +33,7 @@ public class RedisStreamConsumer implements StreamListener<String, ObjectRecord<
 		Long notificationId = null;
 
 		try {
-			notificationId = resolveNotificationId(payload);
+			notificationId = validateNotificationId(payload);
 			recordHandler.process(notificationId, retryCount);
 			acknowledge(record.getId());
 			log.debug("메시지 ACK 완료: recordId={}, notificationId={}", record.getId(), notificationId);
@@ -62,19 +62,17 @@ public class RedisStreamConsumer implements StreamListener<String, ObjectRecord<
 		throw exception;
 	}
 
-	private Long resolveNotificationId(NotificationStreamPayload payload) {
+	private Long validateNotificationId(NotificationStreamPayload payload) {
 		if (payload == null) {
 			throw new NonRetryableStreamMessageException("payload 값이 비어 있습니다.");
 		}
 
-		try {
-			return payload.notificationIdAsLong();
-		} catch (NumberFormatException e) {
-			throw new NonRetryableStreamMessageException(
-				"notificationId 형식이 올바르지 않습니다: " + payload.getNotificationId(),
-				e
-			);
+		Long notificationId = payload.getNotificationId();
+		if (notificationId == null) {
+			throw new NonRetryableStreamMessageException("notificationId 값이 비어 있습니다.");
 		}
+
+		return notificationId;
 	}
 
 	private void publishToDeadLetter(ObjectRecord<String, NotificationStreamPayload> record,

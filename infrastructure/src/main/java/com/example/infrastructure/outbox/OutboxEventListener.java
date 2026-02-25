@@ -8,7 +8,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.example.application.port.out.OutboxRepository;
-import com.example.infrastructure.config.NotificationConfig;
+import com.example.infrastructure.config.NotificationStreamConfig;
 import com.example.infrastructure.stream.outbound.RedisStreamPublisher;
 
 import lombok.RequiredArgsConstructor;
@@ -17,7 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = NotificationConfig.STREAM_ENABLED_PROPERTY, havingValue = "true")
+@ConditionalOnProperty(name = NotificationStreamConfig.STREAM_ENABLED_PROPERTY, havingValue = "true")
 public class OutboxEventListener {
 
 	private final RedisStreamPublisher streamPublisher;

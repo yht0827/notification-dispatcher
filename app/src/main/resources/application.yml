@@ -47,6 +47,7 @@ notification:
     consumer-name: consumer-1
     poll-interval: 1000                        # XREADGROUP 타임아웃(ms)
     batch-size: 10                             # 한 번에 읽을 최대 개수
+    wait-batch-size: 100
     dead-letter-key: notification-stream-dlq
     wait-key: notification-stream-wait
     max-retry-count: 3                         # 재시도 최대 횟수

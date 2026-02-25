@@ -8,7 +8,7 @@ import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.OutboxEventPublisher;
 
 @Configuration
-@ConditionalOnProperty(name = NotificationConfig.STREAM_ENABLED_PROPERTY, havingValue = "false")
+@ConditionalOnProperty(name = NotificationStreamConfig.STREAM_ENABLED_PROPERTY, havingValue = "false")
 public class MockStreamConfig {
 
 	@Bean

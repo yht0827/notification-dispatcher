@@ -7,13 +7,13 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 import com.example.application.port.out.OutboxEventPublisher;
-import com.example.infrastructure.config.NotificationConfig;
+import com.example.infrastructure.config.NotificationStreamConfig;
 
 import lombok.RequiredArgsConstructor;
 
 @Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = NotificationConfig.STREAM_ENABLED_PROPERTY, havingValue = "true")
+@ConditionalOnProperty(name = NotificationStreamConfig.STREAM_ENABLED_PROPERTY, havingValue = "true")
 public class OutboxEventPublisherImpl implements OutboxEventPublisher {
 
 	private final ApplicationEventPublisher eventPublisher;

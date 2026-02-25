@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.application.port.out.OutboxRepository;
 import com.example.domain.outbox.Outbox;
 import com.example.domain.outbox.OutboxStatus;
-import com.example.infrastructure.config.NotificationConfig;
+import com.example.infrastructure.config.NotificationStreamConfig;
 import com.example.infrastructure.config.OutboxProperties;
 import com.example.infrastructure.stream.outbound.RedisStreamPublisher;
 
@@ -21,7 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = NotificationConfig.STREAM_ENABLED_PROPERTY, havingValue = "true")
+@ConditionalOnProperty(name = NotificationStreamConfig.STREAM_ENABLED_PROPERTY, havingValue = "true")
 public class OutboxPoller {
 
 	private final OutboxRepository outboxRepository;
