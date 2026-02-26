@@ -3,24 +3,24 @@ package com.example.infrastructure.recovery;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
 
 import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.NotificationRepository;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationStatus;
-import com.example.infrastructure.config.NotificationStreamConfig;
 import com.example.infrastructure.config.RecoveryProperties;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Redis 다운 시 DB에 PENDING 상태로 남아있는 Notification을 복구한다.
+ * - PENDING 상태 + N분 경과한 Notification 조회
+ * - Redis Stream에 재발행
+ */
 @Slf4j
-@Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = NotificationStreamConfig.STREAM_ENABLED_PROPERTY, havingValue = "true")
 public class NotificationRecoveryPoller {
 
 	private final NotificationRepository notificationRepository;
@@ -50,7 +50,8 @@ public class NotificationRecoveryPoller {
 		}
 
 		if (recovered > 0) {
-			log.info("PENDING 상태 Notification 복구 완료: recovered={}, total={}", recovered, stuckNotifications.size());
+			log.info("PENDING 상태 Notification 복구 완료: recovered={}, total={}",
+				recovered, stuckNotifications.size());
 		}
 	}
 

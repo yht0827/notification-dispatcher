@@ -12,6 +12,13 @@ outbox:
   poll-interval-millis: 1000
   batch-size: 100
 
+recovery:
+  batch-size: 100                 # 복구 배치 크기
+  threshold-minutes: 5            # PENDING 상태 유지 임계 시간(분)
+  claim-min-idle-minutes: 5       # PEL 메시지 최소 idle 시간(분)
+  poll-interval-millis: 300000    # PENDING 복구 폴링 간격(ms) - 5분
+  claim-interval-millis: 60000    # PEL 회수 폴링 간격(ms) - 1분
+
 ---
 # Local 환경
 spring:

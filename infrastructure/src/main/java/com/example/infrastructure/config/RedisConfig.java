@@ -7,7 +7,7 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 @Configuration
-@EnableConfigurationProperties({NotificationStreamProperties.class, OutboxProperties.class})
+@EnableConfigurationProperties({NotificationStreamProperties.class, OutboxProperties.class, RecoveryProperties.class})
 public class RedisConfig {
 
 	@Bean

@@ -46,7 +46,7 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 	private NotificationGroup createAndPublish(SendCommand command, String idempotencyKey) {
 		// Notification 그룹 생성
 		NotificationGroup group = createGroup(command, idempotencyKey);
-		command.receivers().forEach(group::addNotification);
+		command.receivers().forEach(group::addNotification); // Notification 저장
 
 		NotificationGroup savedGroup = groupRepository.save(group);
 

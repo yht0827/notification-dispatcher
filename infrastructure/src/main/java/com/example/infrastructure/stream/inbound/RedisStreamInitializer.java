@@ -69,6 +69,7 @@ public class RedisStreamInitializer {
 	}
 
 	private void recoverPendingMessages() {
+		// XPENDING로 메시지 ID만 반환
 		PendingMessages pending = readPendingMessages();
 		if (pending == null || pending.isEmpty()) {
 			return;
@@ -87,11 +88,13 @@ public class RedisStreamInitializer {
 
 	private PendingMessages readPendingMessages() {
 		try {
+
+			// XPENDING으로 Pending 메시지 조회
 			return redisTemplate.opsForStream().pending(
-				properties.resolveKey(StreamKeyType.WORK),
-				properties.consumerGroup(),
-				Range.closed("-", "+"),
-				properties.resolveWaitBatchSize()
+				properties.resolveKey(StreamKeyType.WORK), // stream key
+				properties.consumerGroup(), // consumer group
+				Range.closed("-", "+"), // 전체 범위
+				properties.resolveWaitBatchSize() // 100 (배치 크기)
 			);
 		} catch (RuntimeException e) {
 			log.warn("Pending 메시지 조회 실패: reason={}", mostSpecificMessage(e));
@@ -101,6 +104,7 @@ public class RedisStreamInitializer {
 
 	private boolean recoverSinglePending(RecordId recordId) {
 		try {
+			// 내용(payload)을 얻으려면 XRANGE로 다시 조회 필요
 			List<ObjectRecord<String, NotificationStreamPayload>> records = redisTemplate.opsForStream().range(
 				NotificationStreamPayload.class,
 				properties.resolveKey(StreamKeyType.WORK),
@@ -115,6 +119,8 @@ public class RedisStreamInitializer {
 			NotificationStreamPayload payload = record.getValue();
 
 			waitPublisher.publish(payload.getNotificationId(), payload.getRetryCount(), "시작 시 Pending 복구");
+
+			// XACK - 메시지 ACK 처리
 			redisTemplate.opsForStream()
 				.acknowledge(properties.resolveKey(StreamKeyType.WORK), properties.consumerGroup(), record.getId());
 			return true;
