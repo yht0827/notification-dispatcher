@@ -1,8 +1,10 @@
 package com.example.infrastructure.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 import com.example.application.port.out.NotificationRepository;
@@ -40,6 +42,15 @@ public class NotificationRepositoryImpl implements NotificationRepository {
 	@Override
 	public List<Notification> findByStatus(NotificationStatus status) {
 		return jpaRepository.findByStatus(status);
+	}
+
+	@Override
+	public List<Notification> findByStatusAndCreatedAtBefore(NotificationStatus status, LocalDateTime threshold, int limit) {
+		return jpaRepository.findByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(
+			status,
+			threshold,
+			PageRequest.of(0, limit)
+		);
 	}
 
 	@Override
