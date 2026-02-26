@@ -9,6 +9,9 @@ import lombok.Setter;
 @NoArgsConstructor
 public class NotificationStreamPayload {
 
+	public static final String FIELD_NOTIFICATION_ID = "notificationId";
+	public static final String FIELD_RETRY_COUNT = "retryCount";
+
 	private Long notificationId;
 	private int retryCount;
 

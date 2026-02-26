@@ -1,12 +1,8 @@
 package com.example.infrastructure.recovery;
 
-import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 
-import org.springframework.data.domain.Range;
-import org.springframework.data.redis.connection.stream.ObjectRecord;
-import org.springframework.data.redis.connection.stream.PendingMessage;
-import org.springframework.data.redis.connection.stream.PendingMessages;
 import org.springframework.data.redis.connection.stream.RecordId;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -15,8 +11,12 @@ import com.example.infrastructure.config.NotificationStreamProperties;
 import com.example.infrastructure.config.RecoveryProperties;
 import com.example.infrastructure.config.StreamKeyType;
 import com.example.infrastructure.stream.outbound.RedisStreamWaitPublisher;
-import com.example.infrastructure.stream.payload.NotificationStreamPayload;
+import com.example.infrastructure.stream.support.LettuceStreamCommandsExtractor;
 
+import io.lettuce.core.Consumer;
+import io.lettuce.core.XAutoClaimArgs;
+import io.lettuce.core.api.sync.RedisStreamCommands;
+import io.lettuce.core.models.stream.ClaimedMessages;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -31,76 +31,80 @@ public class PendingMessageReclaimer {
 
 	@Scheduled(fixedDelayString = "${recovery.claim-interval-millis:60000}")
 	public void reclaimIdleMessages() {
-		String workKey = streamProperties.resolveKey(StreamKeyType.WORK);
-		String group = streamProperties.consumerGroup();
-		Duration minIdleTime = recoveryProperties.resolveClaimMinIdleTime();
-
-		// XPENDING로 메시지 ID만 반환
-		List<PendingMessage> idleMessages = findIdlePendingMessages(workKey, group, minIdleTime);
-		if (idleMessages.isEmpty()) {
+		List<ClaimedMessage> claimedMessages = executeAutoClaim();
+		if (claimedMessages.isEmpty()) {
 			return;
 		}
 
-		int reclaimed = 0;
-		for (PendingMessage pm : idleMessages) {
-			if (reclaimMessage(workKey, group, pm.getId())) {
-				reclaimed++;
-			}
-		}
-
+		int reclaimed = processClaimedMessages(claimedMessages);
 		if (reclaimed > 0) {
-			log.info("PEL 메시지 회수 완료: reclaimed={}, total={}", reclaimed, idleMessages.size());
+			log.info("PEL 메시지 회수 완료 (XAUTOCLAIM): reclaimed={}, total={}", reclaimed, claimedMessages.size());
 		}
 	}
 
-	private List<PendingMessage> findIdlePendingMessages(String workKey, String group, Duration minIdleTime) {
-		try {
-			// XPENDING으로 idle 메시지 조회
-			PendingMessages allPending = redisTemplate.opsForStream().pending(
-				workKey,
-				group,
-				Range.closed("-", "+"),
-				recoveryProperties.resolveBatchSize()
-			);
+	private int processClaimedMessages(List<ClaimedMessage> messages) {
+		String workKey = streamProperties.resolveKey(StreamKeyType.WORK);
+		String group = streamProperties.consumerGroup();
 
-			if (allPending.isEmpty()) {
-				return List.of();
-			}
-
-			return allPending.stream()
-				.filter(pm -> pm.getElapsedTimeSinceLastDelivery().compareTo(minIdleTime) >= 0)
-				.toList();
-		} catch (RuntimeException e) {
-			log.warn("Pending 메시지 조회 실패: reason={}", e.getMessage());
-			return List.of();
-		}
+		return (int)messages.stream()
+			.filter(message -> processAndAcknowledge(workKey, group, message))
+			.count();
 	}
 
-	private boolean reclaimMessage(String workKey, String group, RecordId recordId) {
+	private boolean processAndAcknowledge(String workKey, String group, ClaimedMessage message) {
 		try {
-			// XRANGE로 메시지 내용 조회
-			List<ObjectRecord<String, NotificationStreamPayload>> records = redisTemplate.opsForStream().range(
-				NotificationStreamPayload.class,
-				workKey,
-				Range.closed(recordId.getValue(), recordId.getValue())
-			);
-
-			if (records.isEmpty()) {
+			Long notificationId = message.notificationId().orElse(null);
+			if (notificationId == null) {
+				log.warn("notificationId 추출 실패: recordId={}", message.id());
 				return false;
 			}
 
-			ObjectRecord<String, NotificationStreamPayload> record = records.getFirst();
-			NotificationStreamPayload payload = record.getValue();
-
-			// Wait Stream으로 재발행하여 재처리
-			waitPublisher.publish(payload.getNotificationId(), payload.getRetryCount(), "PEL 회수");
-
-			// ACK 처리 - PEL에서 제거
-			redisTemplate.opsForStream().acknowledge(workKey, group, record.getId());
+			// Wait Stream으로 재발행 후 XACK 처리
+			waitPublisher.publish(notificationId, message.retryCount(), "PEL 회수 (XAUTOCLAIM)");
+			redisTemplate.opsForStream().acknowledge(workKey, group, RecordId.of(message.id()));
 			return true;
 		} catch (RuntimeException e) {
-			log.warn("PEL 메시지 회수 실패: recordId={}, reason={}", recordId, e.getMessage());
+			log.warn("PEL 메시지 처리 실패: recordId={}, reason={}", message.id(), e.getMessage());
 			return false;
 		}
+	}
+
+	private List<ClaimedMessage> executeAutoClaim() {
+		try {
+			// XAUTOCLAIM 명령으로 idle 메시지 소유권 이전 + 내용 조회 (한 번에 처리)
+			return redisTemplate.execute(connection -> {
+				Object nativeConnection = connection.getNativeConnection();
+				return LettuceStreamCommandsExtractor.extract(nativeConnection)
+					.map(this::doAutoClaim)
+					.orElseGet(() -> {
+						log.warn("지원하지 않는 Redis 연결 타입: {}", nativeConnection.getClass().getName());
+						return Collections.emptyList();
+					});
+			}, true);
+		} catch (RuntimeException e) {
+			log.warn("XAUTOCLAIM 실패: reason={}", e.getMessage());
+			return Collections.emptyList();
+		}
+	}
+
+	private List<ClaimedMessage> doAutoClaim(RedisStreamCommands<String, String> commands) {
+		String workKey = streamProperties.resolveKey(StreamKeyType.WORK);
+		String group = streamProperties.consumerGroup();
+		String consumer = streamProperties.consumerName();
+
+		XAutoClaimArgs<String> args = new XAutoClaimArgs<String>()
+			.minIdleTime(recoveryProperties.resolveClaimMinIdleTime())
+			.startId("0-0")
+			.count(recoveryProperties.resolveBatchSize())
+			.consumer(Consumer.from(group, consumer));
+
+		ClaimedMessages<String, String> result = commands.xautoclaim(workKey, args);
+		if (result == null || result.getMessages().isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		return result.getMessages().stream()
+			.map(ClaimedMessage::from)
+			.toList();
 	}
 }
