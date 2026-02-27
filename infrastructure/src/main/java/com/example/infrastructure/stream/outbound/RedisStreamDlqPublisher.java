@@ -9,17 +9,19 @@ import com.example.infrastructure.config.NotificationStreamProperties;
 import com.example.infrastructure.config.StreamKeyType;
 import com.example.infrastructure.stream.exception.DeadLetterPublishException;
 import com.example.infrastructure.stream.payload.NotificationDeadLetterPayload;
+import com.example.infrastructure.stream.port.DeadLetterPublisher;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RequiredArgsConstructor
-public class RedisStreamDlqPublisher {
+public class RedisStreamDlqPublisher implements DeadLetterPublisher {
 
 	private final StringRedisTemplate redisTemplate;
 	private final NotificationStreamProperties properties;
 
+	@Override
 	public void publish(RecordId sourceRecordId, Object payload, Long notificationId, String reason) {
 		try {
 			ObjectRecord<String, NotificationDeadLetterPayload> dlqRecord = StreamRecords

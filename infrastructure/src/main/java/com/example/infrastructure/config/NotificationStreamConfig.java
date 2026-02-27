@@ -26,6 +26,8 @@ import com.example.infrastructure.stream.outbound.RedisStreamDlqPublisher;
 import com.example.infrastructure.stream.outbound.RedisStreamPublisher;
 import com.example.infrastructure.stream.outbound.RedisStreamWaitPublisher;
 import com.example.infrastructure.stream.payload.NotificationStreamPayload;
+import com.example.infrastructure.stream.port.DeadLetterPublisher;
+import com.example.infrastructure.stream.port.WaitPublisher;
 
 @Configuration
 @ConditionalOnProperty(name = NotificationStreamConfig.STREAM_ENABLED_PROPERTY, havingValue = "true")
@@ -44,7 +46,7 @@ public class NotificationStreamConfig {
 	}
 
 	@Bean
-	public RedisStreamDlqPublisher redisStreamDlqPublisher(
+	public DeadLetterPublisher deadLetterPublisher(
 		StringRedisTemplate redisTemplate,
 		NotificationStreamProperties properties
 	) {
@@ -52,7 +54,7 @@ public class NotificationStreamConfig {
 	}
 
 	@Bean
-	public RedisStreamWaitPublisher redisStreamWaitPublisher(
+	public WaitPublisher waitPublisher(
 		StringRedisTemplate redisTemplate,
 		NotificationStreamProperties properties
 	) {
@@ -74,8 +76,8 @@ public class NotificationStreamConfig {
 	public RedisStreamConsumer redisStreamConsumer(
 		StringRedisTemplate redisTemplate,
 		RedisStreamRecordHandler recordHandler,
-		RedisStreamDlqPublisher dlqPublisher,
-		RedisStreamWaitPublisher waitPublisher,
+		DeadLetterPublisher dlqPublisher,
+		WaitPublisher waitPublisher,
 		NotificationStreamProperties properties
 	) {
 		return new RedisStreamConsumer(redisTemplate, recordHandler, dlqPublisher, waitPublisher, properties);
@@ -84,7 +86,7 @@ public class NotificationStreamConfig {
 	@Bean
 	public RedisStreamInitializer redisStreamInitializer(
 		StringRedisTemplate redisTemplate,
-		RedisStreamWaitPublisher waitPublisher,
+		WaitPublisher waitPublisher,
 		NotificationStreamProperties properties
 	) {
 		return new RedisStreamInitializer(redisTemplate, waitPublisher, properties);

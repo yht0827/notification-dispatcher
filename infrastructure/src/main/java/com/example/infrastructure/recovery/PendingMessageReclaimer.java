@@ -10,7 +10,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import com.example.infrastructure.config.NotificationStreamProperties;
 import com.example.infrastructure.config.RecoveryProperties;
 import com.example.infrastructure.config.StreamKeyType;
-import com.example.infrastructure.stream.outbound.RedisStreamWaitPublisher;
+import com.example.infrastructure.stream.port.WaitPublisher;
 import com.example.infrastructure.stream.support.LettuceStreamCommandsExtractor;
 
 import io.lettuce.core.Consumer;
@@ -27,7 +27,7 @@ public class PendingMessageReclaimer {
 	private final StringRedisTemplate redisTemplate;
 	private final NotificationStreamProperties streamProperties;
 	private final RecoveryProperties recoveryProperties;
-	private final RedisStreamWaitPublisher waitPublisher;
+	private final WaitPublisher waitPublisher;
 
 	@Scheduled(fixedDelayString = "${recovery.claim-interval-millis:60000}")
 	public void reclaimIdleMessages() {

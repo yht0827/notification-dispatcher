@@ -8,17 +8,19 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import com.example.infrastructure.config.NotificationStreamProperties;
 import com.example.infrastructure.config.StreamKeyType;
 import com.example.infrastructure.stream.payload.NotificationWaitPayload;
+import com.example.infrastructure.stream.port.WaitPublisher;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RequiredArgsConstructor
-public class RedisStreamWaitPublisher {
+public class RedisStreamWaitPublisher implements WaitPublisher {
 
 	private final StringRedisTemplate redisTemplate;
 	private final NotificationStreamProperties properties;
 
+	@Override
 	public void publish(Long notificationId, int retryCount, String lastError) {
 		// 재시도 정책에 따라 다음 재처리 시각(epoch millis)을 계산
 		long nextRetryAt = System.currentTimeMillis() + properties.calculateRetryDelayMillis(retryCount);

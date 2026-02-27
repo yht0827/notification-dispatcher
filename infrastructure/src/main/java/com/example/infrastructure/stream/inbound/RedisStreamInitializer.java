@@ -11,8 +11,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 
 import com.example.infrastructure.config.NotificationStreamProperties;
 import com.example.infrastructure.config.StreamKeyType;
-import com.example.infrastructure.stream.outbound.RedisStreamWaitPublisher;
 import com.example.infrastructure.stream.payload.NotificationStreamPayload;
+import com.example.infrastructure.stream.port.WaitPublisher;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +24,7 @@ public class RedisStreamInitializer {
 	private static final String BUSYGROUP_CODE = "BUSYGROUP";
 
 	private final StringRedisTemplate redisTemplate;
-	private final RedisStreamWaitPublisher waitPublisher;
+	private final WaitPublisher waitPublisher;
 	private final NotificationStreamProperties properties;
 
 	@PostConstruct

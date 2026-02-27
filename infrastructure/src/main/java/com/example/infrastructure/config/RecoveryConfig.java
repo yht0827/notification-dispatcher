@@ -9,7 +9,7 @@ import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.NotificationRepository;
 import com.example.infrastructure.recovery.NotificationRecoveryPoller;
 import com.example.infrastructure.recovery.PendingMessageReclaimer;
-import com.example.infrastructure.stream.outbound.RedisStreamWaitPublisher;
+import com.example.infrastructure.stream.port.WaitPublisher;
 
 @Configuration
 @ConditionalOnProperty(name = NotificationStreamConfig.STREAM_ENABLED_PROPERTY, havingValue = "true")
@@ -29,7 +29,7 @@ public class RecoveryConfig {
 		StringRedisTemplate redisTemplate,
 		NotificationStreamProperties streamProperties,
 		RecoveryProperties recoveryProperties,
-		RedisStreamWaitPublisher waitPublisher
+		WaitPublisher waitPublisher
 	) {
 		return new PendingMessageReclaimer(redisTemplate, streamProperties, recoveryProperties, waitPublisher);
 	}

@@ -9,9 +9,9 @@ import com.example.infrastructure.config.NotificationStreamProperties;
 import com.example.infrastructure.config.StreamKeyType;
 import com.example.infrastructure.stream.exception.NonRetryableStreamMessageException;
 import com.example.infrastructure.stream.exception.RetryableStreamMessageException;
-import com.example.infrastructure.stream.outbound.RedisStreamDlqPublisher;
-import com.example.infrastructure.stream.outbound.RedisStreamWaitPublisher;
 import com.example.infrastructure.stream.payload.NotificationStreamPayload;
+import com.example.infrastructure.stream.port.DeadLetterPublisher;
+import com.example.infrastructure.stream.port.WaitPublisher;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,8 +22,8 @@ public class RedisStreamConsumer implements StreamListener<String, ObjectRecord<
 
 	private final StringRedisTemplate redisTemplate;
 	private final RedisStreamRecordHandler recordHandler;
-	private final RedisStreamDlqPublisher dlqPublisher;
-	private final RedisStreamWaitPublisher waitPublisher;
+	private final DeadLetterPublisher dlqPublisher;
+	private final WaitPublisher waitPublisher;
 	private final NotificationStreamProperties properties;
 
 	@Override
