@@ -1,4 +1,4 @@
-package com.example.infrastructure.outbox;
+package com.example.infrastructure.polling;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;

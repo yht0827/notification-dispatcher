@@ -1,4 +1,4 @@
-package com.example.infrastructure.lock;
+package com.example.infrastructure.repository;
 
 import static org.assertj.core.api.Assertions.*;
 

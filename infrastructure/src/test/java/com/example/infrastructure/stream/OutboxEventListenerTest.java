@@ -1,4 +1,4 @@
-package com.example.infrastructure.outbox;
+package com.example.infrastructure.stream;
 
 import static org.mockito.Mockito.*;
 
