@@ -18,11 +18,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import com.example.application.port.in.NotificationCommandUseCase.SendCommand;
 import com.example.application.port.out.NotificationGroupRepository;
-import com.example.application.port.out.OutboxEventPublisher;
 import com.example.application.port.out.OutboxRepository;
+import com.example.application.service.event.OutboxSavedEvent;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.NotificationGroup;
 
@@ -36,7 +37,7 @@ class NotificationCommandServiceTest {
 	private OutboxRepository outboxRepository;
 
 	@Mock
-	private OutboxEventPublisher outboxEventPublisher;
+	private ApplicationEventPublisher eventPublisher;
 
 	@InjectMocks
 	private NotificationCommandService commandService;
@@ -74,7 +75,7 @@ class NotificationCommandServiceTest {
 		assertThat(result).isSameAs(existingGroup);
 		verify(groupRepository, never()).save(any(NotificationGroup.class));
 		verifyNoInteractions(outboxRepository);
-		verifyNoInteractions(outboxEventPublisher);
+		verifyNoInteractions(eventPublisher);
 	}
 
 	@Test
@@ -104,7 +105,7 @@ class NotificationCommandServiceTest {
 		assertThat(result.getNotifications()).hasSize(2);
 		verify(groupRepository, times(1)).save(any(NotificationGroup.class));
 		verify(outboxRepository, times(1)).saveAll(argThat(outboxes -> outboxes.size() == 2));
-		verify(outboxEventPublisher, times(1)).publishAfterCommit(argThat(ids -> ids.size() == 2));
+		verify(eventPublisher, times(1)).publishEvent(any(OutboxSavedEvent.class));
 	}
 
 	@Test
@@ -131,6 +132,6 @@ class NotificationCommandServiceTest {
 		verify(groupRepository, never()).findByClientIdAndIdempotencyKey(any(), any());
 		verify(groupRepository, times(1)).save(any(NotificationGroup.class));
 		verify(outboxRepository, times(1)).saveAll(argThat(outboxes -> outboxes.size() == 1));
-		verify(outboxEventPublisher, times(1)).publishAfterCommit(argThat(ids -> ids.size() == 1));
+		verify(eventPublisher, times(1)).publishEvent(any(OutboxSavedEvent.class));
 	}
 }

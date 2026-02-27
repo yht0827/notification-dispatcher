@@ -12,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.example.application.port.out.OutboxRepository;
+import com.example.application.service.event.OutboxSavedEvent;
 import com.example.infrastructure.stream.outbound.RedisStreamPublisher;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,12 +33,12 @@ class OutboxEventListenerTest {
 
 	@Test
 	@DisplayName("커밋 후 Redis Stream에 즉시 발행하고 Outbox를 삭제한다")
-	void onOutboxCreated_publishesAndDeletes() {
+	void onOutboxSaved_publishesAndDeletes() {
 		// given
-		OutboxCreatedEvent event = new OutboxCreatedEvent(List.of(100L, 200L));
+		OutboxSavedEvent event = new OutboxSavedEvent(List.of(100L, 200L));
 
 		// when
-		listener.onOutboxCreated(event);
+		listener.onOutboxSaved(event);
 
 		// then
 		verify(streamPublisher).publish(100L);
@@ -48,13 +49,13 @@ class OutboxEventListenerTest {
 
 	@Test
 	@DisplayName("발행 실패 시 해당 Outbox는 삭제하지 않는다")
-	void onOutboxCreated_doesNotDeleteOnPublishFailure() {
+	void onOutboxSaved_doesNotDeleteOnPublishFailure() {
 		// given
-		OutboxCreatedEvent event = new OutboxCreatedEvent(List.of(100L, 200L));
+		OutboxSavedEvent event = new OutboxSavedEvent(List.of(100L, 200L));
 		doThrow(new RuntimeException("Redis connection failed")).when(streamPublisher).publish(100L);
 
 		// when
-		listener.onOutboxCreated(event);
+		listener.onOutboxSaved(event);
 
 		// then
 		verify(streamPublisher).publish(100L);
@@ -65,12 +66,12 @@ class OutboxEventListenerTest {
 
 	@Test
 	@DisplayName("빈 이벤트는 아무 작업도 하지 않는다")
-	void onOutboxCreated_doesNothingForEmptyEvent() {
+	void onOutboxSaved_doesNothingForEmptyEvent() {
 		// given
-		OutboxCreatedEvent event = new OutboxCreatedEvent(List.of());
+		OutboxSavedEvent event = new OutboxSavedEvent(List.of());
 
 		// when
-		listener.onOutboxCreated(event);
+		listener.onOutboxSaved(event);
 
 		// then
 		verify(streamPublisher, never()).publish(anyLong());

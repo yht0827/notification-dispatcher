@@ -3,13 +3,14 @@ package com.example.application.service;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.application.port.in.NotificationCommandUseCase;
 import com.example.application.port.out.NotificationGroupRepository;
-import com.example.application.port.out.OutboxEventPublisher;
 import com.example.application.port.out.OutboxRepository;
+import com.example.application.service.event.OutboxSavedEvent;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
 import com.example.domain.outbox.Outbox;
@@ -24,7 +25,7 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 
 	private final NotificationGroupRepository groupRepository;
 	private final OutboxRepository outboxRepository;
-	private final OutboxEventPublisher outboxEventPublisher;
+	private final ApplicationEventPublisher eventPublisher;
 
 	@Override
 	@Transactional
@@ -67,7 +68,9 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 		outboxRepository.saveAll(outboxes);
 
 		// 이벤트 발행
-		outboxEventPublisher.publishAfterCommit(notificationIds);
+		if (!notificationIds.isEmpty()) {
+			eventPublisher.publishEvent(new OutboxSavedEvent(notificationIds));
+		}
 		log.debug("Outbox 저장 완료: count={}", outboxes.size());
 	}
 

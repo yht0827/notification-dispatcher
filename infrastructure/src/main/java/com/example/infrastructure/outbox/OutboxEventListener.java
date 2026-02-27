@@ -9,6 +9,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.OutboxRepository;
+import com.example.application.service.event.OutboxSavedEvent;
 import com.example.infrastructure.config.NotificationStreamConfig;
 
 import lombok.RequiredArgsConstructor;
@@ -24,7 +25,7 @@ public class OutboxEventListener {
 	private final OutboxRepository outboxRepository;
 
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-	public void onOutboxCreated(OutboxCreatedEvent event) {
+	public void onOutboxSaved(OutboxSavedEvent event) {
 		List<Long> ids = event.notificationIds();
 
 		long success = ids.stream()
