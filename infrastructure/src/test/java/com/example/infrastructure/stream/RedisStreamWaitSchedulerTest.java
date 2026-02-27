@@ -24,7 +24,7 @@ import org.springframework.data.redis.connection.stream.StreamRecords;
 import org.springframework.data.redis.core.StreamOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import com.example.infrastructure.config.NotificationStreamProperties;
+import com.example.infrastructure.config.stream.NotificationStreamProperties;
 import com.example.infrastructure.stream.inbound.RedisStreamWaitScheduler;
 import com.example.infrastructure.stream.payload.NotificationStreamPayload;
 import com.example.infrastructure.stream.payload.NotificationWaitPayload;
@@ -156,11 +156,13 @@ class RedisStreamWaitSchedulerTest {
 		);
 	}
 
-	private NotificationWaitPayload waitPayload(long notificationId, int retryCount, long nextRetryAt, String lastError) {
+	private NotificationWaitPayload waitPayload(long notificationId, int retryCount, long nextRetryAt,
+		String lastError) {
 		return NotificationWaitPayload.of(notificationId, retryCount, nextRetryAt, lastError);
 	}
 
-	private ObjectRecord<String, NotificationWaitPayload> waitRecord(RecordId recordId, NotificationWaitPayload payload) {
+	private ObjectRecord<String, NotificationWaitPayload> waitRecord(RecordId recordId,
+		NotificationWaitPayload payload) {
 		return StreamRecords
 			.objectBacked(payload)
 			.withStreamKey(WAIT_KEY)

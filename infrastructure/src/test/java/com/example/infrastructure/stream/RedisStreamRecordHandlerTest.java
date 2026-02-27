@@ -1,12 +1,8 @@
 package com.example.infrastructure.stream;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 import java.util.Optional;
 
@@ -26,10 +22,10 @@ import com.example.domain.exception.UnsupportedChannelException;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
-import com.example.infrastructure.config.NotificationStreamProperties;
-import com.example.infrastructure.stream.inbound.RedisStreamRecordHandler;
+import com.example.infrastructure.config.stream.NotificationStreamProperties;
 import com.example.infrastructure.stream.exception.NonRetryableStreamMessageException;
 import com.example.infrastructure.stream.exception.RetryableStreamMessageException;
+import com.example.infrastructure.stream.inbound.RedisStreamRecordHandler;
 
 @ExtendWith(MockitoExtension.class)
 class RedisStreamRecordHandlerTest {
@@ -166,7 +162,8 @@ class RedisStreamRecordHandlerTest {
 	void process_convertsInvalidStatusTransitionToNonRetryable() {
 		Notification notification = createNotification();
 		when(notificationRepository.findById(4L)).thenReturn(Optional.of(notification));
-		when(dispatchService.dispatch(notification)).thenThrow(new InvalidStatusTransitionException("invalid transition"));
+		when(dispatchService.dispatch(notification)).thenThrow(
+			new InvalidStatusTransitionException("invalid transition"));
 
 		assertThatThrownBy(() -> recordHandler.process(4L, 0))
 			.isInstanceOf(NonRetryableStreamMessageException.class)

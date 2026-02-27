@@ -1,7 +1,8 @@
 package com.example.infrastructure.outbox;
 
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.anyLong;
 
 import java.lang.reflect.Field;
 import java.util.Collections;
@@ -19,7 +20,8 @@ import com.example.domain.outbox.Outbox;
 import com.example.domain.outbox.OutboxAggregateType;
 import com.example.domain.outbox.OutboxEventType;
 import com.example.domain.outbox.OutboxStatus;
-import com.example.infrastructure.config.OutboxProperties;
+import com.example.infrastructure.config.stream.OutboxProperties;
+import com.example.infrastructure.polling.OutboxPoller;
 import com.example.infrastructure.stream.outbound.RedisStreamPublisher;
 
 @ExtendWith(MockitoExtension.class)

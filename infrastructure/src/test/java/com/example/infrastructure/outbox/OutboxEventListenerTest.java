@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.example.application.port.out.OutboxRepository;
 import com.example.application.service.event.OutboxSavedEvent;
+import com.example.infrastructure.stream.listener.OutboxEventListener;
 import com.example.infrastructure.stream.outbound.RedisStreamPublisher;
 
 @ExtendWith(MockitoExtension.class)

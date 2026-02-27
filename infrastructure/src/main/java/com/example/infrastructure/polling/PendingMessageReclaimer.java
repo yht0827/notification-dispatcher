@@ -1,4 +1,4 @@
-package com.example.infrastructure.recovery;
+package com.example.infrastructure.polling;
 
 import java.util.Collections;
 import java.util.List;
@@ -7,9 +7,9 @@ import org.springframework.data.redis.connection.stream.RecordId;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 
-import com.example.infrastructure.config.NotificationStreamProperties;
-import com.example.infrastructure.config.RecoveryProperties;
-import com.example.infrastructure.config.StreamKeyType;
+import com.example.infrastructure.config.stream.NotificationStreamProperties;
+import com.example.infrastructure.config.stream.RecoveryProperties;
+import com.example.infrastructure.config.stream.StreamKeyType;
 import com.example.infrastructure.stream.port.WaitPublisher;
 import com.example.infrastructure.stream.support.LettuceStreamCommandsExtractor;
 

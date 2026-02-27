@@ -17,6 +17,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import com.example.infrastructure.repository.DispatchLockManagerImpl;
 import com.example.infrastructure.support.IntegrationTestSupportNoTx;
 
 class DispatchLockManagerImplTest extends IntegrationTestSupportNoTx {

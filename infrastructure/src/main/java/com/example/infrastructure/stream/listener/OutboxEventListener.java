@@ -1,4 +1,4 @@
-package com.example.infrastructure.outbox;
+package com.example.infrastructure.stream.listener;
 
 import java.util.List;
 
@@ -10,7 +10,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.OutboxRepository;
 import com.example.application.service.event.OutboxSavedEvent;
-import com.example.infrastructure.config.NotificationStreamConfig;
+import com.example.infrastructure.config.stream.NotificationStreamConfig;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

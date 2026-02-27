@@ -1,4 +1,4 @@
-package com.example.infrastructure.config;
+package com.example.infrastructure.config.stream;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -7,8 +7,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 
 import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.NotificationRepository;
-import com.example.infrastructure.recovery.NotificationRecoveryPoller;
-import com.example.infrastructure.recovery.PendingMessageReclaimer;
+import com.example.infrastructure.polling.NotificationRecoveryPoller;
+import com.example.infrastructure.polling.PendingMessageReclaimer;
 import com.example.infrastructure.stream.port.WaitPublisher;
 
 @Configuration

@@ -1,4 +1,4 @@
-package com.example.infrastructure.config;
+package com.example.infrastructure.config.jpa;
 
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.Configuration;

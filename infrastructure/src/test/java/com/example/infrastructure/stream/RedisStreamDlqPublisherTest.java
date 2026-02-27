@@ -1,9 +1,7 @@
 package com.example.infrastructure.stream;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -18,7 +16,7 @@ import org.springframework.data.redis.connection.stream.RecordId;
 import org.springframework.data.redis.core.StreamOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import com.example.infrastructure.config.NotificationStreamProperties;
+import com.example.infrastructure.config.stream.NotificationStreamProperties;
 import com.example.infrastructure.stream.exception.DeadLetterPublishException;
 import com.example.infrastructure.stream.outbound.RedisStreamDlqPublisher;
 import com.example.infrastructure.stream.payload.NotificationDeadLetterPayload;

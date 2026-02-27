@@ -1,4 +1,4 @@
-package com.example.infrastructure.recovery;
+package com.example.infrastructure.polling;
 
 import java.util.Map;
 import java.util.Optional;

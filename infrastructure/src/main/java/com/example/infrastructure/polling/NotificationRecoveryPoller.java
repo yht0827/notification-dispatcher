@@ -1,4 +1,4 @@
-package com.example.infrastructure.recovery;
+package com.example.infrastructure.polling;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -9,7 +9,7 @@ import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.NotificationRepository;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationStatus;
-import com.example.infrastructure.config.RecoveryProperties;
+import com.example.infrastructure.config.stream.RecoveryProperties;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

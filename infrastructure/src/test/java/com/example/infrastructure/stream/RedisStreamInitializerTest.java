@@ -21,7 +21,7 @@ import org.springframework.data.redis.connection.stream.StreamRecords;
 import org.springframework.data.redis.core.StreamOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import com.example.infrastructure.config.NotificationStreamProperties;
+import com.example.infrastructure.config.stream.NotificationStreamProperties;
 import com.example.infrastructure.stream.inbound.RedisStreamInitializer;
 import com.example.infrastructure.stream.outbound.RedisStreamWaitPublisher;
 import com.example.infrastructure.stream.payload.NotificationStreamPayload;
@@ -162,7 +162,8 @@ class RedisStreamInitializerTest {
 		if (recordIds.length > 0) {
 			when(pendingMessages.iterator()).thenReturn(pendingMessageList.iterator());
 		}
-		when(streamOperations.pending(STREAM_KEY, GROUP, PENDING_RANGE, PENDING_FETCH_SIZE)).thenReturn(pendingMessages);
+		when(streamOperations.pending(STREAM_KEY, GROUP, PENDING_RANGE, PENDING_FETCH_SIZE)).thenReturn(
+			pendingMessages);
 	}
 
 	private PendingMessage pendingMessage(RecordId recordId) {

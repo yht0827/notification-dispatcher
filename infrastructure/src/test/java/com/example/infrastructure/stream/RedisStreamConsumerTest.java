@@ -1,6 +1,6 @@
 package com.example.infrastructure.stream;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -16,12 +16,12 @@ import org.springframework.data.redis.connection.stream.StreamRecords;
 import org.springframework.data.redis.core.StreamOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import com.example.infrastructure.config.NotificationStreamProperties;
-import com.example.infrastructure.stream.inbound.RedisStreamConsumer;
-import com.example.infrastructure.stream.inbound.RedisStreamRecordHandler;
+import com.example.infrastructure.config.stream.NotificationStreamProperties;
 import com.example.infrastructure.stream.exception.DeadLetterPublishException;
 import com.example.infrastructure.stream.exception.NonRetryableStreamMessageException;
 import com.example.infrastructure.stream.exception.RetryableStreamMessageException;
+import com.example.infrastructure.stream.inbound.RedisStreamConsumer;
+import com.example.infrastructure.stream.inbound.RedisStreamRecordHandler;
 import com.example.infrastructure.stream.outbound.RedisStreamDlqPublisher;
 import com.example.infrastructure.stream.outbound.RedisStreamWaitPublisher;
 import com.example.infrastructure.stream.payload.NotificationStreamPayload;

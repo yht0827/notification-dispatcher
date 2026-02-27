@@ -9,7 +9,7 @@ import com.example.application.port.out.NotificationRepository;
 import com.example.domain.exception.InvalidStatusTransitionException;
 import com.example.domain.exception.UnsupportedChannelException;
 import com.example.domain.notification.Notification;
-import com.example.infrastructure.config.NotificationStreamProperties;
+import com.example.infrastructure.config.stream.NotificationStreamProperties;
 import com.example.infrastructure.stream.exception.NonRetryableStreamMessageException;
 import com.example.infrastructure.stream.exception.RetryableStreamMessageException;
 

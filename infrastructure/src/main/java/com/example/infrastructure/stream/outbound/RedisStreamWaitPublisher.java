@@ -5,8 +5,8 @@ import org.springframework.data.redis.connection.stream.RecordId;
 import org.springframework.data.redis.connection.stream.StreamRecords;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import com.example.infrastructure.config.NotificationStreamProperties;
-import com.example.infrastructure.config.StreamKeyType;
+import com.example.infrastructure.config.stream.NotificationStreamProperties;
+import com.example.infrastructure.config.stream.StreamKeyType;
 import com.example.infrastructure.stream.payload.NotificationWaitPayload;
 import com.example.infrastructure.stream.port.WaitPublisher;
 

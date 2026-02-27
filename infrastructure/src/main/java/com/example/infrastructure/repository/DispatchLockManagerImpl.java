@@ -1,4 +1,4 @@
-package com.example.infrastructure.lock;
+package com.example.infrastructure.repository;
 
 import java.util.concurrent.TimeUnit;
 
