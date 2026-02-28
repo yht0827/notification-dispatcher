@@ -1,0 +1,101 @@
+spring:
+  application:
+    name: notification-dispatcher
+  profiles:
+    active: local
+
+notification:
+  stream:
+    enabled: true
+
+outbox:
+  poll-interval-millis: 1000
+  batch-size: 100
+
+recovery:
+  batch-size: 100                 # 복구 배치 크기
+  threshold-minutes: 5            # PENDING 상태 유지 임계 시간(분)
+  claim-min-idle-minutes: 5       # PEL 메시지 최소 idle 시간(분)
+  poll-interval-millis: 300000    # PENDING 복구 폴링 간격(ms) - 5분
+  claim-interval-millis: 60000    # PEL 회수 폴링 간격(ms) - 1분
+
+---
+# Local 환경
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:mysql://localhost:3306/notification?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+    username: application
+    password: application
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+notification:
+  stream:
+    key: notification-stream
+    consumer-group: notification-group
+    consumer-name: consumer-1
+    poll-interval: 1000                        # XREADGROUP 타임아웃(ms)
+    batch-size: 10                             # 한 번에 읽을 최대 개수
+    wait-batch-size: 100
+    dead-letter-key: notification-stream-dlq
+    wait-key: notification-stream-wait
+    max-retry-count: 3                         # 재시도 최대 횟수
+    retry-base-delay-millis: 5000              # WAIT 재시도 기본 지연(ms)
+    wait-poll-interval-millis: 1000            # WAIT 스케줄러 실행 주기
+
+---
+# Test 환경 (Testcontainers)
+spring:
+  config:
+    activate:
+      on-profile: test
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+  flyway:
+    enabled: false
+
+---
+# Production 환경
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
