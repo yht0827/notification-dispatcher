@@ -8,7 +8,9 @@ import com.example.infrastructure.support.IntegrationTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -17,6 +19,9 @@ class NotificationGroupRepositoryTest extends IntegrationTestSupport {
 
     @Autowired
     private NotificationGroupRepository groupRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Test
     @DisplayName("그룹을 저장하고 조회한다")
@@ -35,18 +40,20 @@ class NotificationGroupRepositoryTest extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("clientId로 그룹을 조회한다")
-    void findByClientId() {
+    @DisplayName("clientId와 날짜 범위로 그룹을 조회한다")
+    void findByClientIdWithCursor_returnsMatchingGroups() {
         // given
         groupRepository.save(createSingleGroup("service-a"));
         groupRepository.save(createBulkGroup("service-a"));
         groupRepository.save(createSingleGroup("service-b"));
 
         // when
-        List<NotificationGroup> groups = groupRepository.findByClientId("service-a");
+        java.time.LocalDateTime from = java.time.LocalDateTime.now().minusDays(7);
+        List<NotificationGroup> groups = groupRepository.findByClientIdWithCursor("service-a", from, null, 10);
 
         // then
         assertThat(groups).hasSize(2);
+        assertThat(groups).allMatch(g -> g.getClientId().equals("service-a"));
     }
 
     @Test
@@ -165,6 +172,64 @@ class NotificationGroupRepositoryTest extends IntegrationTestSupport {
 		assertThat(secondSlice.getFirst().getId()).isEqualTo(first.getId());
 		assertThat(secondSlice.getFirst().getId()).isNotEqualTo(second.getId());
 	}
+
+    @Test
+    @DisplayName("7일 이전에 생성된 그룹은 조회되지 않는다")
+    void findByClientIdWithCursor_excludesOldGroups() {
+        // given
+        NotificationGroup recent = groupRepository.save(createSingleGroup("old-test"));
+        NotificationGroup old = groupRepository.save(createSingleGroup("old-test"));
+
+        // 8일 전으로 backdating
+        jdbcTemplate.update(
+            "UPDATE notification_group SET created_at = ? WHERE id = ?",
+            LocalDateTime.now().minusDays(8), old.getId()
+        );
+
+        // when
+        LocalDateTime from = LocalDateTime.now().minusDays(7);
+        List<NotificationGroup> groups = groupRepository.findByClientIdWithCursor("old-test", from, null, 10);
+
+        // then
+        assertThat(groups).hasSize(1);
+        assertThat(groups.getFirst().getId()).isEqualTo(recent.getId());
+    }
+
+    @Test
+    @DisplayName("cursorId보다 작은 id의 그룹만 조회한다")
+    void findByClientIdWithCursor_withCursor() {
+        // given
+        NotificationGroup first = groupRepository.save(createSingleGroup("cursor-test"));
+        groupRepository.save(createSingleGroup("cursor-test"));
+        groupRepository.save(createSingleGroup("cursor-test"));
+
+        // when
+        LocalDateTime from = LocalDateTime.now().minusDays(7);
+        List<NotificationGroup> firstPage = groupRepository.findByClientIdWithCursor("cursor-test", from, null, 2);
+        Long cursorId = firstPage.get(1).getId();
+        List<NotificationGroup> secondPage = groupRepository.findByClientIdWithCursor("cursor-test", from, cursorId, 2);
+
+        // then
+        assertThat(firstPage).hasSize(2);
+        assertThat(secondPage).hasSize(1);
+        assertThat(secondPage.getFirst().getId()).isEqualTo(first.getId());
+    }
+
+    @Test
+    @DisplayName("다른 clientId의 그룹은 조회되지 않는다")
+    void findByClientIdWithCursor_excludesOtherClients() {
+        // given
+        groupRepository.save(createSingleGroup("my-service"));
+        groupRepository.save(createSingleGroup("other-service"));
+
+        // when
+        LocalDateTime from = LocalDateTime.now().minusDays(7);
+        List<NotificationGroup> groups = groupRepository.findByClientIdWithCursor("my-service", from, null, 10);
+
+        // then
+        assertThat(groups).hasSize(1);
+        assertThat(groups.getFirst().getClientId()).isEqualTo("my-service");
+    }
 
     private NotificationGroup createSingleGroup(String clientId) {
         return NotificationGroup.create(clientId, "MyShop", "테스트", "테스트 내용", ChannelType.EMAIL, 1);

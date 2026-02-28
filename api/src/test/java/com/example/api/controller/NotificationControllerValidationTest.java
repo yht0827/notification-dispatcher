@@ -55,4 +55,31 @@ class NotificationControllerValidationTest {
 		mockMvc.perform(get("/api/v1/notifications").param("cursorId", "0"))
 			.andExpect(status().isBadRequest());
 	}
+
+	@Test
+	@DisplayName("요청자별 조회 cursorId가 0이면 400을 반환한다")
+	void getGroupsByClientId_returnsBadRequestWhenCursorIdIsZero() throws Exception {
+		mockMvc.perform(get("/api/v1/notifications/groups")
+				.param("clientId", "order-service")
+				.param("cursorId", "0"))
+			.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	@DisplayName("요청자별 조회 size가 0이면 400을 반환한다")
+	void getGroupsByClientId_returnsBadRequestWhenSizeIsZero() throws Exception {
+		mockMvc.perform(get("/api/v1/notifications/groups")
+				.param("clientId", "order-service")
+				.param("size", "0"))
+			.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	@DisplayName("요청자별 조회 size가 100을 초과하면 400을 반환한다")
+	void getGroupsByClientId_returnsBadRequestWhenSizeExceedsMax() throws Exception {
+		mockMvc.perform(get("/api/v1/notifications/groups")
+				.param("clientId", "order-service")
+				.param("size", "101"))
+			.andExpect(status().isBadRequest());
+	}
 }
