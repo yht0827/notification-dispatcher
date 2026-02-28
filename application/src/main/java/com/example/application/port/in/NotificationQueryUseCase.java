@@ -14,7 +14,7 @@ public interface NotificationQueryUseCase {
 
 	NotificationGroupSlice getRecentGroups(Long cursorId, int size);
 
-	List<NotificationGroup> getGroupsByClientId(String clientId);
+	NotificationGroupSlice getGroupsByClientId(String clientId, Long cursorId, int size);
 
 	Optional<Notification> getNotification(Long notificationId);
 

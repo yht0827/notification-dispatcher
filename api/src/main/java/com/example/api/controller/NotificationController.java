@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.api.dto.request.NotificationSendRequest;
 import com.example.api.dto.response.NotificationGroupDetailResponse;
 import com.example.api.dto.response.NotificationGroupResponse;
+import com.example.api.dto.response.NotificationGroupSliceResponse;
 import com.example.api.dto.response.NotificationListSliceResponse;
 import com.example.api.dto.response.NotificationResponse;
 import com.example.api.dto.response.NotificationSendResponse;
@@ -73,15 +74,16 @@ public class NotificationController {
 			.orElseThrow(() -> new NotificationException(ErrorCode.NOTIFICATION_GROUP_NOT_FOUND));
 	}
 
-	@Operation(summary = "클라이언트별 알림 그룹 목록 조회")
+	@Operation(summary = "요청자별 알림 그룹 목록 조회 (최근 7일, 커서 페이징)")
 	@GetMapping("/groups")
-	public ApiResponse<List<NotificationGroupResponse>> getGroupsByClientId(
-		@RequestParam("clientId") @NotBlank(message = "clientId는 필수입니다") String clientId) {
-		List<NotificationGroupResponse> responses = queryUseCase.getGroupsByClientId(clientId)
-			.stream()
-			.map(NotificationGroupResponse::from)
-			.toList();
-		return ApiResponse.ok(responses);
+	public ApiResponse<NotificationGroupSliceResponse> getGroupsByClientId(
+		@RequestParam("clientId") @NotBlank(message = "clientId는 필수입니다") String clientId,
+		@RequestParam(value = "cursorId", required = false)
+		@Positive(message = "cursorId는 1 이상이어야 합니다") Long cursorId,
+		@RequestParam(value = "size", defaultValue = "20")
+		@Min(value = 1, message = "size는 1 이상이어야 합니다")
+		@Max(value = 100, message = "size는 100 이하여야 합니다") int size) {
+		return ApiResponse.ok(NotificationGroupSliceResponse.from(queryUseCase.getGroupsByClientId(clientId, cursorId, size)));
 	}
 
 	@Operation(summary = "알림 묶음 목록 조회")

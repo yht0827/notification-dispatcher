@@ -1,5 +1,6 @@
 package com.example.application.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -41,8 +42,11 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 	}
 
 	@Override
-	public List<NotificationGroup> getGroupsByClientId(String clientId) {
-		return groupRepository.findByClientId(clientId);
+	public NotificationGroupSlice getGroupsByClientId(String clientId, Long cursorId, int size) {
+		int limit = Math.max(size, 1);
+		LocalDateTime from = LocalDateTime.now().minusDays(7);
+		List<NotificationGroup> fetched = groupRepository.findByClientIdWithCursor(clientId, from, cursorId, limit + 1);
+		return NotificationGroupSlice.of(fetched, limit);
 	}
 
 	@Override

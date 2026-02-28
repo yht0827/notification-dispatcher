@@ -3,6 +3,7 @@ package com.example.application.port.out;
 import com.example.domain.notification.GroupType;
 import com.example.domain.notification.NotificationGroup;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,7 +17,7 @@ public interface NotificationGroupRepository {
 
     Optional<NotificationGroup> findByClientIdAndIdempotencyKey(String clientId, String idempotencyKey);
 
-    List<NotificationGroup> findByClientId(String clientId);
+    List<NotificationGroup> findByClientIdWithCursor(String clientId, LocalDateTime from, Long cursorId, int limit);
 
     List<NotificationGroup> findRecentByCursor(Long cursorId, int limit);
 

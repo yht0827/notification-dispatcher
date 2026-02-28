@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -37,8 +38,9 @@ public class NotificationGroupRepositoryImpl implements NotificationGroupReposit
     }
 
     @Override
-    public List<NotificationGroup> findByClientId(String clientId) {
-        return jpaRepository.findByClientId(clientId);
+    public List<NotificationGroup> findByClientIdWithCursor(String clientId, LocalDateTime from, Long cursorId, int limit) {
+        int normalizedLimit = Math.max(limit, 1);
+        return jpaRepository.findByClientIdWithCursor(clientId, from, cursorId, PageRequest.of(0, normalizedLimit));
     }
 
     @Override
