@@ -1,0 +1,25 @@
+services:
+  ngrinder-controller:
+    image: ngrinder/controller:3.5.9
+    container_name: ngrinder-controller
+    ports:
+      - "8300:80"
+      - "16001:16001"
+      - "12000-12009:12000-12009"
+    volumes:
+      - ngrinder-controller:/opt/ngrinder-controller
+    restart: unless-stopped
+
+  ngrinder-agent:
+    image: ngrinder/agent:3.5.9
+    container_name: ngrinder-agent
+    depends_on:
+      - ngrinder-controller
+    environment:
+      - CONTROLLER_ADDR=ngrinder-controller
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+volumes:
+  ngrinder-controller:
