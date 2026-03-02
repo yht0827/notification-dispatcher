@@ -26,20 +26,27 @@ public class MockApiSender {
 
 	public SendResult send(Notification notification, ChannelType channelType) {
 		if (!properties.isEnabled()) {
-			log.debug("mock API 비활성화 상태로 발송 성공 처리: notificationId={}", notification.getId());
+			log.debug("mock API 비활성화: notificationId={}", notification.getId());
 			return SendResult.success();
 		}
 
 		try {
-			return mockApiCaller.call(MockApiSendRequest.from(notification, channelType));
+			SendResult result = mockApiCaller.call(MockApiSendRequest.from(notification, channelType));
+			log.info("mock API 발송 성공: notificationId={}, channel={}", notification.getId(), channelType);
+			return result;
 		} catch (RequestNotPermitted e) {
-			return SendResult.fail("외부 API rate limit 초과");
+			return fail(notification.getId(), channelType, "rate limit 초과");
 		} catch (CallNotPermittedException e) {
-			return SendResult.fail("외부 API circuit breaker OPEN 상태");
+			return fail(notification.getId(), channelType, "circuit breaker OPEN");
 		} catch (MockApiNonRetryableException | MockApiRetryableException e) {
-			return SendResult.fail(e.getMessage());
+			return fail(notification.getId(), channelType, e.getMessage());
 		} catch (RuntimeException e) {
-			return SendResult.fail("외부 API 호출 실패: " + e.getMessage());
+			return fail(notification.getId(), channelType, "알 수 없는 오류: " + e.getMessage());
 		}
+	}
+
+	private SendResult fail(Long notificationId, ChannelType channelType, String reason) {
+		log.warn("mock API 발송 실패: notificationId={}, channel={}, reason={}", notificationId, channelType, reason);
+		return SendResult.fail(reason);
 	}
 }
