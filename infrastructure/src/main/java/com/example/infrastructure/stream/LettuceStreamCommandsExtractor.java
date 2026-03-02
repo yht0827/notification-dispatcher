@@ -1,4 +1,4 @@
-package com.example.infrastructure.stream.support;
+package com.example.infrastructure.stream;
 
 import java.util.Optional;
 

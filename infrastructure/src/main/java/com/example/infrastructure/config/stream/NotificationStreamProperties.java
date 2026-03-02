@@ -2,6 +2,8 @@ package com.example.infrastructure.config.stream;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import com.example.infrastructure.stream.StreamKeyType;
+
 @ConfigurationProperties(prefix = "notification.stream")
 public record NotificationStreamProperties(
 	String key,

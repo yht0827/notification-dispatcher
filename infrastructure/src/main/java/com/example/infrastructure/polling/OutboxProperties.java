@@ -1,4 +1,4 @@
-package com.example.infrastructure.config.stream;
+package com.example.infrastructure.polling;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

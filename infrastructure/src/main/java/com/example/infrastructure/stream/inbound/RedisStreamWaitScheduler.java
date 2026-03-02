@@ -10,7 +10,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import com.example.infrastructure.config.stream.NotificationStreamProperties;
-import com.example.infrastructure.config.stream.StreamKeyType;
+import com.example.infrastructure.stream.StreamKeyType;
 import com.example.infrastructure.stream.payload.NotificationStreamPayload;
 import com.example.infrastructure.stream.payload.NotificationWaitPayload;
 

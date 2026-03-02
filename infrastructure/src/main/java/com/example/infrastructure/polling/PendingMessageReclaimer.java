@@ -8,10 +8,10 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import com.example.infrastructure.config.stream.NotificationStreamProperties;
-import com.example.infrastructure.config.stream.RecoveryProperties;
-import com.example.infrastructure.config.stream.StreamKeyType;
+import com.example.infrastructure.polling.RecoveryProperties;
+import com.example.infrastructure.stream.StreamKeyType;
 import com.example.infrastructure.stream.port.WaitPublisher;
-import com.example.infrastructure.stream.support.LettuceStreamCommandsExtractor;
+import com.example.infrastructure.stream.LettuceStreamCommandsExtractor;
 
 import io.lettuce.core.Consumer;
 import io.lettuce.core.XAutoClaimArgs;

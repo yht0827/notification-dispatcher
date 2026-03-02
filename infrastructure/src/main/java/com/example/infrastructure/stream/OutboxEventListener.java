@@ -1,4 +1,4 @@
-package com.example.infrastructure.stream.listener;
+package com.example.infrastructure.stream;
 
 import java.util.List;
 

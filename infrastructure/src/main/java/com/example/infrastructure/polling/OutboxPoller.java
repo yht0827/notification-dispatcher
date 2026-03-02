@@ -13,7 +13,7 @@ import com.example.application.port.out.OutboxRepository;
 import com.example.domain.outbox.Outbox;
 import com.example.domain.outbox.OutboxStatus;
 import com.example.infrastructure.config.stream.NotificationStreamConfig;
-import com.example.infrastructure.config.stream.OutboxProperties;
+import com.example.infrastructure.polling.OutboxProperties;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

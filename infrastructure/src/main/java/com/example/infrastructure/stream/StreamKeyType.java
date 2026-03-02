@@ -1,4 +1,4 @@
-package com.example.infrastructure.config.stream;
+package com.example.infrastructure.stream;
 
 public enum StreamKeyType {
 	WORK(null),
