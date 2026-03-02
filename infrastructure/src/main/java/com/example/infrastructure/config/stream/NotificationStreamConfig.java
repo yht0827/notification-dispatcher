@@ -1,6 +1,8 @@
 package com.example.infrastructure.config.stream;
 
 import java.time.Duration;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -18,6 +20,7 @@ import com.example.application.port.in.NotificationDispatchUseCase;
 import com.example.application.port.out.DispatchLockManager;
 import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.NotificationRepository;
+import com.example.infrastructure.stream.StreamKeyType;
 import com.example.infrastructure.stream.inbound.RedisStreamConsumer;
 import com.example.infrastructure.stream.inbound.RedisStreamInitializer;
 import com.example.infrastructure.stream.inbound.RedisStreamRecordHandler;
@@ -36,7 +39,6 @@ public class NotificationStreamConfig {
 	public static final String STREAM_ENABLED_PROPERTY = "notification.stream.enabled";
 
 	// Publisher
-
 	@Bean
 	public NotificationEventPublisher redisStreamPublisher(
 		StringRedisTemplate redisTemplate,
@@ -103,14 +105,21 @@ public class NotificationStreamConfig {
 	// Listener
 
 	@Bean
+	public Executor streamConsumerTaskExecutor() {
+		return Executors.newVirtualThreadPerTaskExecutor();
+	}
+
+	@Bean
 	public StreamMessageListenerContainer<String, ObjectRecord<String, NotificationStreamPayload>> streamContainer(
 		RedisConnectionFactory connectionFactory,
-		NotificationStreamProperties properties
+		NotificationStreamProperties properties,
+		Executor streamConsumerTaskExecutor
 	) {
 		var options = StreamMessageListenerContainer.StreamMessageListenerContainerOptions
 			.builder()
 			.pollTimeout(Duration.ofMillis(properties.pollInterval()))
 			.batchSize(properties.batchSize())
+			.executor(streamConsumerTaskExecutor)
 			.targetType(NotificationStreamPayload.class)
 			.build();
 
@@ -131,4 +140,5 @@ public class NotificationStreamConfig {
 		container.start();
 		return subscription;
 	}
+
 }

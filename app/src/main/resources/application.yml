@@ -3,7 +3,13 @@ spring:
     name: notification-dispatcher
   profiles:
     active: local
+  threads:
+    virtual:
+      enabled: true
 
+# ─────────────────────────────────────────
+# Notification Stream (공통 기본값)
+# ─────────────────────────────────────────
 notification:
   stream:
     enabled: true
@@ -12,26 +18,53 @@ notification:
       enabled: false
       base-url: http://localhost:8081
       send-path: /mock/send
-      connect-timeout-millis: 1000
-      read-timeout-millis: 3000
-      async:
-        enabled: false
-        thread-pool-size: 8
-        queue-capacity: 1000
-        request-timeout-millis: 4000
-      retry:
+
+# ─────────────────────────────────────────
+# Feign Client
+# ─────────────────────────────────────────
+feign:
+  client:
+    config:
+      mockApi:
+        connect-timeout: 1000
+        read-timeout: 3000
+
+# ─────────────────────────────────────────
+# Resilience4j
+# ─────────────────────────────────────────
+resilience4j:
+  retry:
+    instances:
+      mockApi:
         max-attempts: 3
-        base-delay-millis: 200
-      rate-limit:
-        limit-for-period: 100
-        limit-refresh-period-millis: 1000
-        timeout-millis: 200
-      circuit:
+        wait-duration: 200ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - com.example.infrastructure.sender.mock.exception.MockApiRetryableException
+        ignore-exceptions:
+          - com.example.infrastructure.sender.mock.exception.MockApiNonRetryableException
+  circuitbreaker:
+    instances:
+      mockApi:
         sliding-window-size: 20
         minimum-number-of-calls: 10
         failure-rate-threshold: 50
-        wait-duration-in-open-state-millis: 10000
+        wait-duration-in-open-state: 10s
+        record-exceptions:
+          - com.example.infrastructure.sender.mock.exception.MockApiRetryableException
+        ignore-exceptions:
+          - com.example.infrastructure.sender.mock.exception.MockApiNonRetryableException
+  ratelimiter:
+    instances:
+      mockApi:
+        limit-for-period: 100
+        limit-refresh-period: 1s
+        timeout-duration: 200ms
 
+# ─────────────────────────────────────────
+# Actuator / Metrics
+# ─────────────────────────────────────────
 management:
   endpoints:
     web:
@@ -47,19 +80,24 @@ management:
       percentiles-histogram:
         http.server.requests: true
 
+# ─────────────────────────────────────────
+# Outbox / Recovery
+# ─────────────────────────────────────────
 outbox:
   poll-interval-millis: 1000
   batch-size: 100
 
 recovery:
-  batch-size: 100                 # 복구 배치 크기
-  threshold-minutes: 5            # PENDING 상태 유지 임계 시간(분)
-  claim-min-idle-minutes: 5       # PEL 메시지 최소 idle 시간(분)
-  poll-interval-millis: 300000    # PENDING 복구 폴링 간격(ms) - 5분
-  claim-interval-millis: 60000    # PEL 회수 폴링 간격(ms) - 1분
+  batch-size: 100
+  threshold-minutes: 5
+  claim-min-idle-minutes: 5
+  poll-interval-millis: 300000   # 5분
+  claim-interval-millis: 60000   # 1분
 
 ---
+# ─────────────────────────────────────────
 # Local 환경
+# ─────────────────────────────────────────
 spring:
   config:
     activate:
@@ -91,22 +129,22 @@ notification:
     key: notification-stream
     consumer-group: notification-group
     consumer-name: consumer-1
-    consumer-thread-pool-size: 8
-    consumer-thread-queue-capacity: 1000
-    poll-interval: 1000                        # XREADGROUP 타임아웃(ms)
-    batch-size: 10                             # 한 번에 읽을 최대 개수
+    poll-interval: 1000
+    batch-size: 10
     wait-batch-size: 100
     dead-letter-key: notification-stream-dlq
     wait-key: notification-stream-wait
-    max-retry-count: 3                         # 재시도 최대 횟수
-    retry-base-delay-millis: 5000              # WAIT 재시도 기본 지연(ms)
-    wait-poll-interval-millis: 1000            # WAIT 스케줄러 실행 주기
+    max-retry-count: 3
+    retry-base-delay-millis: 5000
+    wait-poll-interval-millis: 1000
   external:
     mock:
       enabled: true
 
 ---
+# ─────────────────────────────────────────
 # Test 환경 (Testcontainers)
+# ─────────────────────────────────────────
 spring:
   config:
     activate:
@@ -120,7 +158,9 @@ spring:
     enabled: false
 
 ---
+# ─────────────────────────────────────────
 # Production 환경
+# ─────────────────────────────────────────
 spring:
   config:
     activate:
