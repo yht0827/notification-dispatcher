@@ -33,6 +33,19 @@ services:
       timeout: 5s
       retries: 5
 
+  mysqld-exporter:
+    image: prom/mysqld-exporter:latest
+    container_name: notification-mysqld-exporter
+    env_file:
+      - .env
+    environment:
+      - DATA_SOURCE_NAME=${MYSQL_USER}:${MYSQL_PASSWORD}@(notification-mysql:3306)/
+    ports:
+      - "9104:9104"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
 volumes:
   mysql-data:
   redis-data:

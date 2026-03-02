@@ -6,6 +6,9 @@ spring:
   threads:
     virtual:
       enabled: true
+  cloud:
+    compatibility-verifier:
+      enabled: false
 
 # ─────────────────────────────────────────
 # Notification Stream (공통 기본값)
