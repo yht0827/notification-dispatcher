@@ -126,16 +126,17 @@ class TestRunner {
     void sendNotification() {
         def body = """
         {
-            "groupName": "성능테스트",
+            "clientId": "ngrinder",
             "channelType": "EMAIL",
-            "sender": "test@example.com",
+            "sender": "perf-tester",
             "title": "부하 테스트",
             "content": "nGrinder 테스트 메시지",
-            "receivers": ["user@example.com"]
+            "receivers": ["user@example.com"],
+            "idempotencyKey": "ngrinder-${System.currentTimeMillis()}"
         }
         """
         def response = request.POST(
-            "http://host.docker.internal:8080/api/notifications",
+            "http://host.docker.internal:8080/api/v1/notifications",
             body.bytes
         )
         grinder.logger.info("status: ${response.statusCode}")
@@ -146,6 +147,40 @@ class TestRunner {
 ### 3. 테스트 실행
 
 **Performance Test** → **Create** → 스크립트 선택 → 가상 사용자/실행 시간 설정 → **Start Test**
+
+### 4. 비동기 스레드 성능 비교 (Before/After)
+
+성능 비교는 `app/src/main/resources/application.yml` 의 다음 설정을 바꿔가며 같은 부하 시나리오를 2번 실행하면 됩니다.
+
+#### Before (기준선)
+
+```yaml
+notification:
+  stream:
+    consumer-thread-pool-size: 1
+  external:
+    mock:
+      async:
+        enabled: false
+```
+
+#### After (개선안)
+
+```yaml
+notification:
+  stream:
+    consumer-thread-pool-size: 8
+  external:
+    mock:
+      async:
+        enabled: true
+        thread-pool-size: 8
+```
+
+#### 비교 지표
+
+- nGrinder: TPS, Mean Test Time, Error Rate
+- Prometheus/Grafana: `http.server.requests` 의 `p95` / `p99`, 애플리케이션 스레드 수
 
 ---
 
