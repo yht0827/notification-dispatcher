@@ -6,10 +6,11 @@ dependencies {
 
     implementation 'org.springframework.boot:spring-boot-starter-web'
 
+    // OpenFeign
+    implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+
     // Resilience
-    implementation 'io.github.resilience4j:resilience4j-retry:2.2.0'
-    implementation 'io.github.resilience4j:resilience4j-ratelimiter:2.2.0'
-    implementation 'io.github.resilience4j:resilience4j-circuitbreaker:2.2.0'
+    implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
 
     // JPA
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'

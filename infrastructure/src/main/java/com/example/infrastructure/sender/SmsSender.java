@@ -5,12 +5,17 @@ import org.springframework.stereotype.Component;
 import com.example.application.port.out.NotificationSender.SendResult;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
+import com.example.infrastructure.sender.mock.MockApiSender;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class SmsSender implements ChannelSender {
+
+	private final MockApiSender mockApiSender;
 
 	@Override
 	public ChannelType getChannelType() {
@@ -19,17 +24,14 @@ public class SmsSender implements ChannelSender {
 
 	@Override
 	public SendResult send(Notification notification) {
-		try {
-			// TODO: 실제 SMS 발송 로직 구현
-			log.info("[SMS] 발송: to={}, content={}",
-				notification.getReceiver(),
-				notification.getGroup().getContent());
-
-			return SendResult.success();
-		} catch (Exception e) {
-			log.error("[SMS] 발송 실패: to={}, error={}",
-				notification.getReceiver(), e.getMessage());
-			return SendResult.fail(e.getMessage());
+		SendResult result = mockApiSender.send(notification, ChannelType.SMS);
+		if (result.isSuccess()) {
+			log.info("[SMS] mock API 발송 성공: notificationId={}, to={}", notification.getId(), notification.getReceiver());
+			return result;
 		}
+
+		log.warn("[SMS] mock API 발송 실패: notificationId={}, to={}, reason={}",
+			notification.getId(), notification.getReceiver(), result.failReason());
+		return result;
 	}
 }
