@@ -3,18 +3,15 @@ package com.example.infrastructure.polling;
 import java.util.Collections;
 import java.util.List;
 
-import org.springframework.data.redis.connection.stream.RecordId;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import com.example.infrastructure.config.stream.NotificationStreamProperties;
-import com.example.infrastructure.polling.RecoveryProperties;
 import com.example.infrastructure.stream.StreamKeyType;
 import com.example.infrastructure.stream.port.WaitPublisher;
-import com.example.infrastructure.stream.LettuceStreamCommandsExtractor;
 
 import io.lettuce.core.Consumer;
 import io.lettuce.core.XAutoClaimArgs;
+import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisStreamCommands;
 import io.lettuce.core.models.stream.ClaimedMessages;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class PendingMessageReclaimer {
 
-	private final StringRedisTemplate redisTemplate;
+	private final StatefulRedisConnection<String, String> lettuceConnection;
 	private final NotificationStreamProperties streamProperties;
 	private final RecoveryProperties recoveryProperties;
 	private final WaitPublisher waitPublisher;
@@ -59,9 +56,8 @@ public class PendingMessageReclaimer {
 				return false;
 			}
 
-			// Wait Stream으로 재발행 후 XACK 처리
 			waitPublisher.publish(notificationId, message.retryCount(), "PEL 회수 (XAUTOCLAIM)");
-			redisTemplate.opsForStream().acknowledge(workKey, group, RecordId.of(message.id()));
+			lettuceConnection.sync().xack(workKey, group, message.id());
 			return true;
 		} catch (RuntimeException e) {
 			log.warn("PEL 메시지 처리 실패: recordId={}, reason={}", message.id(), e.getMessage());
@@ -71,16 +67,7 @@ public class PendingMessageReclaimer {
 
 	private List<ClaimedMessage> executeAutoClaim() {
 		try {
-			// XAUTOCLAIM 명령으로 idle 메시지 소유권 이전 + 내용 조회 (한 번에 처리)
-			return redisTemplate.execute(connection -> {
-				Object nativeConnection = connection.getNativeConnection();
-				return LettuceStreamCommandsExtractor.extract(nativeConnection)
-					.map(this::doAutoClaim)
-					.orElseGet(() -> {
-						log.warn("지원하지 않는 Redis 연결 타입: {}", nativeConnection.getClass().getName());
-						return Collections.emptyList();
-					});
-			}, true);
+			return doAutoClaim(lettuceConnection.sync());
 		} catch (RuntimeException e) {
 			log.warn("XAUTOCLAIM 실패: reason={}", e.getMessage());
 			return Collections.emptyList();

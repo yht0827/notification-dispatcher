@@ -3,13 +3,14 @@ package com.example.infrastructure.polling;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.core.StringRedisTemplate;
 
 import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.NotificationRepository;
 import com.example.infrastructure.config.stream.NotificationStreamConfig;
 import com.example.infrastructure.config.stream.NotificationStreamProperties;
 import com.example.infrastructure.stream.port.WaitPublisher;
+
+import io.lettuce.core.api.StatefulRedisConnection;
 
 @Configuration
 @ConditionalOnProperty(name = NotificationStreamConfig.STREAM_ENABLED_PROPERTY, havingValue = "true")
@@ -26,11 +27,12 @@ public class RecoveryConfig {
 
 	@Bean
 	public PendingMessageReclaimer pendingMessageReclaimer(
-		StringRedisTemplate redisTemplate,
+		StatefulRedisConnection<String, String> lettuceStreamConnection,
 		NotificationStreamProperties streamProperties,
 		RecoveryProperties recoveryProperties,
 		WaitPublisher waitPublisher
 	) {
-		return new PendingMessageReclaimer(redisTemplate, streamProperties, recoveryProperties, waitPublisher);
+		return new PendingMessageReclaimer(lettuceStreamConnection, streamProperties, recoveryProperties,
+			waitPublisher);
 	}
 }

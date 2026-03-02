@@ -11,6 +11,10 @@ import com.example.infrastructure.config.stream.NotificationStreamProperties;
 import com.example.infrastructure.polling.OutboxProperties;
 import com.example.infrastructure.polling.RecoveryProperties;
 
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisURI;
+import io.lettuce.core.api.StatefulRedisConnection;
+
 @Configuration
 @EnableConfigurationProperties({NotificationStreamProperties.class, OutboxProperties.class, RecoveryProperties.class})
 public class RedisConfig {
@@ -23,5 +27,15 @@ public class RedisConfig {
 	@Bean
 	public StringRedisTemplate stringRedisTemplate(LettuceConnectionFactory lettuceConnectionFactory) {
 		return new StringRedisTemplate(lettuceConnectionFactory);
+	}
+
+	@Bean(destroyMethod = "shutdown")
+	public RedisClient lettuceRedisClient(RedisProperties redisProperties) {
+		return RedisClient.create(RedisURI.create(redisProperties.getHost(), redisProperties.getPort()));
+	}
+
+	@Bean(destroyMethod = "close")
+	public StatefulRedisConnection<String, String> lettuceStreamConnection(RedisClient lettuceRedisClient) {
+		return lettuceRedisClient.connect();
 	}
 }
