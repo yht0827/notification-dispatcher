@@ -15,8 +15,7 @@ services:
     container_name: ngrinder-agent
     depends_on:
       - ngrinder-controller
-    environment:
-      - CONTROLLER_ADDR=ngrinder-controller
+    command: ["ngrinder-controller:80"]
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
