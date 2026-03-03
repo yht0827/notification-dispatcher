@@ -13,3 +13,8 @@ scrape_configs:
     static_configs:
       - targets: ['host.docker.internal:9104']
     scrape_interval: 5s
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['host.docker.internal:9121']
+    scrape_interval: 5s

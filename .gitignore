@@ -2,6 +2,7 @@ HELP.md
 
 ### Environment variables ###
 docker/.env
+docker/mysqld-exporter/my.cnf
 .env
 .gradle
 build/

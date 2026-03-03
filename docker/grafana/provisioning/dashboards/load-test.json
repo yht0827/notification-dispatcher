@@ -1,0 +1,1365 @@
+{
+  "description": "Notification Dispatcher 부하테스트 모니터링",
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "panels": [
+    {
+      "collapsed": false,
+      "id": 100,
+      "title": "Application - CPU / Memory",
+      "type": "row",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "CPU Usage",
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "process_cpu_usage{application=\"notification-dispatcher\"}",
+          "legendFormat": "Process CPU"
+        },
+        {
+          "expr": "system_cpu_usage{application=\"notification-dispatcher\"}",
+          "legendFormat": "System CPU"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "JVM Memory (Heap)",
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "jvm_memory_used_bytes{application=\"notification-dispatcher\", area=\"heap\"}",
+          "legendFormat": "Heap Used"
+        },
+        {
+          "expr": "jvm_memory_committed_bytes{application=\"notification-dispatcher\", area=\"heap\"}",
+          "legendFormat": "Heap Committed"
+        },
+        {
+          "expr": "jvm_memory_max_bytes{application=\"notification-dispatcher\", area=\"heap\"}",
+          "legendFormat": "Heap Max"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "id": 101,
+      "title": "Application - GC",
+      "type": "row",
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Full GC Count (누적)",
+      "description": "Major GC (Full GC) 누적 횟수. 부하 중 증가하면 Heap 크기 또는 메모리 누수 의심",
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 6,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 3
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "expr": "sum(jvm_gc_pause_seconds_count{application=\"notification-dispatcher\", action=~\".*major.*\"}) or vector(0)",
+          "legendFormat": "Full GC"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Minor GC Count (누적)",
+      "gridPos": {
+        "x": 6,
+        "y": 10,
+        "w": 6,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 200
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "expr": "sum(jvm_gc_pause_seconds_count{application=\"notification-dispatcher\", action=~\".*minor.*\"})",
+          "legendFormat": "Minor GC"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "GC Max Pause Time",
+      "description": "100ms 이상이면 응답시간에 영향, 500ms 이상이면 심각",
+      "gridPos": {
+        "x": 12,
+        "y": 10,
+        "w": 6,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.1
+              },
+              {
+                "color": "red",
+                "value": 0.5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "expr": "jvm_gc_pause_seconds_max{application=\"notification-dispatcher\"}",
+          "legendFormat": "Max Pause"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Live Data Size (Old Gen)",
+      "description": "GC 후 살아남은 Old Gen 크기. 계속 증가하면 메모리 누수 의심",
+      "gridPos": {
+        "x": 18,
+        "y": 10,
+        "w": 6,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 268435456
+              },
+              {
+                "color": "red",
+                "value": 536870912
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "expr": "jvm_gc_live_data_size_bytes{application=\"notification-dispatcher\"}",
+          "legendFormat": "Live Data Size"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "GC Count Rate (per minute)",
+      "description": "분당 GC 발생 횟수. Full GC가 반복되면 Heap 튜닝 필요",
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "(rate(jvm_gc_pause_seconds_count{application=\"notification-dispatcher\", action=~\".*major.*\"}[1m]) or vector(0)) * 60",
+          "legendFormat": "Full GC / min"
+        },
+        {
+          "expr": "rate(jvm_gc_pause_seconds_count{application=\"notification-dispatcher\", action=~\".*minor.*\"}[1m]) * 60",
+          "legendFormat": "Minor GC / min"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "GC Pause Duration",
+      "description": "GC STW(Stop-The-World) 정지 시간. 응답시간 스파이크와 연관성 확인",
+      "gridPos": {
+        "x": 12,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(jvm_gc_pause_seconds_sum{application=\"notification-dispatcher\"}[1m]) / rate(jvm_gc_pause_seconds_count{application=\"notification-dispatcher\"}[1m])",
+          "legendFormat": "GC Avg Pause"
+        },
+        {
+          "expr": "jvm_gc_pause_seconds_max{application=\"notification-dispatcher\"}",
+          "legendFormat": "GC Max Pause ({{action}})"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "id": 102,
+      "title": "Application - HTTP 응답시간",
+      "type": "row",
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 18,
+      "type": "stat",
+      "title": "TPS",
+      "gridPos": {
+        "x": 0,
+        "y": 23,
+        "w": 5,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": {
+            "fixedColor": "blue",
+            "mode": "fixed"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))",
+          "legendFormat": "TPS"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "type": "stat",
+      "title": "Peak TPS",
+      "description": "테스트 구간 내 최고 TPS (최근 30분)",
+      "gridPos": {
+        "x": 5,
+        "y": 23,
+        "w": 5,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 1,
+          "color": {
+            "fixedColor": "blue",
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "expr": "max_over_time(sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))[30m:1m])",
+          "legendFormat": "Peak TPS"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "type": "stat",
+      "title": "P95 응답시간",
+      "gridPos": {
+        "x": 10,
+        "y": 23,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.3
+              },
+              {
+                "color": "red",
+                "value": 0.5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
+          "legendFormat": "P95"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "type": "stat",
+      "title": "에러율",
+      "gridPos": {
+        "x": 19,
+        "y": 23,
+        "w": 5,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.01
+              },
+              {
+                "color": "red",
+                "value": 0.05
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "expr": "(sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\",status=~\"5..\"}[1m])) or vector(0))/sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))",
+          "legendFormat": "에러율"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "type": "stat",
+      "title": "P99 응답시간",
+      "gridPos": {
+        "x": 14,
+        "y": 23,
+        "w": 5,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 1.0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
+          "legendFormat": "P99"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "HTTP Response Time (P50 / P95 / P99)",
+      "gridPos": {
+        "x": 0,
+        "y": 27,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
+          "legendFormat": "P50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
+          "legendFormat": "P95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
+          "legendFormat": "P99"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "HTTP Request Rate & Error Rate",
+      "gridPos": {
+        "x": 12,
+        "y": 27,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Error Rate"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))",
+          "legendFormat": "Total RPS"
+        },
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\", status=~\"5..\"}[1m]))",
+          "legendFormat": "5xx RPS"
+        },
+        {
+          "expr": "(sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\", status=~\"5..\"}[1m])) or vector(0)) / sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))",
+          "legendFormat": "Error Rate"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "HTTP Response Time by URI (P95)",
+      "gridPos": {
+        "x": 0,
+        "y": 35,
+        "w": 24,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "last"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le, uri, method))",
+          "legendFormat": "{{method}} {{uri}}"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "id": 103,
+      "title": "DB - MySQL",
+      "type": "row",
+      "gridPos": {
+        "x": 0,
+        "y": 43,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "MySQL Active Threads (DB 부하)",
+      "description": "threads_running = 현재 실행 중인 쿼리 수. CPU 부하의 proxy 지표. threads_connected = 전체 연결 수",
+      "gridPos": {
+        "x": 0,
+        "y": 44,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "mysql_global_status_threads_running",
+          "legendFormat": "Threads Running (Active)"
+        },
+        {
+          "expr": "mysql_global_status_threads_connected",
+          "legendFormat": "Threads Connected"
+        },
+        {
+          "expr": "mysql_global_variables_max_connections",
+          "legendFormat": "Max Connections"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "MySQL Query Rate",
+      "description": "초당 쿼리 수 및 슬로우 쿼리 발생률",
+      "gridPos": {
+        "x": 12,
+        "y": 44,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Slow Queries / s"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(mysql_global_status_queries[1m])",
+          "legendFormat": "Queries / s"
+        },
+        {
+          "expr": "rate(mysql_global_status_slow_queries[1m])",
+          "legendFormat": "Slow Queries / s"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "HikariCP Connection Pool",
+      "description": "앱 → DB 커넥션 풀 상태. pending이 증가하면 DB 병목",
+      "gridPos": {
+        "x": 0,
+        "y": 52,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "hikaricp_connections_active{application=\"notification-dispatcher\"}",
+          "legendFormat": "Active"
+        },
+        {
+          "expr": "hikaricp_connections_idle{application=\"notification-dispatcher\"}",
+          "legendFormat": "Idle"
+        },
+        {
+          "expr": "hikaricp_connections_pending{application=\"notification-dispatcher\"}",
+          "legendFormat": "Pending (대기)"
+        },
+        {
+          "expr": "hikaricp_connections_max{application=\"notification-dispatcher\"}",
+          "legendFormat": "Max Pool Size"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "DB Connection Acquire Time & Row Lock",
+      "description": "커넥션 획득 지연 + InnoDB Row Lock 대기. 응답시간 증가 원인 파악용",
+      "gridPos": {
+        "x": 12,
+        "y": 52,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Row Lock Waits / s"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(hikaricp_connections_acquire_seconds_sum{application=\"notification-dispatcher\"}[1m]) / rate(hikaricp_connections_acquire_seconds_count{application=\"notification-dispatcher\"}[1m]) * 1000",
+          "legendFormat": "Avg Acquire Time (ms)"
+        },
+        {
+          "expr": "hikaricp_connections_timeout_total{application=\"notification-dispatcher\"}",
+          "legendFormat": "Connection Timeout (누적)"
+        },
+        {
+          "expr": "rate(mysql_global_status_innodb_row_lock_waits[1m])",
+          "legendFormat": "Row Lock Waits / s"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "MySQL InnoDB Row Lock Avg Wait Time",
+      "description": "InnoDB 행 잠금 평균 대기 시간. 높을수록 동시성 병목",
+      "gridPos": {
+        "x": 0,
+        "y": 60,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "mysql_global_status_innodb_row_lock_time_avg",
+          "legendFormat": "Row Lock Avg Wait (ms)"
+        },
+        {
+          "expr": "mysql_global_status_innodb_row_lock_time_max",
+          "legendFormat": "Row Lock Max Wait (ms)"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "timeseries",
+      "title": "MySQL Buffer Pool",
+      "description": "Buffer pool hit rate가 낮으면 디스크 I/O 증가 → 쿼리 지연",
+      "gridPos": {
+        "x": 12,
+        "y": 60,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Buffer Pool Hit Rate"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "mysql_global_status_innodb_buffer_pool_bytes_data",
+          "legendFormat": "Buffer Pool Used"
+        },
+        {
+          "expr": "mysql_global_variables_innodb_buffer_pool_size",
+          "legendFormat": "Buffer Pool Total"
+        },
+        {
+          "expr": "1 - rate(mysql_global_status_innodb_buffer_pool_reads[1m]) / rate(mysql_global_status_innodb_buffer_pool_read_requests[1m])",
+          "legendFormat": "Buffer Pool Hit Rate"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "id": 104,
+      "title": "Redis - Streams & Memory",
+      "type": "row",
+      "gridPos": {
+        "x": 0,
+        "y": 68,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 23,
+      "type": "timeseries",
+      "title": "Stream 백로그 (XLEN)",
+      "description": "스트림 미처리 메시지 수. 부하 중 증가하면 컨슈머 처리 한계",
+      "gridPos": {
+        "x": 0,
+        "y": 69,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "redis_stream_length{stream=\"notification-stream\"}",
+          "legendFormat": "Work Stream"
+        },
+        {
+          "expr": "redis_stream_length{stream=\"notification-stream-dlq\"}",
+          "legendFormat": "DLQ"
+        },
+        {
+          "expr": "redis_stream_length{stream=\"notification-stream-wait\"}",
+          "legendFormat": "Wait Stream"
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "type": "timeseries",
+      "title": "PEL & Consumer Lag",
+      "description": "PEL=ACK 안 된 메시지 수 / Lag=컨슈머가 얼마나 뒤처졌는지",
+      "gridPos": {
+        "x": 12,
+        "y": 69,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "redis_stream_group_messages_pending{stream=\"notification-stream\"}",
+          "legendFormat": "PEL ({{group}})"
+        },
+        {
+          "expr": "redis_stream_group_lag{stream=\"notification-stream\"}",
+          "legendFormat": "Lag ({{group}})"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "type": "timeseries",
+      "title": "Redis Memory",
+      "gridPos": {
+        "x": 0,
+        "y": 77,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "redis_memory_used_bytes",
+          "legendFormat": "Used"
+        },
+        {
+          "expr": "redis_memory_used_peak_bytes",
+          "legendFormat": "Peak"
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "type": "timeseries",
+      "title": "Connected Clients",
+      "gridPos": {
+        "x": 8,
+        "y": 77,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "redis_connected_clients",
+          "legendFormat": "Clients"
+        },
+        {
+          "expr": "redis_blocked_clients",
+          "legendFormat": "Blocked"
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "type": "timeseries",
+      "title": "Commands/s",
+      "gridPos": {
+        "x": 16,
+        "y": 77,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(redis_commands_processed_total[1m])",
+          "legendFormat": "Commands/s"
+        }
+      ]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "tags": [
+    "notification-dispatcher",
+    "load-test"
+  ],
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Notification Dispatcher - Load Test",
+  "uid": "notification-dispatcher-lt",
+  "version": 1
+}

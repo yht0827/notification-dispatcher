@@ -52,19 +52,12 @@ resilience4j:
       mockApi:
         sliding-window-size: 20
         minimum-number-of-calls: 10
-        failure-rate-threshold: 50
+        failure-rate-threshold: 50 # 10건 중 5건 실패 시 OPEN
         wait-duration-in-open-state: 10s
         record-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiRetryableException
         ignore-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiNonRetryableException
-  ratelimiter:
-    instances:
-      mockApi:
-        limit-for-period: 100
-        limit-refresh-period: 1s
-        timeout-duration: 200ms
-
 # ─────────────────────────────────────────
 # Actuator / Metrics
 # ─────────────────────────────────────────
@@ -88,7 +81,7 @@ management:
 # ─────────────────────────────────────────
 outbox:
   poll-interval-millis: 1000
-  batch-size: 100
+  batch-size: 200
 
 recovery:
   batch-size: 100
@@ -110,6 +103,10 @@ spring:
     username: application
     password: application
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10
+      connection-timeout: 5000   # 5초 대기 후 TimeoutException (기본 30초)
   jpa:
     open-in-view: false
     hibernate:

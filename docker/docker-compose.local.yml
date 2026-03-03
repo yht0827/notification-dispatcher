@@ -36,14 +36,28 @@ services:
   mysqld-exporter:
     image: prom/mysqld-exporter:latest
     container_name: notification-mysqld-exporter
-    env_file:
-      - .env
-    environment:
-      - DATA_SOURCE_NAME=${MYSQL_USER}:${MYSQL_PASSWORD}@(notification-mysql:3306)/
     ports:
       - "9104:9104"
+    volumes:
+      - ./mysqld-exporter/my.cnf:/etc/mysqld-exporter/my.cnf:ro
+    command:
+      - "--config.my-cnf=/etc/mysqld-exporter/my.cnf"
+      - "--mysqld.address=notification-mysql:3306"
     depends_on:
       mysql:
+        condition: service_healthy
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: notification-redis-exporter
+    ports:
+      - "9121:9121"
+    environment:
+      - REDIS_ADDR=redis://notification-redis:6379
+    command:
+      - "--check-streams=notification-stream,notification-stream-dlq,notification-stream-wait"
+    depends_on:
+      redis:
         condition: service_healthy
 
 volumes:
