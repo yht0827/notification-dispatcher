@@ -11,8 +11,6 @@ import com.example.infrastructure.sender.mock.dto.MockApiSendRequest;
 import com.example.infrastructure.sender.mock.exception.MockApiNonRetryableException;
 import com.example.infrastructure.sender.mock.exception.MockApiRetryableException;
 
-import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
-import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -34,10 +32,6 @@ public class MockApiSender {
 			SendResult result = mockApiCaller.call(MockApiSendRequest.from(notification, channelType));
 			log.info("mock API 발송 성공: notificationId={}, channel={}", notification.getId(), channelType);
 			return result;
-		} catch (RequestNotPermitted e) {
-			return fail(notification.getId(), channelType, "rate limit 초과");
-		} catch (CallNotPermittedException e) {
-			return fail(notification.getId(), channelType, "circuit breaker OPEN");
 		} catch (MockApiNonRetryableException | MockApiRetryableException e) {
 			return fail(notification.getId(), channelType, e.getMessage());
 		} catch (RuntimeException e) {
