@@ -52,13 +52,23 @@ notification-dispatcher/
 
 ### 1) Layered + Hexagonal
 
-```text
-Client
-  -> API Adapter (NotificationController)
-  -> Application UseCase (Command/Query/Dispatch Service)
-  -> Domain Model (Notification, NotificationGroup, Outbox)
-  -> Infrastructure Adapter (Repository, Redis Stream, Sender, Lock)
-```
+┌──────────────────────────────────────────────┐
+│ Frameworks / Drivers                         │
+│ (Spring Boot, DB, RabbitMQ, Redis, 외부 API) │
+│ ┌──────────────────────────────────────────┐ │
+│ │ Adapters                                 │ │
+│ │  - API (inbound adapter)                 │ │
+│ │  - Infrastructure (outbound adapter)     │ │
+│ │ ┌──────────────────────────────────────┐ │ │
+│ │ │ Application                          │ │ │
+│ │ │  - UseCase, Port(in/out), Service    │ │ │
+│ │ │ ┌──────────────────────────────────┐ │ │ │
+│ │ │ │ Domain                           │ │ │ │
+│ │ │ │  - Entity, Value Object, Rule    │ │ │ │
+│ │ │ └──────────────────────────────────┘ │ │ │
+│ │ └──────────────────────────────────────┘ │ │
+│ └──────────────────────────────────────────┘ │
+└──────────────────────────────────────────────┘
 
 ### 2) 비동기 발송 파이프라인
 

@@ -3,10 +3,10 @@ package com.example.api.dto.response;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.example.application.port.in.result.NotificationGroupDetailResult;
+import com.example.application.port.in.result.NotificationItemResult;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.GroupType;
-import com.example.domain.notification.Notification;
-import com.example.domain.notification.NotificationGroup;
 import com.example.domain.notification.NotificationStatus;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -55,25 +55,25 @@ public record NotificationGroupDetailResponse(
 	@Schema(description = "그룹 내 알림 목록")
 	List<NotificationItemResponse> notifications
 ) {
-	public static NotificationGroupDetailResponse from(NotificationGroup group) {
-		List<NotificationItemResponse> notifications = group.getNotifications().stream()
+	public static NotificationGroupDetailResponse from(NotificationGroupDetailResult group) {
+		List<NotificationItemResponse> notifications = group.notifications().stream()
 			.map(NotificationItemResponse::from)
 			.toList();
 
 		return new NotificationGroupDetailResponse(
-			group.getId(),
-			group.getClientId(),
-			group.getSender(),
-			group.getTitle(),
-			group.getContent(),
-			group.getGroupType(),
-			group.getChannelType(),
-			group.getTotalCount(),
-			group.getSentCount(),
-			group.getFailedCount(),
-			group.getPendingCount(),
-			group.isCompleted(),
-			group.getCreatedAt(),
+			group.groupId(),
+			group.clientId(),
+			group.sender(),
+			group.title(),
+			group.content(),
+			group.groupType(),
+			group.channelType(),
+			group.totalCount(),
+			group.sentCount(),
+			group.failedCount(),
+			group.pendingCount(),
+			group.completed(),
+			group.createdAt(),
 			notifications
 		);
 	}
@@ -98,14 +98,14 @@ public record NotificationGroupDetailResponse(
 		@Schema(description = "생성일시")
 		LocalDateTime createdAt
 	) {
-		public static NotificationItemResponse from(Notification notification) {
+		public static NotificationItemResponse from(NotificationItemResult notification) {
 			return new NotificationItemResponse(
-				notification.getId(),
-				notification.getReceiver(),
-				notification.getStatus(),
-				notification.getSentAt(),
-				notification.getFailReason(),
-				notification.getCreatedAt()
+				notification.notificationId(),
+				notification.receiver(),
+				notification.status(),
+				notification.sentAt(),
+				notification.failReason(),
+				notification.createdAt()
 			);
 		}
 	}

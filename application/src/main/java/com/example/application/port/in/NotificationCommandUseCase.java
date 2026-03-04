@@ -2,12 +2,12 @@ package com.example.application.port.in;
 
 import java.util.List;
 
+import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.domain.notification.ChannelType;
-import com.example.domain.notification.NotificationGroup;
 
 public interface NotificationCommandUseCase {
 
-	NotificationGroup request(SendCommand command);
+	NotificationCommandResult request(SendCommand command);
 
 	record SendCommand(
 		String clientId,

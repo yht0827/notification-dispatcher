@@ -8,9 +8,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.application.port.in.NotificationCommandUseCase;
+import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.out.NotificationGroupRepository;
 import com.example.application.port.out.OutboxRepository;
-import com.example.application.service.event.OutboxSavedEvent;
+import com.example.application.port.out.event.OutboxSavedEvent;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
 import com.example.domain.outbox.Outbox;
@@ -29,7 +30,7 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 
 	@Override
 	@Transactional
-	public NotificationGroup request(SendCommand command) {
+	public NotificationCommandResult request(SendCommand command) {
 
 		String idempotencyKey = normalizeIdempotencyKey(command.idempotencyKey());
 		if (idempotencyKey != null) {
@@ -38,13 +39,13 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 
 			if (existing.isPresent()) {
 				log.info("중복 요청 감지: groupId={}", existing.get().getId());
-				return existing.get();
+				return toRequestResult(existing.get());
 			}
 		}
 		return createAndPublish(command, idempotencyKey);
 	}
 
-	private NotificationGroup createAndPublish(SendCommand command, String idempotencyKey) {
+	private NotificationCommandResult createAndPublish(SendCommand command, String idempotencyKey) {
 		// Notification 그룹 생성
 		NotificationGroup group = createGroup(command, idempotencyKey);
 		command.receivers().forEach(group::addNotification); // Notification 저장
@@ -53,7 +54,7 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 
 		// Outbox 저장
 		saveOutboxEvents(savedGroup);
-		return savedGroup;
+		return toRequestResult(savedGroup);
 	}
 
 	private void saveOutboxEvents(NotificationGroup savedGroup) {
@@ -93,5 +94,9 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 
 		String normalized = idempotencyKey.trim();
 		return normalized.isBlank() ? null : normalized;
+	}
+
+	private NotificationCommandResult toRequestResult(NotificationGroup group) {
+		return new NotificationCommandResult(group.getId(), group.getTotalCount());
 	}
 }

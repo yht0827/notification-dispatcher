@@ -2,7 +2,7 @@ package com.example.api.dto.response;
 
 import java.time.LocalDateTime;
 
-import com.example.domain.notification.NotificationGroup;
+import com.example.application.port.in.result.NotificationListResult;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -26,15 +26,14 @@ public record NotificationListResponse(
 	@Schema(description = "더보기 알림 수", example = "2")
 	int moreCount
 ) {
-	public static NotificationListResponse from(NotificationGroup group) {
-		int moreCount = Math.max(group.getTotalCount() - 1, 0);
+	public static NotificationListResponse from(NotificationListResult group) {
 		return new NotificationListResponse(
-			group.getId(),
-			group.getTitle(),
-			group.getContent(),
-			group.getCreatedAt(),
-			group.getTotalCount(),
-			moreCount
+			group.groupId(),
+			group.title(),
+			group.content(),
+			group.createdAt(),
+			group.totalCount(),
+			group.moreCount()
 		);
 	}
 }

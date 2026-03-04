@@ -3,20 +3,22 @@ package com.example.application.port.in;
 import java.util.List;
 import java.util.Optional;
 
-import com.example.domain.notification.Notification;
-import com.example.domain.notification.NotificationGroup;
+import com.example.application.port.in.result.NotificationGroupDetailResult;
+import com.example.application.port.in.result.NotificationGroupResult;
+import com.example.application.port.in.result.NotificationListResult;
+import com.example.application.port.in.result.NotificationResult;
 
 public interface NotificationQueryUseCase {
 
-	Optional<NotificationGroup> getGroup(Long groupId);
+	Optional<NotificationGroupResult> getGroup(Long groupId);
 
-	Optional<NotificationGroup> getGroupDetail(Long groupId);
+	Optional<NotificationGroupDetailResult> getGroupDetail(Long groupId);
 
-	NotificationGroupSlice getRecentGroups(Long cursorId, int size);
+	NotificationGroupSlice<NotificationListResult> getRecentGroups(Long cursorId, int size);
 
-	NotificationGroupSlice getGroupsByClientId(String clientId, Long cursorId, int size);
+	NotificationGroupSlice<NotificationGroupResult> getGroupsByClientId(String clientId, Long cursorId, int size);
 
-	Optional<Notification> getNotification(Long notificationId);
+	Optional<NotificationResult> getNotification(Long notificationId);
 
-	List<Notification> getNotificationsByReceiver(String receiver);
+	List<NotificationResult> getNotificationsByReceiver(String receiver);
 }

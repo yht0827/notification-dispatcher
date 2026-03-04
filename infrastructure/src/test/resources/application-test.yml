@@ -9,5 +9,5 @@ spring:
         format_sql: true
 
 notification:
-  stream:
+  messaging:
     enabled: false

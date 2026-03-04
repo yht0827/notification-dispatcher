@@ -15,7 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.example.application.port.in.NotificationDispatchUseCase.DispatchResult;
+import com.example.application.port.in.result.NotificationDispatchResult;
 import com.example.application.port.out.NotificationRepository;
 import com.example.application.port.out.NotificationSender;
 import com.example.application.port.out.NotificationSender.SendResult;
@@ -61,7 +61,7 @@ class NotificationDispatchServiceTest {
 		when(notificationSender.send(notification)).thenReturn(SendResult.success());
 
 		// when
-		DispatchResult result = dispatchService.dispatch(notification);
+		NotificationDispatchResult result = dispatchService.dispatch(notification);
 
 		// then
 		assertThat(result.isSuccess()).isTrue();
@@ -83,7 +83,7 @@ class NotificationDispatchServiceTest {
 		when(notificationSender.send(managed)).thenReturn(SendResult.success());
 
 		// when
-		DispatchResult result = dispatchService.dispatch(detached);
+		NotificationDispatchResult result = dispatchService.dispatch(detached);
 
 		// then
 		assertThat(result.isSuccess()).isTrue();
@@ -101,7 +101,7 @@ class NotificationDispatchServiceTest {
 		when(notificationSender.send(notification)).thenReturn(SendResult.fail("발송 실패"));
 
 		// when
-		DispatchResult result = dispatchService.dispatch(notification);
+		NotificationDispatchResult result = dispatchService.dispatch(notification);
 
 		// then
 		assertThat(result.isFailure()).isTrue();

@@ -2,8 +2,9 @@ package com.example.mock.api;
 
 import com.example.mock.service.MockFailureException;
 import com.example.mock.service.MockSendService;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import com.example.mock.service.dto.MockFailResult;
+import com.example.mock.service.dto.MockFailureLog;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -13,61 +14,93 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private static final String ERROR_CODE_BAD_REQUEST = "MOCK_BAD_REQUEST";
+    private static final String ERROR_CODE_INTERNAL = "MOCK_INTERNAL";
 
     private final MockSendService mockSendService;
 
-    public GlobalExceptionHandler(MockSendService mockSendService) {
-        this.mockSendService = mockSendService;
-    }
-
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<MockSendFailResponse> handleValidation(MethodArgumentNotValidException ex) {
-        long startedAtMillis = System.currentTimeMillis();
         String errorMessage = ex.getBindingResult().getFieldErrors().stream()
                 .findFirst()
                 .map(FieldError::getDefaultMessage)
                 .orElse("Invalid request");
 
-        MockSendFailResponse body = mockSendService.buildFailResponse(
-                "UNKNOWN", "UNKNOWN", "MOCK_BAD_REQUEST", errorMessage, startedAtMillis
+        return failWithUnknownContext(
+                HttpStatus.BAD_REQUEST,
+                ERROR_CODE_BAD_REQUEST,
+                errorMessage,
+                nowMillis()
         );
-        mockSendService.logFailure(body.requestId(), body.channelType(), "UNKNOWN", 0, 400, body.latencyMs());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<MockSendFailResponse> handleUnreadable(HttpMessageNotReadableException ex) {
-        long startedAtMillis = System.currentTimeMillis();
-        MockSendFailResponse body = mockSendService.buildFailResponse(
-                "UNKNOWN", "UNKNOWN", "MOCK_BAD_REQUEST", "Malformed JSON request", startedAtMillis
+        return failWithUnknownContext(
+                HttpStatus.BAD_REQUEST,
+                ERROR_CODE_BAD_REQUEST,
+                "Malformed JSON request",
+                nowMillis()
         );
-        mockSendService.logFailure(body.requestId(), body.channelType(), "UNKNOWN", 0, 400, body.latencyMs());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
     @ExceptionHandler(MockFailureException.class)
     public ResponseEntity<MockSendFailResponse> handleMockFailure(MockFailureException ex) {
         MockSendFailResponse body = mockSendService.buildFailResponse(
-                ex.getRequestId(), ex.getChannelType(), ex.getErrorCode(),
-                ex.getMessage(), ex.getStartedAtMillis()
+                new MockFailResult(
+                        ex.getRequestId(),
+                        ex.getChannelType(),
+                        ex.getErrorCode(),
+                        ex.getMessage(),
+                        ex.getStartedAtMillis()
+                )
         );
+
         mockSendService.logFailure(
-                body.requestId(), body.channelType(), ex.getReceiver(),
-                ex.getMessageLength(), ex.getStatus().value(), body.latencyMs()
+                new MockFailureLog(
+                        body.requestId(),
+                        body.channelType(),
+                        ex.getReceiver(),
+                        ex.getMessageLength(),
+                        ex.getStatus().value(),
+                        body.latencyMs()
+                )
         );
+
         return ResponseEntity.status(ex.getStatus()).body(body);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<MockSendFailResponse> handleUnexpected(Exception ex) {
-        long startedAtMillis = System.currentTimeMillis();
-        MockSendFailResponse body = new MockSendFailResponse(
-                "FAIL", "UNKNOWN", "UNKNOWN", "MOCK_INTERNAL", "Unexpected internal error",
-                OffsetDateTime.now(ZoneOffset.UTC).toString(),
-                Math.max(0L, System.currentTimeMillis() - startedAtMillis)
+        return failWithUnknownContext(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                ERROR_CODE_INTERNAL,
+                "Unexpected internal error",
+                nowMillis()
         );
-        mockSendService.logFailure(body.requestId(), body.channelType(), "UNKNOWN", 0, 500, body.latencyMs());
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+    }
+
+    private ResponseEntity<MockSendFailResponse> failWithUnknownContext(
+            HttpStatus status,
+            String errorCode,
+            String message,
+            long startedAtMillis
+    ) {
+        MockSendFailResponse body = mockSendService.buildFailResponse(
+                MockFailResult.unknown(errorCode, message, startedAtMillis)
+        );
+
+        mockSendService.logFailure(
+                MockFailureLog.unknown(status.value(), body.latencyMs())
+        );
+
+        return ResponseEntity.status(status).body(body);
+    }
+
+    private long nowMillis() {
+        return System.currentTimeMillis();
     }
 }

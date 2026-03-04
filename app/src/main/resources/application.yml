@@ -11,10 +11,10 @@ spring:
       enabled: false
 
 # ─────────────────────────────────────────
-# Notification Stream (공통 기본값)
+# Notification Messaging (공통 기본값)
 # ─────────────────────────────────────────
 notification:
-  stream:
+  messaging:
     enabled: true
   external:
     mock:

@@ -20,10 +20,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
+import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.in.NotificationCommandUseCase.SendCommand;
 import com.example.application.port.out.NotificationGroupRepository;
 import com.example.application.port.out.OutboxRepository;
-import com.example.application.service.event.OutboxSavedEvent;
+import com.example.application.port.out.event.OutboxSavedEvent;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.NotificationGroup;
 
@@ -69,10 +70,11 @@ class NotificationCommandServiceTest {
 			.thenReturn(Optional.of(existingGroup));
 
 		// when
-		NotificationGroup result = commandService.request(command);
+		NotificationCommandResult result = commandService.request(command);
 
 		// then
-		assertThat(result).isSameAs(existingGroup);
+		assertThat(result.groupId()).isEqualTo(existingGroup.getId());
+		assertThat(result.totalCount()).isEqualTo(existingGroup.getTotalCount());
 		verify(groupRepository, never()).save(any(NotificationGroup.class));
 		verifyNoInteractions(outboxRepository);
 		verifyNoInteractions(eventPublisher);
@@ -98,12 +100,13 @@ class NotificationCommandServiceTest {
 			.thenAnswer(invocation -> invocation.getArgument(0));
 
 		// when
-		NotificationGroup result = commandService.request(command);
+		NotificationCommandResult result = commandService.request(command);
 
 		// then
-		assertThat(result.getIdempotencyKey()).isEqualTo("idem-order-2001");
-		assertThat(result.getNotifications()).hasSize(2);
-		verify(groupRepository, times(1)).save(any(NotificationGroup.class));
+		assertThat(result.totalCount()).isEqualTo(2);
+		verify(groupRepository, times(1)).save(argThat(group ->
+			"idem-order-2001".equals(group.getIdempotencyKey())
+				&& group.getNotifications().size() == 2));
 		verify(outboxRepository, times(1)).saveAll(argThat(outboxes -> outboxes.size() == 2));
 		verify(eventPublisher, times(1)).publishEvent(any(OutboxSavedEvent.class));
 	}
@@ -125,12 +128,14 @@ class NotificationCommandServiceTest {
 			.thenAnswer(invocation -> invocation.getArgument(0));
 
 		// when
-		NotificationGroup result = commandService.request(command);
+		NotificationCommandResult result = commandService.request(command);
 
 		// then
-		assertThat(result.getIdempotencyKey()).isNull();
+		assertThat(result.totalCount()).isEqualTo(1);
 		verify(groupRepository, never()).findByClientIdAndIdempotencyKey(any(), any());
-		verify(groupRepository, times(1)).save(any(NotificationGroup.class));
+		verify(groupRepository, times(1)).save(argThat(group ->
+			group.getIdempotencyKey() == null
+				&& group.getNotifications().size() == 1));
 		verify(outboxRepository, times(1)).saveAll(argThat(outboxes -> outboxes.size() == 1));
 		verify(eventPublisher, times(1)).publishEvent(any(OutboxSavedEvent.class));
 	}

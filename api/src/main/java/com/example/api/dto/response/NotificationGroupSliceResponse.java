@@ -3,6 +3,7 @@ package com.example.api.dto.response;
 import java.util.List;
 
 import com.example.application.port.in.NotificationGroupSlice;
+import com.example.application.port.in.result.NotificationGroupResult;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -17,10 +18,10 @@ public record NotificationGroupSliceResponse(
     @Schema(description = "다음 요청용 커서 ID", example = "123")
     Long nextCursorId
 ) {
-    public static NotificationGroupSliceResponse from(NotificationGroupSlice slice) {
-        List<NotificationGroupResponse> items = slice.items().stream()
-            .map(NotificationGroupResponse::from)
-            .toList();
+	public static NotificationGroupSliceResponse from(NotificationGroupSlice<NotificationGroupResult> slice) {
+		List<NotificationGroupResponse> items = slice.items().stream()
+			.map(NotificationGroupResponse::from)
+			.toList();
         return new NotificationGroupSliceResponse(items, slice.hasNext(), slice.nextCursorId());
     }
 }
