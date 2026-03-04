@@ -105,8 +105,28 @@ class NotificationDispatchServiceTest {
 
 		// then
 		assertThat(result.isFailure()).isTrue();
+		assertThat(result.isRetryableFailure()).isTrue();
 		assertThat(result.failReason()).isEqualTo("발송 실패");
 		assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENDING);
+		verify(notificationSender).send(notification);
+		verify(notificationRepository).save(notification);
+	}
+
+	@Test
+	@DisplayName("재시도 불가 실패는 non-retryable 결과를 반환한다")
+	void dispatch_returnsNonRetryableFailureWhenSendFailsNonRetryable() {
+		// given
+		Notification notification = createNotification();
+		when(notificationRepository.save(notification)).thenReturn(notification);
+		when(notificationSender.send(notification)).thenReturn(SendResult.failNonRetryable("수신자 주소 오류"));
+
+		// when
+		NotificationDispatchResult result = dispatchService.dispatch(notification);
+
+		// then
+		assertThat(result.isFailure()).isTrue();
+		assertThat(result.isNonRetryableFailure()).isTrue();
+		assertThat(result.failReason()).isEqualTo("수신자 주소 오류");
 		verify(notificationSender).send(notification);
 		verify(notificationRepository).save(notification);
 	}

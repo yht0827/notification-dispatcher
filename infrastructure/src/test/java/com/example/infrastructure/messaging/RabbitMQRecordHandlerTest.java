@@ -84,6 +84,23 @@ class RabbitMQRecordHandlerTest {
 	}
 
 	@Test
+	@DisplayName("재시도 불가 발송 실패는 즉시 NonRetryable로 처리한다")
+	void process_throwsNonRetryableWhenDispatchFailureIsNonRetryable() {
+		// given
+		Notification notification = createNotification();
+		when(notificationRepository.findById(11L)).thenReturn(Optional.of(notification));
+		when(dispatchService.dispatch(notification)).thenReturn(NotificationDispatchResult.failNonRetryable("수신자 주소 오류"));
+
+		// when & then
+		assertThatThrownBy(() -> recordHandler.process(11L, 0))
+			.isInstanceOf(NonRetryableMessageException.class)
+			.hasMessageContaining("재시도 불가 발송 실패");
+
+		verify(dispatchService).markAsFailed(11L, "수신자 주소 오류");
+		verify(lockManager, never()).release(11L);
+	}
+
+	@Test
 	@DisplayName("재시도 한도 초과 시 NonRetryable 예외를 던진다")
 	void process_throwsNonRetryableWhenMaxRetryExceeded() {
 		// given

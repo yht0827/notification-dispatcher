@@ -23,7 +23,10 @@ public class ChannelSenderFactory {
 	void init() {
 		senderMap = new EnumMap<>(ChannelType.class);
 		for (ChannelSender sender : senders) {
-			senderMap.put(sender.getChannelType(), sender);
+			ChannelSender existing = senderMap.put(sender.getChannelType(), sender);
+			if (existing != null) {
+				throw new IllegalStateException("중복 ChannelSender 등록: " + sender.getChannelType());
+			}
 		}
 	}
 

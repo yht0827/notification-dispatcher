@@ -1,11 +1,13 @@
 package com.example.infrastructure.messaging.outbound;
 
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+
 import com.example.infrastructure.config.rabbitmq.NotificationRabbitProperties;
 import com.example.infrastructure.messaging.payload.NotificationDeadLetterPayload;
 import com.example.infrastructure.messaging.port.DeadLetterPublisher;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
 @Slf4j
 @RequiredArgsConstructor

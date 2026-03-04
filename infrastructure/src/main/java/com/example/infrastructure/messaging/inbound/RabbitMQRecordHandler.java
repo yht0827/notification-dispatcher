@@ -37,7 +37,7 @@ public class RabbitMQRecordHandler {
 			Notification notification = loadNotification(notificationId);
 			NotificationDispatchResult dispatchResult = dispatchService.dispatch(notification);
 			if (dispatchResult.isFailure()) {
-				throw toDispatchFailureException(notificationId, retryCount, dispatchResult.failReason());
+				throw toDispatchFailureException(notificationId, retryCount, dispatchResult);
 			}
 			lockManager.release(notificationId);
 		} catch (RuntimeException e) {
@@ -98,8 +98,13 @@ public class RabbitMQRecordHandler {
 		return new RetryableMessageException("예상치 못한 오류: " + exception.getMessage(), exception);
 	}
 
-	private RuntimeException toDispatchFailureException(Long notificationId, int retryCount, String reason) {
-		String failureReason = normalizeReason(reason);
+	private RuntimeException toDispatchFailureException(Long notificationId, int retryCount,
+		NotificationDispatchResult dispatchResult) {
+		String failureReason = normalizeReason(dispatchResult.failReason());
+		if (dispatchResult.isNonRetryableFailure()) {
+			return toNonRetryableAfterMarkFailed(notificationId, failureReason, "재시도 불가 발송 실패: " + failureReason, null);
+		}
+
 		if (retryCount >= properties.resolveMaxRetryCount()) {
 			return toNonRetryableAfterMarkFailed(notificationId, failureReason, "재시도 한도 초과: " + failureReason, null);
 		}

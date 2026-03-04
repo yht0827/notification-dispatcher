@@ -37,6 +37,6 @@ public class MockApiCaller {
 
 	private SendResult fallbackOnCircuitOpen(MockApiSendRequest request, CallNotPermittedException e) {
 		log.warn("circuit breaker OPEN: requestId={}, channel={}", request.requestId(), request.channelType());
-		return SendResult.fail("circuit breaker OPEN - 외부 API 연속 장애");
+		return SendResult.failRetryable("circuit breaker OPEN - 외부 API 연속 장애");
 	}
 }

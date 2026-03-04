@@ -46,7 +46,10 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 			return NotificationDispatchResult.success();
 		} else {
 			log.warn("알림 발송 실패: id={}, reason={}", managedNotification.getId(), sendResult.failReason());
-			return NotificationDispatchResult.fail(sendResult.failReason());
+			if (sendResult.isNonRetryableFailure()) {
+				return NotificationDispatchResult.failNonRetryable(sendResult.failReason());
+			}
+			return NotificationDispatchResult.failRetryable(sendResult.failReason());
 		}
 	}
 
