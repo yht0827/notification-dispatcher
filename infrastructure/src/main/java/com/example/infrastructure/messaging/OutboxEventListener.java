@@ -10,7 +10,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.repository.OutboxRepository;
 import com.example.application.port.out.event.OutboxSavedEvent;
-import com.example.infrastructure.config.rabbitmq.NotificationRabbitConfig;
+import com.example.infrastructure.config.rabbitmq.RabbitPropertyKeys;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = NotificationRabbitConfig.MESSAGING_ENABLED_PROPERTY, havingValue = "true")
+@ConditionalOnProperty(name = RabbitPropertyKeys.MESSAGING_ENABLED, havingValue = "true")
 public class OutboxEventListener {
 
 	private final NotificationEventPublisher eventPublisher;

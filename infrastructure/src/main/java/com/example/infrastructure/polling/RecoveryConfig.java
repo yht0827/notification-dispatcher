@@ -7,10 +7,10 @@ import org.springframework.context.annotation.Configuration;
 
 import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.repository.NotificationRepository;
-import com.example.infrastructure.config.rabbitmq.NotificationRabbitConfig;
+import com.example.infrastructure.config.rabbitmq.RabbitPropertyKeys;
 
 @Configuration
-@ConditionalOnProperty(name = NotificationRabbitConfig.MESSAGING_ENABLED_PROPERTY, havingValue = "true")
+@ConditionalOnProperty(name = RabbitPropertyKeys.MESSAGING_ENABLED, havingValue = "true")
 @EnableConfigurationProperties(RecoveryProperties.class)
 public class RecoveryConfig {
 

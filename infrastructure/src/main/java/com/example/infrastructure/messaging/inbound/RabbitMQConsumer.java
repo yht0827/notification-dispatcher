@@ -7,7 +7,7 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 
-import com.example.infrastructure.config.rabbitmq.NotificationRabbitProperties;
+import com.example.infrastructure.config.rabbitmq.RabbitBeanNames;
 import com.example.infrastructure.messaging.exception.NonRetryableMessageException;
 import com.example.infrastructure.messaging.exception.RetryableMessageException;
 import com.example.infrastructure.messaging.payload.NotificationMessagePayload;
@@ -25,11 +25,14 @@ public class RabbitMQConsumer {
 	private final RabbitMQRecordHandler recordHandler;
 	private final DeadLetterPublisher dlqPublisher;
 	private final WaitPublisher waitPublisher;
-	private final NotificationRabbitProperties properties;
 
-	@RabbitListener(queues = "#{notificationRabbitProperties.workQueue()}", containerFactory = "rabbitListenerContainerFactory")
+	@RabbitListener(
+		queues = "${notification.rabbitmq.work-queue}",
+		containerFactory = RabbitBeanNames.LISTENER_CONTAINER_FACTORY
+	)
 	public void onMessage(NotificationMessagePayload payload, Message message, Channel channel,
 		@Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {
+		String sourceRecordId = resolveSourceRecordId(message, deliveryTag);
 		Long notificationId = null;
 		int retryCount = 0;
 
@@ -40,13 +43,14 @@ public class RabbitMQConsumer {
 			channel.basicAck(deliveryTag, false);
 			log.debug("메시지 ACK 완료: notificationId={}, retryCount={}", notificationId, retryCount);
 		} catch (NonRetryableMessageException e) {
-			publishToDeadLetter(payload, notificationId, e.getMessage());
+			publishToDeadLetter(sourceRecordId, payload, notificationId, e.getMessage());
 			channel.basicAck(deliveryTag, false);
 			log.warn("재시도 불필요 메시지 DLQ 전송: notificationId={}, reason={}", notificationId, e.getMessage());
 		} catch (RetryableMessageException e) {
 			publishToWait(notificationId, retryCount, e.getMessage());
 			channel.basicAck(deliveryTag, false);
-			log.info("WAIT 큐 이동: notificationId={}, retryCount={}, reason={}", notificationId, retryCount, e.getMessage());
+			log.info("WAIT 큐 이동: notificationId={}, retryCount={}, reason={}", notificationId, retryCount,
+				e.getMessage());
 		} catch (RuntimeException e) {
 			log.error("예상치 못한 예외: notificationId={}, reason={}", notificationId, e.getMessage(), e);
 			channel.basicNack(deliveryTag, false, false);
@@ -60,11 +64,22 @@ public class RabbitMQConsumer {
 		return payload.getNotificationId();
 	}
 
-	private void publishToDeadLetter(NotificationMessagePayload payload, Long notificationId, String reason) {
-		dlqPublisher.publish(null, payload, notificationId, reason);
+	private void publishToDeadLetter(String sourceRecordId, NotificationMessagePayload payload, Long notificationId,
+		String reason) {
+		dlqPublisher.publish(sourceRecordId, payload, notificationId, reason);
 	}
 
 	private void publishToWait(Long notificationId, int retryCount, String reason) {
 		waitPublisher.publish(notificationId, retryCount, reason);
+	}
+
+	private String resolveSourceRecordId(Message message, long deliveryTag) {
+		if (message != null && message.getMessageProperties() != null) {
+			String messageId = message.getMessageProperties().getMessageId();
+			if (messageId != null && !messageId.isBlank()) {
+				return messageId;
+			}
+		}
+		return String.valueOf(deliveryTag);
 	}
 }

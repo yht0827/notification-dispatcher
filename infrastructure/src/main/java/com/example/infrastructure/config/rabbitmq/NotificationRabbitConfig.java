@@ -34,16 +34,14 @@ import com.example.infrastructure.messaging.port.DeadLetterPublisher;
 import com.example.infrastructure.messaging.port.WaitPublisher;
 
 @Configuration
-@ConditionalOnProperty(name = NotificationRabbitConfig.MESSAGING_ENABLED_PROPERTY, havingValue = "true")
+@ConditionalOnProperty(name = RabbitPropertyKeys.MESSAGING_ENABLED, havingValue = "true")
 @EnableConfigurationProperties(NotificationRabbitProperties.class)
 public class NotificationRabbitConfig {
 
-	public static final String MESSAGING_ENABLED_PROPERTY = "notification.messaging.enabled";
-
-	private static final String X_DLX = "x-dead-letter-exchange";
-	private static final String X_DLK = "x-dead-letter-routing-key";
-	private static final String X_QUEUE_TYPE = "x-queue-type";
-	private static final String QUORUM = "quorum";
+	private static final String ARG_DEAD_LETTER_EXCHANGE = "x-dead-letter-exchange";
+	private static final String ARG_DEAD_LETTER_ROUTING_KEY = "x-dead-letter-routing-key";
+	private static final String ARG_QUEUE_TYPE = "x-queue-type";
+	private static final String QUEUE_TYPE_QUORUM = "quorum";
 
 	@Bean
 	public MessageConverter jsonMessageConverter() {
@@ -57,7 +55,7 @@ public class NotificationRabbitConfig {
 		return template;
 	}
 
-	@Bean
+	@Bean(name = RabbitBeanNames.LISTENER_CONTAINER_FACTORY)
 	public SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
 		ConnectionFactory cf,
 		MessageConverter mc,
@@ -160,14 +158,14 @@ public class NotificationRabbitConfig {
 
 	private Map<String, Object> workQueueArguments(NotificationRabbitProperties properties) {
 		Map<String, Object> args = quorumQueueArguments();
-		args.put(X_DLX, properties.dlqExchange());
+		args.put(ARG_DEAD_LETTER_EXCHANGE, properties.dlqExchange());
 		return args;
 	}
 
 	private Map<String, Object> waitQueueArguments(NotificationRabbitProperties properties) {
 		Map<String, Object> args = new HashMap<>();
-		args.put(X_DLX, properties.workExchange());
-		args.put(X_DLK, properties.workRoutingKey());
+		args.put(ARG_DEAD_LETTER_EXCHANGE, properties.workExchange());
+		args.put(ARG_DEAD_LETTER_ROUTING_KEY, properties.workRoutingKey());
 		return args;
 	}
 
@@ -177,7 +175,7 @@ public class NotificationRabbitConfig {
 
 	private Map<String, Object> quorumQueueArguments() {
 		Map<String, Object> args = new HashMap<>();
-		args.put(X_QUEUE_TYPE, QUORUM);
+		args.put(ARG_QUEUE_TYPE, QUEUE_TYPE_QUORUM);
 		return args;
 	}
 
@@ -213,8 +211,7 @@ public class NotificationRabbitConfig {
 	public RabbitMQConsumer rabbitMQConsumer(
 		RabbitMQRecordHandler recordHandler,
 		DeadLetterPublisher dlqPublisher,
-		WaitPublisher waitPublisher,
-		NotificationRabbitProperties properties) {
-		return new RabbitMQConsumer(recordHandler, dlqPublisher, waitPublisher, properties);
+		WaitPublisher waitPublisher) {
+		return new RabbitMQConsumer(recordHandler, dlqPublisher, waitPublisher);
 	}
 }

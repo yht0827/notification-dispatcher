@@ -15,7 +15,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageProperties;
 
-import com.example.infrastructure.config.rabbitmq.NotificationRabbitProperties;
 import com.example.infrastructure.messaging.exception.NonRetryableMessageException;
 import com.example.infrastructure.messaging.exception.RetryableMessageException;
 import com.example.infrastructure.messaging.inbound.RabbitMQConsumer;
@@ -44,15 +43,7 @@ class RabbitMQConsumerTest {
 
 	@BeforeEach
 	void setUp() {
-		NotificationRabbitProperties properties = new NotificationRabbitProperties(
-			"notification.work",
-			"notification.work.exchange",
-			"notification.wait",
-			"notification.dlq",
-			"notification.dlq.exchange",
-			3, 5000, 1, 10
-		);
-		consumer = new RabbitMQConsumer(recordHandler, dlqPublisher, waitPublisher, properties);
+		consumer = new RabbitMQConsumer(recordHandler, dlqPublisher, waitPublisher);
 	}
 
 	private Message createMessage() {
@@ -89,7 +80,7 @@ class RabbitMQConsumerTest {
 		consumer.onMessage(payload, createMessage(), channel, 1L);
 
 		// then
-		verify(dlqPublisher).publish(isNull(), eq(payload), eq(10L), eq("max retry exceeded"));
+		verify(dlqPublisher).publish(eq("1"), eq(payload), eq(10L), eq("max retry exceeded"));
 		verify(channel).basicAck(1L, false);
 	}
 
@@ -124,7 +115,7 @@ class RabbitMQConsumerTest {
 
 		// then
 		verify(dlqPublisher).publish(
-			isNull(),
+			eq("3"),
 			eq(payload),
 			isNull(),
 			contains("payload 또는 notificationId 값이 비어 있습니다")
@@ -160,11 +151,29 @@ class RabbitMQConsumerTest {
 
 		// then
 		verify(dlqPublisher).publish(
-			isNull(),
+			eq("4"),
 			isNull(),
 			isNull(),
 			contains("payload 또는 notificationId 값이 비어 있습니다")
 		);
 		verify(channel).basicAck(4L, false);
+	}
+
+	@Test
+	@DisplayName("메시지 ID가 있으면 sourceRecordId로 DLQ 전송한다")
+	void onMessage_usesMessageIdAsSourceRecordIdForDlq() throws IOException {
+		NotificationMessagePayload payload = new NotificationMessagePayload(15L, 0);
+		doThrow(new NonRetryableMessageException("invalid payload"))
+			.when(recordHandler)
+			.process(15L, 0);
+
+		MessageProperties messageProperties = new MessageProperties();
+		messageProperties.setMessageId("msg-123");
+		Message message = new Message(new byte[0], messageProperties);
+
+		consumer.onMessage(payload, message, channel, 9L);
+
+		verify(dlqPublisher).publish(eq("msg-123"), eq(payload), eq(15L), eq("invalid payload"));
+		verify(channel).basicAck(9L, false);
 	}
 }

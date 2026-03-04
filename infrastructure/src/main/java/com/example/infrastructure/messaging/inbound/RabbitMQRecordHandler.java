@@ -57,11 +57,15 @@ public class RabbitMQRecordHandler {
 	}
 
 	private RuntimeException handleException(Long notificationId, RuntimeException exception) {
-		RuntimeException messageException = mapToMessageException(notificationId, exception);
-		if (!(messageException instanceof NonRetryableMessageException)) {
+		RuntimeException mappedException = mapToMessageException(notificationId, exception);
+		if (shouldReleaseLock(mappedException)) {
 			lockManager.release(notificationId);
 		}
-		return messageException;
+		return mappedException;
+	}
+
+	private boolean shouldReleaseLock(RuntimeException exception) {
+		return !(exception instanceof NonRetryableMessageException);
 	}
 
 	private RuntimeException mapToMessageException(Long notificationId, RuntimeException exception) {
