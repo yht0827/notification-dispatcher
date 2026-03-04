@@ -41,8 +41,8 @@ public class OutboxPoller {
 
 		List<Outbox> processed = new ArrayList<>();
 		for (Outbox outbox : pendingOutboxes) {
-			// 2. Redis 발행 시도
-			if (publishToStream(outbox)) {
+			// 2. 발행 시도
+			if (publishEvent(outbox)) {
 				outbox.markAsProcessed();
 				processed.add(outbox); // 성공한 것만 리스트에 추가
 			}
@@ -55,12 +55,12 @@ public class OutboxPoller {
 		}
 	}
 
-	private boolean publishToStream(Outbox outbox) {
+	private boolean publishEvent(Outbox outbox) {
 		try {
 			eventPublisher.publish(outbox.getAggregateId());
 			return true;
 		} catch (Exception e) {
-			log.error("Redis Stream 발행 실패: outboxId={}, aggregateId={}, reason={}",
+			log.error("메시징 발행 실패: outboxId={}, aggregateId={}, reason={}",
 				outbox.getId(), outbox.getAggregateId(), e.getMessage());
 			return false;
 		}

@@ -33,26 +33,33 @@ public class RabbitMQConsumer {
 	public void onMessage(NotificationMessagePayload payload, Message message, Channel channel,
 		@Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {
 		String sourceRecordId = resolveSourceRecordId(message, deliveryTag);
-		Long notificationId = null;
+		Long notiId = null;
 		int retryCount = 0;
 
 		try {
-			notificationId = validatePayload(payload);
+			notiId = validatePayload(payload);
+
 			retryCount = payload.getRetryCount();
-			recordHandler.process(notificationId, retryCount);
+
+			recordHandler.process(notiId, retryCount);
+
 			channel.basicAck(deliveryTag, false);
-			log.debug("메시지 ACK 완료: notificationId={}, retryCount={}", notificationId, retryCount);
+
+			log.debug("메시지 ACK 완료: notificationId={}, retryCount={}", notiId, retryCount);
 		} catch (NonRetryableMessageException e) {
-			publishToDeadLetter(sourceRecordId, payload, notificationId, e.getMessage());
+			publishToDeadLetter(sourceRecordId, payload, notiId, e.getMessage());
+
 			channel.basicAck(deliveryTag, false);
-			log.warn("재시도 불필요 메시지 DLQ 전송: notificationId={}, reason={}", notificationId, e.getMessage());
+
+			log.warn("재시도 불필요 메시지 DLQ 전송: notificationId={}, reason={}", notiId, e.getMessage());
 		} catch (RetryableMessageException e) {
-			publishToWait(notificationId, retryCount, e.getMessage());
+			publishToWait(notiId, retryCount, e.getMessage());
+
 			channel.basicAck(deliveryTag, false);
-			log.info("WAIT 큐 이동: notificationId={}, retryCount={}, reason={}", notificationId, retryCount,
-				e.getMessage());
+
+			log.info("WAIT 큐 이동: notificationId={}, retryCount={}, reason={}", notiId, retryCount, e.getMessage());
 		} catch (RuntimeException e) {
-			log.error("예상치 못한 예외: notificationId={}, reason={}", notificationId, e.getMessage(), e);
+			log.error("예상치 못한 예외: notificationId={}, reason={}", notiId, e.getMessage(), e);
 			channel.basicNack(deliveryTag, false, false);
 		}
 	}

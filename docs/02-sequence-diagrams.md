@@ -5,7 +5,7 @@
 ## 목차
 
 - [알림 발송 요청 (동기)](#알림-발송-요청-동기)
-- [Outbox 발행 (DB -> Redis)](#outbox-발행-db---redis)
+- [Outbox 발행 (DB -> RabbitMQ)](#outbox-발행-db---rabbitmq)
 - [WORK 소비 및 발송 성공](#work-소비-및-발송-성공)
 - [발송 실패 재시도 (WAIT) 및 최종 실패 (DLQ)](#발송-실패-재시도-wait-및-최종-실패-dlq)
 - [애플리케이션 시작 시 Pending 복구](#애플리케이션-시작-시-pending-복구)
@@ -56,7 +56,7 @@ sequenceDiagram
 
 ---
 
-## Outbox 발행 (DB -> Redis)
+## Outbox 발행 (DB -> RabbitMQ)
 
 ```mermaid
 sequenceDiagram
@@ -64,8 +64,8 @@ sequenceDiagram
     participant OP as OutboxPoller
     participant OR as OutboxRepository
     participant DB as MySQL
-    participant PUB as RedisStreamPublisher
-    participant RS as Redis WORK Stream
+    participant PUB as RabbitMQPublisher
+    participant RS as RabbitMQ WORK Queue
 
     S->>OP: pollAndPublish() every 1s
     OP->>OR: findByStatus(PENDING, 100)
@@ -75,7 +75,7 @@ sequenceDiagram
 
     loop each outbox
         OP->>PUB: publish(outbox.aggregateId)
-        PUB->>RS: XADD WORK {notificationId, retryCount=0}
+        PUB->>RS: WORK 큐 메시지 발행 {notificationId, retryCount=0}
         alt 발행 성공
             OP->>OP: outbox.markAsProcessed()
         else 발행 실패
@@ -98,9 +98,9 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant RS as Redis WORK Stream
-    participant C as RedisStreamConsumer
-    participant H as RedisStreamRecordHandler
+    participant RS as RabbitMQ WORK Queue
+    participant C as RabbitMQConsumer
+    participant H as RabbitMQRecordHandler
     participant L as DispatchLockManager
     participant NR as NotificationRepository
     participant DS as NotificationDispatchService
@@ -115,7 +115,7 @@ sequenceDiagram
 
     alt 락 획득 실패
         H-->>C: return (중복 처리 방지)
-        C->>RS: XACK
+        C->>RS: basicAck
     else 락 획득 성공
         H->>NR: findById(notificationId)
         NR->>DB: SELECT notification
@@ -133,7 +133,7 @@ sequenceDiagram
         DS-->>H: DispatchResult.success
 
         H-->>C: success
-        C->>RS: XACK
+        C->>RS: basicAck
     end
 ```
 
@@ -148,15 +148,15 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant RS as Redis WORK Stream
-    participant C as RedisStreamConsumer
-    participant H as RedisStreamRecordHandler
+    participant RS as RabbitMQ WORK Queue
+    participant C as RabbitMQConsumer
+    participant H as RabbitMQRecordHandler
     participant DS as NotificationDispatchService
-    participant W as RedisStreamWaitPublisher
-    participant WS as Redis WAIT Stream
-    participant SCH as RedisStreamWaitScheduler
-    participant D as RedisStreamDlqPublisher
-    participant DLQ as Redis DLQ Stream
+    participant W as RabbitMQWaitPublisher
+    participant WS as RabbitMQ WAIT Queue
+    participant B as RabbitMQ Broker (TTL + DLX)
+    participant D as RabbitMQDlqPublisher
+    participant DLQ as RabbitMQ DLQ Queue
 
     RS-->>C: message(notificationId, retryCount)
     C->>H: process(notificationId, retryCount)
@@ -164,27 +164,25 @@ sequenceDiagram
     DS-->>H: DispatchResult.fail(reason)
 
     alt retryCount < maxRetryCount
-        H-->>C: throw RetryableStreamMessageException
+        H-->>C: throw RetryableMessageException
         C->>W: publish(notificationId, retryCount, reason)
-        W->>WS: XADD WAIT {nextRetryAt, retryCount}
-        C->>RS: XACK
+        W->>WS: WAIT 큐 발행 {expiration, retryCount}
+        C->>RS: basicAck
 
-        SCH->>WS: range(wait records)
-        SCH->>SCH: due record check (now >= nextRetryAt)
-        SCH->>RS: XADD WORK {retryCount + 1}
-        SCH->>WS: XDEL processed wait record
+        WS->>B: TTL 만료
+        B->>RS: DLX 라우팅으로 WORK 재진입 {retryCount + 1}
     else retryCount >= maxRetryCount
         H->>DS: markAsFailed(notificationId, reason)
-        H-->>C: throw NonRetryableStreamMessageException
+        H-->>C: throw NonRetryableMessageException
         C->>D: publish(sourceRecordId, payload, reason)
-        D->>DLQ: XADD DLQ
-        C->>RS: XACK
+        D->>DLQ: DLQ 큐 발행
+        C->>RS: basicAck
     end
 ```
 
 핵심 포인트
 
-- 재시도 가능 오류는 WAIT 스트림으로 이동 후 지수 백오프로 재처리한다.
+- 재시도 가능 오류는 WAIT 큐(TTL + DLX)로 이동 후 WORK 큐로 자동 재진입한다.
 - 재시도 불가/한도 초과 오류는 DLQ로 이동해 운영자가 별도 대응한다.
 
 ---
@@ -194,28 +192,25 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant APP as Application Startup
-    participant I as RedisStreamInitializer
-    participant RS as Redis WORK Stream
-    participant W as RedisStreamWaitPublisher
-    participant WS as Redis WAIT Stream
+    participant RP as NotificationRecoveryPoller
+    participant NR as NotificationRepository
+    participant DB as MySQL
+    participant PUB as NotificationEventPublisher
+    participant MQ as RabbitMQ WORK Queue
 
-    APP->>I: init()
-    I->>RS: create consumer group
-    Note over I,RS: BUSYGROUP 오류는 무시
+    APP->>RP: recoverStuckNotifications()
+    RP->>NR: findByStatusAndCreatedAtBefore(PENDING, threshold, batchSize)
+    NR->>DB: SELECT pending notifications
+    DB-->>NR: stuck notifications
+    NR-->>RP: stuck notifications
 
-    I->>RS: XPENDING group
-    RS-->>I: pending messages
-
-    loop each pending message
-        I->>RS: XRANGE(recordId)
-        RS-->>I: original payload
-        I->>W: publish(notificationId, retryCount, "시작 시 Pending 복구")
-        W->>WS: XADD WAIT
-        I->>RS: XACK original record
+    loop each pending notification
+        RP->>PUB: publish(notificationId)
+        PUB->>MQ: WORK 큐 발행
     end
 ```
 
 핵심 포인트
 
-- 비정상 종료 등으로 남은 Pending 메시지를 기동 시점에 자동 회수한다.
-- 복구 실패한 일부 메시지가 있어도 나머지 메시지 복구는 계속 진행한다.
+- 장시간 PENDING 상태 알림을 주기적으로 회수해 WORK 큐로 재발행한다.
+- 일부 복구 실패가 발생해도 나머지 알림 복구는 계속 진행한다.

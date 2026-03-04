@@ -32,7 +32,7 @@ class OutboxEventListenerTest {
 	}
 
 	@Test
-	@DisplayName("커밋 후 Redis Stream에 즉시 발행하고 Outbox를 삭제한다")
+	@DisplayName("커밋 후 메시징으로 즉시 발행하고 Outbox를 삭제한다")
 	void onOutboxSaved_publishesAndDeletes() {
 		// given
 		OutboxSavedEvent event = new OutboxSavedEvent(List.of(100L, 200L));
@@ -52,7 +52,7 @@ class OutboxEventListenerTest {
 	void onOutboxSaved_doesNotDeleteOnPublishFailure() {
 		// given
 		OutboxSavedEvent event = new OutboxSavedEvent(List.of(100L, 200L));
-		doThrow(new RuntimeException("Redis connection failed")).when(eventPublisher).publish(100L);
+		doThrow(new RuntimeException("messaging publish failed")).when(eventPublisher).publish(100L);
 
 		// when
 		listener.onOutboxSaved(event);

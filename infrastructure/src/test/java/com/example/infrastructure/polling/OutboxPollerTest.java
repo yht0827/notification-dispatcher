@@ -57,7 +57,7 @@ class OutboxPollerTest {
 	}
 
 	@Test
-	@DisplayName("PENDING Outbox를 Redis Stream에 발행하고 삭제한다")
+	@DisplayName("PENDING Outbox를 메시징으로 발행하고 삭제한다")
 	void pollAndPublish_publishesAndDeletesSuccessfully() {
 		// given
 		Outbox outbox1 = createOutbox(1L, 100L);
@@ -76,7 +76,7 @@ class OutboxPollerTest {
 	}
 
 	@Test
-	@DisplayName("Redis 발행 실패한 Outbox는 삭제하지 않는다")
+	@DisplayName("메시징 발행 실패한 Outbox는 삭제하지 않는다")
 	void pollAndPublish_doesNotDeleteFailedPublishes() {
 		// given
 		Outbox outbox1 = createOutbox(1L, 100L);
@@ -88,7 +88,7 @@ class OutboxPollerTest {
 
 		// outbox2 발행 실패
 		doNothing().when(eventPublisher).publish(100L);
-		doThrow(new RuntimeException("Redis connection failed")).when(eventPublisher).publish(200L);
+		doThrow(new RuntimeException("messaging publish failed")).when(eventPublisher).publish(200L);
 		doNothing().when(eventPublisher).publish(300L);
 
 		// when
@@ -106,7 +106,7 @@ class OutboxPollerTest {
 
 		when(outboxRepository.findByStatus(OutboxStatus.PENDING, BATCH_SIZE))
 			.thenReturn(List.of(outbox));
-		doThrow(new RuntimeException("Redis connection failed")).when(eventPublisher).publish(100L);
+		doThrow(new RuntimeException("messaging publish failed")).when(eventPublisher).publish(100L);
 
 		// when
 		outboxPoller.pollAndPublish();
@@ -139,7 +139,7 @@ class OutboxPollerTest {
 
 		when(outboxRepository.findByStatus(OutboxStatus.PENDING, BATCH_SIZE))
 			.thenReturn(List.of(outbox));
-		doThrow(new RuntimeException("Redis connection failed")).when(eventPublisher).publish(100L);
+		doThrow(new RuntimeException("messaging publish failed")).when(eventPublisher).publish(100L);
 
 		// when
 		outboxPoller.pollAndPublish();

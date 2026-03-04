@@ -6,7 +6,7 @@
 
 - [레이어드 구조 (Hexagonal)](#레이어드-구조-hexagonal)
 - [도메인 모델](#도메인-모델)
-- [비동기 스트림 처리](#비동기-스트림-처리)
+- [비동기 메시징 처리](#비동기-메시징-처리)
 - [채널 발송 전략](#채널-발송-전략)
 - [핵심 클래스 책임 요약](#핵심-클래스-책임-요약)
 
@@ -32,14 +32,14 @@ classDiagram
 
     class NotificationQueryUseCase {
       <<interface>>
-      +getRecentGroups(cursorId, size) NotificationGroupSlice
+      +getRecentGroups(cursorId, size) CursorSlice
       +getGroupDetail(groupId) Optional~NotificationGroup~
       +getNotification(notificationId) Optional~Notification~
     }
 
     class NotificationDispatchUseCase {
       <<interface>>
-      +dispatch(notification) DispatchResult
+      +dispatch(notification) NotificationDispatchResult
       +markAsFailed(notificationId, reason)
     }
 
@@ -187,7 +187,7 @@ classDiagram
 
 ---
 
-## 비동기 스트림 처리
+## 비동기 메시징 처리
 
 ```mermaid
 classDiagram
@@ -195,49 +195,45 @@ classDiagram
       +pollAndPublish()
     }
 
-    class RedisStreamPublisher {
+    class RabbitMQPublisher {
       +publish(notificationId)
     }
 
-    class RedisStreamConsumer {
-      +onMessage(record)
+    class RabbitMQConsumer {
+      +onMessage(payload, message, channel, deliveryTag)
     }
 
-    class RedisStreamRecordHandler {
+    class RabbitMQRecordHandler {
       +process(notificationId, retryCount)
     }
 
-    class RedisStreamWaitScheduler {
-      +processWaitingMessages()
+    class NotificationRecoveryPoller {
+      +recoverStuckNotifications()
     }
 
-    class RedisStreamWaitPublisher {
+    class RabbitMQWaitPublisher {
       +publish(notificationId, retryCount, lastError)
     }
 
-    class RedisStreamDlqPublisher {
+    class RabbitMQDlqPublisher {
       +publish(sourceRecordId, payload, notificationId, reason)
     }
 
-    class RedisStreamInitializer {
-      +init()
-    }
-
-    class NotificationStreamProperties {
-      +resolveKey(type)
+    class NotificationRabbitProperties {
       +resolveMaxRetryCount()
       +calculateRetryDelayMillis(retryCount)
     }
 
-    class NotificationStreamPayload {
+    class NotificationMessagePayload {
       +notificationId
       +retryCount
     }
 
     class NotificationWaitPayload {
       +notificationId
-      +retryCount
-      +nextRetryAt
+      +currentRetryCount
+      +nextRetryCount
+      +delayMillis
       +lastError
     }
 
@@ -249,28 +245,21 @@ classDiagram
       +failedAt
     }
 
-    OutboxPoller --> RedisStreamPublisher
-    OutboxPoller --> NotificationStreamProperties
+    OutboxPoller --> RabbitMQPublisher
 
-    RedisStreamConsumer --> RedisStreamRecordHandler
-    RedisStreamConsumer --> RedisStreamWaitPublisher
-    RedisStreamConsumer --> RedisStreamDlqPublisher
-    RedisStreamConsumer --> NotificationStreamProperties
+    RabbitMQConsumer --> RabbitMQRecordHandler
+    RabbitMQConsumer --> RabbitMQWaitPublisher
+    RabbitMQConsumer --> RabbitMQDlqPublisher
 
-    RedisStreamRecordHandler --> NotificationDispatchUseCase
-    RedisStreamRecordHandler --> NotificationRepository
-    RedisStreamRecordHandler --> DispatchLockManager
-    RedisStreamRecordHandler --> NotificationStreamProperties
+    RabbitMQRecordHandler --> NotificationDispatchUseCase
+    RabbitMQRecordHandler --> NotificationRepository
+    RabbitMQRecordHandler --> DispatchLockManager
+    RabbitMQRecordHandler --> NotificationRabbitProperties
 
-    RedisStreamWaitScheduler --> NotificationStreamProperties
-    RedisStreamWaitScheduler --> NotificationStreamPayload
-    RedisStreamWaitScheduler --> NotificationWaitPayload
-    RedisStreamWaitPublisher --> NotificationWaitPayload
-    RedisStreamDlqPublisher --> NotificationDeadLetterPayload
-
-    RedisStreamInitializer --> RedisStreamWaitPublisher
-    RedisStreamInitializer --> NotificationStreamPayload
-    RedisStreamInitializer --> NotificationStreamProperties
+    RabbitMQWaitPublisher --> NotificationWaitPayload
+    RabbitMQDlqPublisher --> NotificationDeadLetterPayload
+    NotificationRecoveryPoller --> NotificationRepository
+    NotificationRecoveryPoller --> RabbitMQPublisher
 ```
 
 ---
@@ -322,9 +311,9 @@ classDiagram
 | `NotificationCommandService` | Application | 멱등성 검사, 그룹 생성, Outbox 저장 |
 | `NotificationQueryService` | Application | 그룹/알림 조회, 커서 페이지 계산 |
 | `NotificationDispatchService` | Application | 발송 상태 전이, 채널 발송 위임 |
-| `OutboxPoller` | Infrastructure | Outbox -> WORK 스트림 발행 |
-| `RedisStreamConsumer` | Infrastructure | WORK 메시지 소비 및 ACK 제어 |
-| `RedisStreamRecordHandler` | Infrastructure | 분산 락/재시도 분기/실패 처리 |
-| `RedisStreamWaitScheduler` | Infrastructure | WAIT 만료 메시지 재발행 |
+| `OutboxPoller` | Infrastructure | Outbox -> WORK 큐 발행 |
+| `RabbitMQConsumer` | Infrastructure | WORK 메시지 소비 및 ACK 제어 |
+| `RabbitMQRecordHandler` | Infrastructure | 분산 락/재시도 분기/실패 처리 |
+| `NotificationRecoveryPoller` | Infrastructure | 장시간 PENDING 알림 재발행 |
 | `NotificationSenderImpl` | Infrastructure | 채널별 Sender 전략 선택 |
 | `DispatchLockManagerImpl` | Infrastructure | notificationId 단위 락 획득/해제 |
