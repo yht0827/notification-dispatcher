@@ -25,6 +25,80 @@ Content-Type: {{contentType}}
   "idempotencyKey": "order-12345"
 }
 
+### 멱등성 키 없이 발송 (허용 케이스, 예상: 201 Created)
+# @name send_without_idempotency_key
+POST {{host}}/api/v1/notifications
+Content-Type: {{contentType}}
+
+{
+  "clientId": "order-service",
+  "sender": "MyShop",
+  "title": "멱등 키 없음",
+  "content": "idempotencyKey 없이 요청",
+  "channelType": "EMAIL",
+  "receivers": ["user@example.com"]
+}
+
+### 멱등성 키를 빈 문자열로 발송 (빈 값은 null로 정규화, 예상: 201 Created)
+# @name send_with_blank_idempotency_key
+POST {{host}}/api/v1/notifications
+Content-Type: {{contentType}}
+
+{
+  "clientId": "order-service",
+  "sender": "MyShop",
+  "title": "멱등 키 빈 문자열",
+  "content": "idempotencyKey가 공백일 때",
+  "channelType": "EMAIL",
+  "receivers": ["user@example.com"],
+  "idempotencyKey": "   "
+}
+
+### 멱등성 키를 null로 발송 (null 허용, 예상: 201 Created)
+# @name send_with_null_idempotency_key
+POST {{host}}/api/v1/notifications
+Content-Type: {{contentType}}
+
+{
+  "clientId": "order-service",
+  "sender": "MyShop",
+  "title": "멱등 키 null",
+  "content": "idempotencyKey가 null일 때",
+  "channelType": "EMAIL",
+  "receivers": ["user@example.com"],
+  "idempotencyKey": null
+}
+
+### 같은 멱등성 키로 1차 요청 (예상: 201 Created)
+# @name send_idempotent_first
+POST {{host}}/api/v1/notifications
+Content-Type: {{contentType}}
+
+{
+  "clientId": "order-service",
+  "sender": "MyShop",
+  "title": "중복 방지 테스트",
+  "content": "동일 멱등키 1차 요청",
+  "channelType": "EMAIL",
+  "receivers": ["user@example.com"],
+  "idempotencyKey": "idempotency-duplicate-case-001"
+}
+
+### 같은 멱등성 키로 2차 요청 (예상: 201 Created, 같은 groupId 반환 확인)
+# @name send_idempotent_second
+POST {{host}}/api/v1/notifications
+Content-Type: {{contentType}}
+
+{
+  "clientId": "order-service",
+  "sender": "MyShop",
+  "title": "중복 방지 테스트",
+  "content": "동일 멱등키 2차 요청",
+  "channelType": "EMAIL",
+  "receivers": ["user@example.com"],
+  "idempotencyKey": "idempotency-duplicate-case-001"
+}
+
 ### 대량 알림 발송
 # @name send_bulk_notification
 POST {{host}}/api/v1/notifications
@@ -76,7 +150,7 @@ Content-Type: {{contentType}}
 ### 2) 알림 그룹 조회
 ### ==================================================
 
-### 알림 묶음 목록 1페이지 조회 (cursor 기반)}
+### 알림 묶음 목록 1페이지 조회 (cursor 기반)
 GET {{host}}/api/v1/notifications?size={{bundleSize}}
 
 ### 알림 묶음 목록 다음 페이지 조회 (nextCursorId 사용)
