@@ -1,0 +1,53 @@
+groups:
+  - name: rabbitmq-notification-alerts
+    interval: 30s
+    rules:
+      - alert: RabbitMQWorkQueueReadyHigh
+        expr: sum(rabbitmq_queue_messages_ready{queue="notification.work",vhost="/"}) > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: notification-dispatcher
+        annotations:
+          summary: "WORK 큐 backlog 증가"
+          description: "notification.work ready 메시지가 5분 이상 100건을 초과했습니다. 컨슈머 처리량과 오류율을 확인하세요."
+
+      - alert: RabbitMQWorkQueueReadyCritical
+        expr: sum(rabbitmq_queue_messages_ready{queue="notification.work",vhost="/"}) > 500
+        for: 10m
+        labels:
+          severity: critical
+          service: notification-dispatcher
+        annotations:
+          summary: "WORK 큐 backlog 임계치 초과"
+          description: "notification.work ready 메시지가 10분 이상 500건을 초과했습니다. 즉시 스케일 아웃 또는 장애 대응이 필요합니다."
+
+      - alert: RabbitMQWorkQueueUnackedStuck
+        expr: sum((rabbitmq_queue_messages_unacked{queue="notification.work",vhost="/"} or rabbitmq_queue_messages_unacknowledged{queue="notification.work",vhost="/"})) > 200
+        for: 10m
+        labels:
+          severity: warning
+          service: notification-dispatcher
+        annotations:
+          summary: "WORK 큐 unacked 누적"
+          description: "notification.work unacked 메시지가 10분 이상 200건을 초과했습니다. 소비 처리 지연 또는 ACK 누락 가능성을 점검하세요."
+
+      - alert: RabbitMQWaitQueueAccumulating
+        expr: sum(rabbitmq_queue_messages{queue="notification.wait",vhost="/"}) > 300
+        for: 10m
+        labels:
+          severity: warning
+          service: notification-dispatcher
+        annotations:
+          summary: "WAIT 큐 적체 증가"
+          description: "notification.wait 큐 메시지가 10분 이상 300건을 초과했습니다. 재시도 실패율과 외부 채널 상태를 확인하세요."
+
+      - alert: RabbitMQDlqHasMessages
+        expr: sum(rabbitmq_queue_messages{queue="notification.dlq",vhost="/"}) > 0
+        for: 3m
+        labels:
+          severity: warning
+          service: notification-dispatcher
+        annotations:
+          summary: "DLQ 메시지 발생"
+          description: "notification.dlq 큐에 메시지가 3분 이상 존재합니다. 재시도 불가 오류 원인 분석이 필요합니다."

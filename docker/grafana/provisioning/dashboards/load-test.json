@@ -1135,7 +1135,7 @@
     {
       "collapsed": false,
       "id": 104,
-      "title": "Redis - Streams & Memory",
+      "title": "Messaging (RabbitMQ) & Redis Memory",
       "type": "row",
       "gridPos": {
         "x": 0,
@@ -1147,8 +1147,8 @@
     {
       "id": 23,
       "type": "timeseries",
-      "title": "Stream 백로그 (XLEN)",
-      "description": "스트림 미처리 메시지 수. 부하 중 증가하면 컨슈머 처리 한계",
+      "title": "RabbitMQ Queue Depth",
+      "description": "WORK/WAIT/DLQ 큐의 전체 메시지 수(ready + unacked)",
       "gridPos": {
         "x": 0,
         "y": 69,
@@ -1176,24 +1176,24 @@
       },
       "targets": [
         {
-          "expr": "redis_stream_length{stream=\"notification-stream\"}",
-          "legendFormat": "Work Stream"
+          "expr": "rabbitmq_queue_messages{queue=\"notification.work\",vhost=\"/\"}",
+          "legendFormat": "WORK total"
         },
         {
-          "expr": "redis_stream_length{stream=\"notification-stream-dlq\"}",
-          "legendFormat": "DLQ"
+          "expr": "rabbitmq_queue_messages{queue=\"notification.dlq\",vhost=\"/\"}",
+          "legendFormat": "DLQ total"
         },
         {
-          "expr": "redis_stream_length{stream=\"notification-stream-wait\"}",
-          "legendFormat": "Wait Stream"
+          "expr": "rabbitmq_queue_messages{queue=\"notification.wait\",vhost=\"/\"}",
+          "legendFormat": "WAIT total"
         }
       ]
     },
     {
       "id": 24,
       "type": "timeseries",
-      "title": "PEL & Consumer Lag",
-      "description": "PEL=ACK 안 된 메시지 수 / Lag=컨슈머가 얼마나 뒤처졌는지",
+      "title": "WORK Queue Ready vs Unacked",
+      "description": "Ready=대기 메시지, Unacked=소비 중 미ACK 메시지",
       "gridPos": {
         "x": 12,
         "y": 69,
@@ -1221,12 +1221,12 @@
       },
       "targets": [
         {
-          "expr": "redis_stream_group_messages_pending{stream=\"notification-stream\"}",
-          "legendFormat": "PEL ({{group}})"
+          "expr": "rabbitmq_queue_messages_ready{queue=\"notification.work\",vhost=\"/\"}",
+          "legendFormat": "Ready"
         },
         {
-          "expr": "redis_stream_group_lag{stream=\"notification-stream\"}",
-          "legendFormat": "Lag ({{group}})"
+          "expr": "rabbitmq_queue_messages_unacked{queue=\"notification.work\",vhost=\"/\"} or rabbitmq_queue_messages_unacknowledged{queue=\"notification.work\",vhost=\"/\"}",
+          "legendFormat": "Unacked"
         }
       ]
     },
