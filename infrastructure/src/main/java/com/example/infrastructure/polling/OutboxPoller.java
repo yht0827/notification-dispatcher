@@ -12,7 +12,7 @@ import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.OutboxRepository;
 import com.example.domain.outbox.Outbox;
 import com.example.domain.outbox.OutboxStatus;
-import com.example.infrastructure.config.stream.NotificationStreamConfig;
+import com.example.infrastructure.config.rabbitmq.NotificationRabbitConfig;
 import com.example.infrastructure.polling.OutboxProperties;
 
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = NotificationStreamConfig.STREAM_ENABLED_PROPERTY, havingValue = "true")
+@ConditionalOnProperty(name = NotificationRabbitConfig.STREAM_ENABLED_PROPERTY, havingValue = "true")
 public class OutboxPoller {
 
 	private final OutboxRepository outboxRepository;

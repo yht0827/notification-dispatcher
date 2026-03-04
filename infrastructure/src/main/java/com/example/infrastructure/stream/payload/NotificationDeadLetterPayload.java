@@ -3,8 +3,6 @@ package com.example.infrastructure.stream.payload;
 import java.time.OffsetDateTime;
 import java.util.Objects;
 
-import org.springframework.data.redis.connection.stream.RecordId;
-
 public record NotificationDeadLetterPayload(
 	String recordId,
 	String notificationId,
@@ -13,10 +11,10 @@ public record NotificationDeadLetterPayload(
 	String failedAt
 ) {
 
-	public static NotificationDeadLetterPayload from(RecordId sourceRecordId, Object payload, Long notificationId,
+	public static NotificationDeadLetterPayload from(String sourceRecordId, Object payload, Long notificationId,
 		String reason) {
 		return new NotificationDeadLetterPayload(
-			sourceRecordId.getValue(),
+			sourceRecordId != null ? sourceRecordId : "n/a",
 			toNotificationId(notificationId),
 			Objects.toString(payload, ""),
 			nullToEmpty(reason),

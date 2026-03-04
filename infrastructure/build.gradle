@@ -1,4 +1,4 @@
-// Infrastructure 모듈: JPA, Redis, HTTP Client, Scheduler 구현체
+// Infrastructure 모듈: JPA, Redis, RabbitMQ, HTTP Client, Scheduler 구현체
 
 dependencies {
     implementation project(':domain')
@@ -24,9 +24,13 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.redisson:redisson-spring-boot-starter:3.27.0'
 
+    // RabbitMQ (AMQP)
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+
     // Testcontainers
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
     testImplementation 'org.testcontainers:junit-jupiter'
     testImplementation 'org.testcontainers:mysql'
     testImplementation 'com.redis:testcontainers-redis:2.2.2'
+    testImplementation 'org.testcontainers:rabbitmq'
 }

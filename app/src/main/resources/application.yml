@@ -86,9 +86,7 @@ outbox:
 recovery:
   batch-size: 100
   threshold-minutes: 5
-  claim-min-idle-minutes: 5
   poll-interval-millis: 300000   # 5분
-  claim-interval-millis: 60000   # 1분
 
 ---
 # ─────────────────────────────────────────
@@ -98,6 +96,11 @@ spring:
   config:
     activate:
       on-profile: local
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: application
+    password: application
   datasource:
     url: jdbc:mysql://localhost:3306/notification?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
     username: application
@@ -125,18 +128,16 @@ spring:
       port: 6379
 
 notification:
-  stream:
-    key: notification-stream
-    consumer-group: notification-group
-    consumer-name: consumer-1
-    poll-interval: 1000
-    batch-size: 10
-    wait-batch-size: 100
-    dead-letter-key: notification-stream-dlq
-    wait-key: notification-stream-wait
+  rabbitmq:
+    work-queue: notification.work
+    work-exchange: notification.work.exchange
+    wait-queue: notification.wait
+    dlq-queue: notification.dlq
+    dlq-exchange: notification.dlq.exchange
     max-retry-count: 3
     retry-base-delay-millis: 5000
-    wait-poll-interval-millis: 1000
+    concurrency: 1
+    max-concurrency: 10
   external:
     mock:
       enabled: true

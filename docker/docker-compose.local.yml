@@ -47,6 +47,21 @@ services:
       mysql:
         condition: service_healthy
 
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: notification-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   redis-exporter:
     image: oliver006/redis_exporter:latest
     container_name: notification-redis-exporter
@@ -54,8 +69,6 @@ services:
       - "9121:9121"
     environment:
       - REDIS_ADDR=redis://notification-redis:6379
-    command:
-      - "--check-streams=notification-stream,notification-stream-dlq,notification-stream-wait"
     depends_on:
       redis:
         condition: service_healthy

@@ -13,14 +13,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.example.application.port.out.OutboxRepository;
 import com.example.application.service.event.OutboxSavedEvent;
-import com.example.infrastructure.stream.listener.OutboxEventListener;
-import com.example.infrastructure.stream.outbound.RedisStreamPublisher;
+import com.example.application.port.out.NotificationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class OutboxEventListenerTest {
 
 	@Mock
-	private RedisStreamPublisher streamPublisher;
+	private NotificationEventPublisher streamPublisher;
 
 	@Mock
 	private OutboxRepository outboxRepository;

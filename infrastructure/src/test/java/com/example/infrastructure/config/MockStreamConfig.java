@@ -5,10 +5,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import com.example.application.port.out.NotificationEventPublisher;
-import com.example.infrastructure.config.stream.NotificationStreamConfig;
+import com.example.infrastructure.config.rabbitmq.NotificationRabbitConfig;
 
 @Configuration
-@ConditionalOnProperty(name = NotificationStreamConfig.STREAM_ENABLED_PROPERTY, havingValue = "false")
+@ConditionalOnProperty(name = NotificationRabbitConfig.STREAM_ENABLED_PROPERTY, havingValue = "false")
 public class MockStreamConfig {
 
 	@Bean
