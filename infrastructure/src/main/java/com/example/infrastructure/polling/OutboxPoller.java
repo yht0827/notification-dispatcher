@@ -13,7 +13,6 @@ import com.example.application.port.out.OutboxRepository;
 import com.example.domain.outbox.Outbox;
 import com.example.domain.outbox.OutboxStatus;
 import com.example.infrastructure.config.rabbitmq.NotificationRabbitConfig;
-import com.example.infrastructure.polling.OutboxProperties;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 public class OutboxPoller {
 
 	private final OutboxRepository outboxRepository;
-	private final NotificationEventPublisher streamPublisher;
+	private final NotificationEventPublisher eventPublisher;
 	private final OutboxProperties outboxProperties;
 
 	@Scheduled(fixedDelayString = "${outbox.poll-interval-millis:1000}")
@@ -58,7 +57,7 @@ public class OutboxPoller {
 
 	private boolean publishToStream(Outbox outbox) {
 		try {
-			streamPublisher.publish(outbox.getAggregateId());
+			eventPublisher.publish(outbox.getAggregateId());
 			return true;
 		} catch (Exception e) {
 			log.error("Redis Stream 발행 실패: outboxId={}, aggregateId={}, reason={}",

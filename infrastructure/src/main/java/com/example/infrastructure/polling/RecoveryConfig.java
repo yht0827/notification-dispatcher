@@ -17,9 +17,9 @@ public class RecoveryConfig {
 	@Bean
 	public NotificationRecoveryPoller notificationRecoveryPoller(
 		NotificationRepository notificationRepository,
-		NotificationEventPublisher streamPublisher,
+		NotificationEventPublisher eventPublisher,
 		RecoveryProperties recoveryProperties
 	) {
-		return new NotificationRecoveryPoller(notificationRepository, streamPublisher, recoveryProperties);
+		return new NotificationRecoveryPoller(notificationRepository, eventPublisher, recoveryProperties);
 	}
 }

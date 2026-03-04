@@ -19,7 +19,7 @@ import com.example.application.port.out.NotificationEventPublisher;
 class OutboxEventListenerTest {
 
 	@Mock
-	private NotificationEventPublisher streamPublisher;
+	private NotificationEventPublisher eventPublisher;
 
 	@Mock
 	private OutboxRepository outboxRepository;
@@ -28,7 +28,7 @@ class OutboxEventListenerTest {
 
 	@BeforeEach
 	void setUp() {
-		listener = new OutboxEventListener(streamPublisher, outboxRepository);
+		listener = new OutboxEventListener(eventPublisher, outboxRepository);
 	}
 
 	@Test
@@ -41,8 +41,8 @@ class OutboxEventListenerTest {
 		listener.onOutboxSaved(event);
 
 		// then
-		verify(streamPublisher).publish(100L);
-		verify(streamPublisher).publish(200L);
+		verify(eventPublisher).publish(100L);
+		verify(eventPublisher).publish(200L);
 		verify(outboxRepository).deleteByAggregateId(100L);
 		verify(outboxRepository).deleteByAggregateId(200L);
 	}
@@ -52,14 +52,14 @@ class OutboxEventListenerTest {
 	void onOutboxSaved_doesNotDeleteOnPublishFailure() {
 		// given
 		OutboxSavedEvent event = new OutboxSavedEvent(List.of(100L, 200L));
-		doThrow(new RuntimeException("Redis connection failed")).when(streamPublisher).publish(100L);
+		doThrow(new RuntimeException("Redis connection failed")).when(eventPublisher).publish(100L);
 
 		// when
 		listener.onOutboxSaved(event);
 
 		// then
-		verify(streamPublisher).publish(100L);
-		verify(streamPublisher).publish(200L);
+		verify(eventPublisher).publish(100L);
+		verify(eventPublisher).publish(200L);
 		verify(outboxRepository, never()).deleteByAggregateId(100L);
 		verify(outboxRepository).deleteByAggregateId(200L);
 	}
@@ -74,7 +74,7 @@ class OutboxEventListenerTest {
 		listener.onOutboxSaved(event);
 
 		// then
-		verify(streamPublisher, never()).publish(anyLong());
+		verify(eventPublisher, never()).publish(anyLong());
 		verify(outboxRepository, never()).deleteByAggregateId(anyLong());
 	}
 }

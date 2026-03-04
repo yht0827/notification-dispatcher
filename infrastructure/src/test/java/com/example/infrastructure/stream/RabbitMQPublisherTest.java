@@ -20,13 +20,11 @@ class RabbitMQPublisherTest {
 	@Mock
 	private RabbitTemplate rabbitTemplate;
 
-	private NotificationRabbitProperties properties;
-
 	private RabbitMQPublisher publisher;
 
 	@BeforeEach
 	void setUp() {
-		properties = new NotificationRabbitProperties(
+		NotificationRabbitProperties properties = new NotificationRabbitProperties(
 			"notification.work",
 			"notification.work.exchange",
 			"notification.wait",

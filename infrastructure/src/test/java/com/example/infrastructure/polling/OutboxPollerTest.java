@@ -32,13 +32,13 @@ class OutboxPollerTest {
 	private OutboxRepository outboxRepository;
 
 	@Mock
-	private NotificationEventPublisher streamPublisher;
+	private NotificationEventPublisher eventPublisher;
 
 	private OutboxPoller outboxPoller;
 
 	@BeforeEach
 	void setUp() {
-		outboxPoller = new OutboxPoller(outboxRepository, streamPublisher, new OutboxProperties(BATCH_SIZE));
+		outboxPoller = new OutboxPoller(outboxRepository, eventPublisher, new OutboxProperties(BATCH_SIZE));
 	}
 
 	@Test
@@ -52,7 +52,7 @@ class OutboxPollerTest {
 		outboxPoller.pollAndPublish();
 
 		// then
-		verify(streamPublisher, never()).publish(anyLong());
+		verify(eventPublisher, never()).publish(anyLong());
 		verify(outboxRepository, never()).deleteAll(any());
 	}
 
@@ -70,8 +70,8 @@ class OutboxPollerTest {
 		outboxPoller.pollAndPublish();
 
 		// then
-		verify(streamPublisher).publish(100L);
-		verify(streamPublisher).publish(200L);
+		verify(eventPublisher).publish(100L);
+		verify(eventPublisher).publish(200L);
 		verify(outboxRepository).deleteAll(List.of(outbox1, outbox2));
 	}
 
@@ -87,9 +87,9 @@ class OutboxPollerTest {
 			.thenReturn(List.of(outbox1, outbox2, outbox3));
 
 		// outbox2 발행 실패
-		doNothing().when(streamPublisher).publish(100L);
-		doThrow(new RuntimeException("Redis connection failed")).when(streamPublisher).publish(200L);
-		doNothing().when(streamPublisher).publish(300L);
+		doNothing().when(eventPublisher).publish(100L);
+		doThrow(new RuntimeException("Redis connection failed")).when(eventPublisher).publish(200L);
+		doNothing().when(eventPublisher).publish(300L);
 
 		// when
 		outboxPoller.pollAndPublish();
@@ -106,7 +106,7 @@ class OutboxPollerTest {
 
 		when(outboxRepository.findByStatus(OutboxStatus.PENDING, BATCH_SIZE))
 			.thenReturn(List.of(outbox));
-		doThrow(new RuntimeException("Redis connection failed")).when(streamPublisher).publish(100L);
+		doThrow(new RuntimeException("Redis connection failed")).when(eventPublisher).publish(100L);
 
 		// when
 		outboxPoller.pollAndPublish();
@@ -139,7 +139,7 @@ class OutboxPollerTest {
 
 		when(outboxRepository.findByStatus(OutboxStatus.PENDING, BATCH_SIZE))
 			.thenReturn(List.of(outbox));
-		doThrow(new RuntimeException("Redis connection failed")).when(streamPublisher).publish(100L);
+		doThrow(new RuntimeException("Redis connection failed")).when(eventPublisher).publish(100L);
 
 		// when
 		outboxPoller.pollAndPublish();

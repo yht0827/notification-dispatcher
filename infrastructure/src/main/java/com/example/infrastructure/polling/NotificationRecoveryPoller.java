@@ -23,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 public class NotificationRecoveryPoller {
 
 	private final NotificationRepository notificationRepository;
-	private final NotificationEventPublisher streamPublisher;
+	private final NotificationEventPublisher eventPublisher;
 	private final RecoveryProperties recoveryProperties;
 
 	@Scheduled(fixedDelayString = "${recovery.poll-interval-millis:300000}")
@@ -56,7 +56,7 @@ public class NotificationRecoveryPoller {
 
 	private boolean publishIfPossible(Long notificationId) {
 		try {
-			streamPublisher.publish(notificationId);
+			eventPublisher.publish(notificationId);
 			return true;
 		} catch (Exception e) {
 			log.warn("Notification 복구 발행 실패: notificationId={}, reason={}",

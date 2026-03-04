@@ -21,7 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 @ConditionalOnProperty(name = NotificationRabbitConfig.STREAM_ENABLED_PROPERTY, havingValue = "true")
 public class OutboxEventListener {
 
-	private final NotificationEventPublisher streamPublisher;
+	private final NotificationEventPublisher eventPublisher;
 	private final OutboxRepository outboxRepository;
 
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -39,7 +39,7 @@ public class OutboxEventListener {
 
 	private boolean publishAndDeleteIfPossible(Long notificationId) {
 		try {
-			streamPublisher.publish(notificationId);
+			eventPublisher.publish(notificationId);
 			outboxRepository.deleteByAggregateId(notificationId);
 			return true;
 		} catch (Exception e) {

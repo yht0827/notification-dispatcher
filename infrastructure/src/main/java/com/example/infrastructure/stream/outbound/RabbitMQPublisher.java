@@ -1,11 +1,13 @@
 package com.example.infrastructure.stream.outbound;
 
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+
 import com.example.application.port.out.NotificationEventPublisher;
 import com.example.infrastructure.config.rabbitmq.NotificationRabbitProperties;
 import com.example.infrastructure.stream.payload.NotificationStreamPayload;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
 @Slf4j
 @RequiredArgsConstructor
