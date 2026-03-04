@@ -8,8 +8,8 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.example.application.port.out.NotificationEventPublisher;
-import com.example.application.port.out.repository.OutboxRepository;
 import com.example.application.port.out.event.OutboxSavedEvent;
+import com.example.application.port.out.repository.OutboxRepository;
 import com.example.infrastructure.config.rabbitmq.RabbitPropertyKeys;
 
 import lombok.RequiredArgsConstructor;
@@ -39,10 +39,14 @@ public class OutboxEventListener {
 
 	private boolean publishAndDeleteIfPossible(Long notificationId) {
 		try {
+			// 메시지 발행 시도
 			eventPublisher.publish(notificationId);
+
+			// 발행 성공 시에만 Outbox 삭제
 			outboxRepository.deleteByAggregateId(notificationId);
 			return true;
 		} catch (Exception e) {
+			// 발행 실패 → Outbox 유지
 			log.debug("즉시 발행 실패(재시도 예정): notificationId={}, reason={}",
 				notificationId, e.getMessage());
 			return false;

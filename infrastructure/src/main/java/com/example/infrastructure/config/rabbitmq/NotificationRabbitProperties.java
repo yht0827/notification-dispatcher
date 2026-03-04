@@ -4,15 +4,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "notification.rabbitmq")
 public record NotificationRabbitProperties(
-	String workQueue,
-	String workExchange,
-	String waitQueue,
-	String dlqQueue,
-	String dlqExchange,
-	int maxRetryCount,
-	int retryBaseDelayMillis,
-	int concurrency,
-	int maxConcurrency
+	String workQueue,              // "notification.work"
+	String workExchange,           // "notification.work.exchange"
+	String waitQueue,              // "notification.wait"
+	String dlqQueue,               // "notification.dlq"
+	String dlqExchange,            // "notification.dlq.exchange"
+	int maxRetryCount,             // 최대 3회
+	int retryBaseDelayMillis,      // 기본 5000ms
+	int concurrency,               // 초기 1
+	int maxConcurrency             // 최대 10
 ) {
 
 	private static final int DEFAULT_MAX_RETRY_COUNT = 3;
@@ -30,10 +30,11 @@ public record NotificationRabbitProperties(
 		return retryBaseDelayMillis > 0 ? retryBaseDelayMillis : DEFAULT_RETRY_BASE_DELAY_MILLIS;
 	}
 
+	// 지수 백오프 계산
 	public long calculateRetryDelayMillis(int retryCount) {
 		int normalizedRetryCount = Math.max(retryCount, 0);
 		int cappedShift = Math.min(normalizedRetryCount, MAX_RETRY_BACKOFF_SHIFT);
-		return (long)resolveRetryBaseDelayMillis() * (1L << cappedShift);
+		return (long)resolveRetryBaseDelayMillis() * (1L << cappedShift);  // = 5000 * 2^retryCount
 	}
 
 	public int resolveConcurrency() {

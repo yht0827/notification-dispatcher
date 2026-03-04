@@ -4,10 +4,10 @@ import java.time.OffsetDateTime;
 import java.util.Objects;
 
 public record NotificationDeadLetterPayload(
-	String recordId,
-	String notificationId,
-	String payload,
-	String reason,
+	String recordId,  // 원본 메시지 ID
+	String notificationId, // 알림 ID
+	String payload,  // 원본 페이로드
+	String reason, // 실패 사유
 	String failedAt
 ) {
 	private static final String DEFAULT_SOURCE_RECORD_ID = "n/a";

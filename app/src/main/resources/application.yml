@@ -83,13 +83,13 @@ management:
 # Outbox / Recovery
 # ─────────────────────────────────────────
 outbox:
-  poll-interval-millis: 1000
-  batch-size: 200
+  poll-interval-millis: 1000        # 1초마다 폴링
+  batch-size: 200                   # 1회당 200개씩 처리
 
 recovery:
-  batch-size: 100
-  threshold-minutes: 5
-  poll-interval-millis: 300000   # 5분
+  poll-interval-millis: 300000      # 5분마다 폴링
+  threshold-minutes: 5              # 5분 이상 PENDING이면 복구
+  batch-size: 100                   # 1회당 100개씩 처리
 
 ---
 # ─────────────────────────────────────────
@@ -132,15 +132,15 @@ spring:
 
 notification:
   rabbitmq:
-    work-queue: notification.work
-    work-exchange: notification.work.exchange
-    wait-queue: notification.wait
-    dlq-queue: notification.dlq
-    dlq-exchange: notification.dlq.exchange
-    max-retry-count: 3
-    retry-base-delay-millis: 5000
-    concurrency: 1
-    max-concurrency: 10
+    work-queue: notification.work          # Work 큐 이름
+    work-exchange: notification.work.exchange  # Work Exchange
+    wait-queue: notification.wait          # Wait 큐 이름
+    dlq-queue: notification.dlq            # DLQ 큐 이름
+    dlq-exchange: notification.dlq.exchange    # DLQ Exchange
+    max-retry-count: 3                     # 최대 재시도 횟수
+    retry-base-delay-millis: 5000          # 기본 재시도 지연 (ms)
+    concurrency: 1                         # 초기 동시 처리 스레드
+    max-concurrency: 10                    # 최대 동시 처리 스레드
   external:
     mock:
       enabled: true

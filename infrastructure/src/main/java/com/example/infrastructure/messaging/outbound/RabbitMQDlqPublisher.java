@@ -18,6 +18,7 @@ public class RabbitMQDlqPublisher implements DeadLetterPublisher {
 
 	@Override
 	public void publish(String sourceRecordId, Object payload, Long notificationId, String reason) {
+		// NotificationDeadLetterPayload 생성
 		NotificationDeadLetterPayload dlqPayload = NotificationDeadLetterPayload.from(
 			sourceRecordId,
 			payload,
@@ -25,7 +26,11 @@ public class RabbitMQDlqPublisher implements DeadLetterPublisher {
 			reason
 		);
 
-		rabbitTemplate.convertAndSend(properties.dlqExchange(), "", dlqPayload);
+		// dlq.exchange (Fanout)로 발행
+		rabbitTemplate.convertAndSend(
+			properties.dlqExchange(),
+			"", // 라우팅 키 무시 (Fanout)
+			dlqPayload);
 		log.warn("DLQ 발행: sourceRecordId={}, notificationId={}, reason={}",
 			dlqPayload.recordId(), dlqPayload.notificationId(), dlqPayload.reason());
 	}

@@ -65,13 +65,13 @@ public class NotificationRabbitConfig {
 		factory.setConnectionFactory(cf);
 		factory.setMessageConverter(mc);
 		factory.setAcknowledgeMode(AcknowledgeMode.MANUAL);
-		factory.setConcurrentConsumers(p.resolveConcurrency());
-		factory.setMaxConcurrentConsumers(p.resolveMaxConcurrency());
+		factory.setConcurrentConsumers(p.resolveConcurrency()); // 초기 스레드 풀 크기
+		factory.setMaxConcurrentConsumers(p.resolveMaxConcurrency()); // 최대 스레드 풀 크기
 		factory.setPrefetchCount(p.resolvePrefetchCount());
 		return factory;
 	}
 
-	// Exchanges
+	// 기본 작업 Exchanges
 	@Bean
 	public DirectExchange workExchange(NotificationRabbitProperties p) {
 		return ExchangeBuilder
@@ -80,6 +80,7 @@ public class NotificationRabbitConfig {
 			.build();
 	}
 
+	// 재시도 대기 Exchanges
 	@Bean
 	public DirectExchange waitExchange(NotificationRabbitProperties p) {
 		return ExchangeBuilder
@@ -88,6 +89,7 @@ public class NotificationRabbitConfig {
 			.build();
 	}
 
+	// Dead Letter Exchanges
 	@Bean
 	public FanoutExchange dlqExchange(NotificationRabbitProperties p) {
 		return ExchangeBuilder
@@ -121,7 +123,7 @@ public class NotificationRabbitConfig {
 			.build();
 	}
 
-	// Bindings
+	// workQueue ← workExchange (key: notification.work)
 	@Bean
 	public Binding workBinding(
 		Queue workQueue,
@@ -134,6 +136,7 @@ public class NotificationRabbitConfig {
 			.with(p.workRoutingKey());
 	}
 
+	// waitQueue ← waitExchange (key: notification.wait)
 	@Bean
 	public Binding waitBinding(
 		Queue waitQueue,
@@ -146,6 +149,7 @@ public class NotificationRabbitConfig {
 			.with(p.waitRoutingKey());
 	}
 
+	// dlqQueue ← dlqExchange (fanout)
 	@Bean
 	public Binding dlqBinding(
 		Queue dlqQueue,

@@ -18,7 +18,10 @@ public class RabbitMQPublisher implements NotificationEventPublisher {
 
 	@Override
 	public void publish(Long notificationId) {
+		// NotificationMessagePayload 생성
 		NotificationMessagePayload payload = new NotificationMessagePayload(notificationId);
+
+		// work.exchange로 발행
 		rabbitTemplate.convertAndSend(properties.workExchange(), properties.workRoutingKey(), payload);
 		log.info("RabbitMQ 발행: notificationId={}", notificationId);
 	}

@@ -37,30 +37,30 @@ public class RabbitMQConsumer {
 		int retryCount = 0;
 
 		try {
+			// 성공
 			notiId = validatePayload(payload);
-
 			retryCount = payload.getRetryCount();
-
 			recordHandler.process(notiId, retryCount);
-
 			channel.basicAck(deliveryTag, false);
 
 			log.debug("메시지 ACK 완료: notificationId={}, retryCount={}", notiId, retryCount);
 		} catch (NonRetryableMessageException e) {
+			// 비 재시도 오류 → DLQ
 			publishToDeadLetter(sourceRecordId, payload, notiId, e.getMessage());
-
 			channel.basicAck(deliveryTag, false);
 
 			log.warn("재시도 불필요 메시지 DLQ 전송: notificationId={}, reason={}", notiId, e.getMessage());
 		} catch (RetryableMessageException e) {
+			// 재시도 필요 → Wait 큐
 			publishToWait(notiId, retryCount, e.getMessage());
-
 			channel.basicAck(deliveryTag, false);
 
 			log.info("WAIT 큐 이동: notificationId={}, retryCount={}, reason={}", notiId, retryCount, e.getMessage());
 		} catch (RuntimeException e) {
+			// 예상 외 오류 → Nack (DLQ 자동 이동)
 			log.error("예상치 못한 예외: notificationId={}, reason={}", notiId, e.getMessage(), e);
 			channel.basicNack(deliveryTag, false, false);
+			// false=requeue하지 않음 → x-dead-letter-exchange로 라우팅
 		}
 	}
 

@@ -106,12 +106,22 @@ public class RabbitMQRecordHandler {
 		NotificationDispatchResult dispatchResult) {
 		String failureReason = normalizeReason(dispatchResult.failReason());
 		if (dispatchResult.isNonRetryableFailure()) {
-			return toNonRetryableAfterMarkFailed(notificationId, failureReason, "재시도 불가 발송 실패: " + failureReason, null);
+			return toNonRetryableAfterMarkFailed(
+				notificationId,
+				failureReason,
+				"재시도 불가 발송 실패: " + failureReason,
+				null);
 		}
 
 		if (retryCount >= properties.resolveMaxRetryCount()) {
-			return toNonRetryableAfterMarkFailed(notificationId, failureReason, "재시도 한도 초과: " + failureReason, null);
+			// 재시도 한도 초과 → NonRetryable로 변환 → DLQ
+			return toNonRetryableAfterMarkFailed(
+				notificationId,
+				failureReason,
+				"재시도 한도 초과: " + failureReason,
+				null);
 		}
+		// Wait 큐로 이동
 		return new RetryableMessageException("알림 발송 실패: " + failureReason);
 	}
 
