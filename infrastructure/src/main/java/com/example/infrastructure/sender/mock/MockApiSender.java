@@ -29,28 +29,27 @@ public class MockApiSender {
 		}
 
 		try {
-			SendResult result = mockApiCaller.call(MockApiSendRequest.from(notification, channelType));
-			return result;
+			return mockApiCaller.call(MockApiSendRequest.from(notification, channelType));
 		} catch (MockApiNonRetryableException e) {
 			log.debug("mock API 예외(재시도 불가) 매핑: notificationId={}, channel={}, reason={}",
 				notification.getId(), channelType, e.getMessage());
-			return failNonRetryable(notification.getId(), channelType, e.getMessage());
+			return failNonRetryable(e.getMessage());
 		} catch (MockApiRetryableException e) {
 			log.debug("mock API 예외(재시도 가능) 매핑: notificationId={}, channel={}, reason={}",
 				notification.getId(), channelType, e.getMessage());
-			return failRetryable(notification.getId(), channelType, e.getMessage());
+			return failRetryable(e.getMessage());
 		} catch (RuntimeException e) {
 			log.debug("mock API 예외(기타) 매핑: notificationId={}, channel={}, reason={}",
 				notification.getId(), channelType, e.getMessage());
-			return failRetryable(notification.getId(), channelType, "알 수 없는 오류: " + e.getMessage());
+			return failRetryable("알 수 없는 오류: " + e.getMessage());
 		}
 	}
 
-	private SendResult failRetryable(Long notificationId, ChannelType channelType, String reason) {
+	private SendResult failRetryable(String reason) {
 		return SendResult.failRetryable(reason);
 	}
 
-	private SendResult failNonRetryable(Long notificationId, ChannelType channelType, String reason) {
+	private SendResult failNonRetryable(String reason) {
 		return SendResult.failNonRetryable(reason);
 	}
 }
