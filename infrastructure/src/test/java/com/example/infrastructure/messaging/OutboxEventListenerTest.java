@@ -11,7 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.example.application.port.out.OutboxRepository;
+import com.example.application.port.out.repository.OutboxRepository;
 import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.event.OutboxSavedEvent;
 

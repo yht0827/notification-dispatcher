@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import com.example.application.port.out.NotificationEventPublisher;
-import com.example.application.port.out.NotificationRepository;
+import com.example.application.port.out.repository.NotificationRepository;
 import com.example.infrastructure.config.rabbitmq.NotificationRabbitConfig;
 
 @Configuration

@@ -2,7 +2,7 @@ package com.example.infrastructure.sender;
 
 import org.springframework.stereotype.Component;
 
-import com.example.application.port.out.NotificationSender.SendResult;
+import com.example.application.port.out.result.SendResult;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
 import com.example.infrastructure.sender.mock.MockApiSender;

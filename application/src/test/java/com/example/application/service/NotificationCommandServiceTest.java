@@ -17,13 +17,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
+import com.example.application.mapper.NotificationCommandResultMapper;
+import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
-import com.example.application.port.in.NotificationCommandUseCase.SendCommand;
-import com.example.application.port.out.NotificationGroupRepository;
-import com.example.application.port.out.OutboxRepository;
+import com.example.application.port.out.repository.NotificationGroupRepository;
+import com.example.application.port.out.repository.OutboxRepository;
 import com.example.application.port.out.event.OutboxSavedEvent;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.NotificationGroup;
@@ -39,6 +41,9 @@ class NotificationCommandServiceTest {
 
 	@Mock
 	private ApplicationEventPublisher eventPublisher;
+
+	@Spy
+	private NotificationCommandResultMapper resultMapper;
 
 	@InjectMocks
 	private NotificationCommandService commandService;

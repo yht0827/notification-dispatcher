@@ -2,7 +2,7 @@ package com.example.api.dto.response;
 
 import java.util.List;
 
-import com.example.application.port.in.NotificationGroupSlice;
+import com.example.application.port.in.result.CursorSlice;
 import com.example.application.port.in.result.NotificationListResult;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -18,7 +18,7 @@ public record NotificationListSliceResponse(
 	@Schema(description = "다음 요청용 커서 ID", example = "123")
 	Long nextCursorId
 ) {
-	public static NotificationListSliceResponse from(NotificationGroupSlice<NotificationListResult> slice) {
+	public static NotificationListSliceResponse from(CursorSlice<NotificationListResult> slice) {
 		List<NotificationListResponse> items = slice.items().stream()
 			.map(NotificationListResponse::from)
 			.toList();

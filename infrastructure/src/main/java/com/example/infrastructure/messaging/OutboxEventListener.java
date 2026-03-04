@@ -8,7 +8,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.example.application.port.out.NotificationEventPublisher;
-import com.example.application.port.out.OutboxRepository;
+import com.example.application.port.out.repository.OutboxRepository;
 import com.example.application.port.out.event.OutboxSavedEvent;
 import com.example.infrastructure.config.rabbitmq.NotificationRabbitConfig;
 

@@ -16,9 +16,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.example.application.port.in.result.NotificationDispatchResult;
-import com.example.application.port.out.NotificationRepository;
+import com.example.application.port.out.repository.NotificationRepository;
 import com.example.application.port.out.NotificationSender;
-import com.example.application.port.out.NotificationSender.SendResult;
+import com.example.application.port.out.result.SendResult;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;

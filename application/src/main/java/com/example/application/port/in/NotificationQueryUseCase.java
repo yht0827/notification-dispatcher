@@ -3,6 +3,7 @@ package com.example.application.port.in;
 import java.util.List;
 import java.util.Optional;
 
+import com.example.application.port.in.result.CursorSlice;
 import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.application.port.in.result.NotificationListResult;
@@ -14,9 +15,9 @@ public interface NotificationQueryUseCase {
 
 	Optional<NotificationGroupDetailResult> getGroupDetail(Long groupId);
 
-	NotificationGroupSlice<NotificationListResult> getRecentGroups(Long cursorId, int size);
+	CursorSlice<NotificationListResult> getRecentGroups(Long cursorId, int size);
 
-	NotificationGroupSlice<NotificationGroupResult> getGroupsByClientId(String clientId, Long cursorId, int size);
+	CursorSlice<NotificationGroupResult> getGroupsByClientId(String clientId, Long cursorId, int size);
 
 	Optional<NotificationResult> getNotification(Long notificationId);
 

@@ -24,7 +24,7 @@ import org.springframework.context.annotation.Configuration;
 import com.example.application.port.in.NotificationDispatchUseCase;
 import com.example.application.port.out.DispatchLockManager;
 import com.example.application.port.out.NotificationEventPublisher;
-import com.example.application.port.out.NotificationRepository;
+import com.example.application.port.out.repository.NotificationRepository;
 import com.example.infrastructure.messaging.inbound.RabbitMQConsumer;
 import com.example.infrastructure.messaging.inbound.RabbitMQRecordHandler;
 import com.example.infrastructure.messaging.outbound.RabbitMQDlqPublisher;

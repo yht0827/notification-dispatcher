@@ -9,9 +9,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.example.application.port.in.NotificationCommandUseCase;
-import com.example.application.port.in.NotificationCommandUseCase.SendCommand;
+import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
-import com.example.application.port.out.NotificationGroupRepository;
+import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.NotificationGroup;
 import com.example.infrastructure.support.IntegrationTestSupport;

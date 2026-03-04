@@ -7,7 +7,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.example.application.port.in.NotificationGroupSlice;
+import com.example.application.port.in.result.CursorSlice;
 import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationItemResult;
 import com.example.application.port.in.result.NotificationListResult;
@@ -88,7 +88,7 @@ class NotificationBundleResponseTest {
 			0
 		);
 
-		NotificationGroupSlice<NotificationListResult> slice = new NotificationGroupSlice<>(
+		CursorSlice<NotificationListResult> slice = new CursorSlice<>(
 			List.of(group),
 			true,
 			99L

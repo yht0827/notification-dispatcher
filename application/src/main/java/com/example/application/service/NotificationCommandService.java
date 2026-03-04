@@ -7,11 +7,13 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.application.mapper.NotificationCommandResultMapper;
 import com.example.application.port.in.NotificationCommandUseCase;
+import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
-import com.example.application.port.out.NotificationGroupRepository;
-import com.example.application.port.out.OutboxRepository;
 import com.example.application.port.out.event.OutboxSavedEvent;
+import com.example.application.port.out.repository.NotificationGroupRepository;
+import com.example.application.port.out.repository.OutboxRepository;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
 import com.example.domain.outbox.Outbox;
@@ -27,11 +29,13 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 	private final NotificationGroupRepository groupRepository;
 	private final OutboxRepository outboxRepository;
 	private final ApplicationEventPublisher eventPublisher;
+	private final NotificationCommandResultMapper resultMapper;
 
 	@Override
 	@Transactional
 	public NotificationCommandResult request(SendCommand command) {
 
+		// 멱등성 키 조회
 		String idempotencyKey = normalizeIdempotencyKey(command.idempotencyKey());
 		if (idempotencyKey != null) {
 			Optional<NotificationGroup> existing =
@@ -39,7 +43,7 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 
 			if (existing.isPresent()) {
 				log.info("중복 요청 감지: groupId={}", existing.get().getId());
-				return toRequestResult(existing.get());
+				return resultMapper.toResult(existing.get());
 			}
 		}
 		return createAndPublish(command, idempotencyKey);
@@ -54,7 +58,7 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 
 		// Outbox 저장
 		saveOutboxEvents(savedGroup);
-		return toRequestResult(savedGroup);
+		return resultMapper.toResult(savedGroup);
 	}
 
 	private void saveOutboxEvents(NotificationGroup savedGroup) {
@@ -94,9 +98,5 @@ public class NotificationCommandService implements NotificationCommandUseCase {
 
 		String normalized = idempotencyKey.trim();
 		return normalized.isBlank() ? null : normalized;
-	}
-
-	private NotificationCommandResult toRequestResult(NotificationGroup group) {
-		return new NotificationCommandResult(group.getId(), group.getTotalCount());
 	}
 }

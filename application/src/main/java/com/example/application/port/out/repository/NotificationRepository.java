@@ -1,4 +1,4 @@
-package com.example.application.port.out;
+package com.example.application.port.out.repository;
 
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationStatus;

@@ -1,7 +1,7 @@
 package com.example.infrastructure.repository;
 
-import com.example.application.port.out.NotificationGroupRepository;
-import com.example.application.port.out.NotificationRepository;
+import com.example.application.port.out.repository.NotificationGroupRepository;
+import com.example.application.port.out.repository.NotificationRepository;
 import com.example.domain.notification.*;
 import com.example.infrastructure.support.IntegrationTestSupport;
 import org.hibernate.Hibernate;

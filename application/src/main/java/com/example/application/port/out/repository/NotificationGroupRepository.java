@@ -1,4 +1,4 @@
-package com.example.application.port.out;
+package com.example.application.port.out.repository;
 
 import com.example.domain.notification.GroupType;
 import com.example.domain.notification.NotificationGroup;

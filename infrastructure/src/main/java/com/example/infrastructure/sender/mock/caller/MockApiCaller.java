@@ -2,7 +2,7 @@ package com.example.infrastructure.sender.mock.caller;
 
 import org.springframework.stereotype.Component;
 
-import com.example.application.port.out.NotificationSender.SendResult;
+import com.example.application.port.out.result.SendResult;
 import com.example.infrastructure.sender.mock.dto.MockApiSendRequest;
 import com.example.infrastructure.sender.mock.dto.MockApiSendSuccessResponse;
 import com.example.infrastructure.sender.mock.exception.MockApiRetryableException;

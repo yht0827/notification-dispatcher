@@ -16,7 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.example.application.port.in.NotificationDispatchUseCase;
 import com.example.application.port.in.result.NotificationDispatchResult;
 import com.example.application.port.out.DispatchLockManager;
-import com.example.application.port.out.NotificationRepository;
+import com.example.application.port.out.repository.NotificationRepository;
 import com.example.domain.exception.InvalidStatusTransitionException;
 import com.example.domain.exception.UnsupportedChannelException;
 import com.example.domain.notification.ChannelType;

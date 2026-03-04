@@ -7,14 +7,15 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.application.port.in.NotificationGroupSlice;
+import com.example.application.mapper.NotificationResultMapper;
 import com.example.application.port.in.NotificationQueryUseCase;
+import com.example.application.port.in.result.CursorSlice;
 import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.application.port.in.result.NotificationListResult;
 import com.example.application.port.in.result.NotificationResult;
-import com.example.application.port.out.NotificationGroupRepository;
-import com.example.application.port.out.NotificationRepository;
+import com.example.application.port.out.repository.NotificationGroupRepository;
+import com.example.application.port.out.repository.NotificationRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -38,26 +39,26 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 	}
 
 	@Override
-	public NotificationGroupSlice<NotificationListResult> getRecentGroups(Long cursorId, int size) {
-		int limit = Math.max(size, 1);
+	public CursorSlice<NotificationListResult> getRecentGroups(Long cursorId, int size) {
+		int limit = normalizeSize(size);
 		List<NotificationListResult> fetched = groupRepository.findRecentByCursor(cursorId, limit + 1)
 			.stream()
 			.map(mapper::toListResult)
 			.toList();
-		return NotificationGroupSlice.of(fetched, limit, NotificationListResult::groupId);
+		return CursorSlice.of(fetched, limit, NotificationListResult::groupId);
 	}
 
 	@Override
-	public NotificationGroupSlice<NotificationGroupResult> getGroupsByClientId(String clientId, Long cursorId,
+	public CursorSlice<NotificationGroupResult> getGroupsByClientId(String clientId, Long cursorId,
 		int size) {
-		int limit = Math.max(size, 1);
+		int limit = normalizeSize(size);
 		LocalDateTime from = LocalDateTime.now().minusDays(7);
 		List<NotificationGroupResult> fetched = groupRepository.findByClientIdWithCursor(clientId, from, cursorId,
 				limit + 1)
 			.stream()
 			.map(mapper::toGroupResult)
 			.toList();
-		return NotificationGroupSlice.of(fetched, limit, NotificationGroupResult::id);
+		return CursorSlice.of(fetched, limit, NotificationGroupResult::id);
 	}
 
 	@Override
@@ -71,5 +72,9 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 			.stream()
 			.map(mapper::toNotificationResult)
 			.toList();
+	}
+
+	private int normalizeSize(int size) {
+		return Math.max(size, 1);
 	}
 }

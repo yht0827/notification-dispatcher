@@ -6,7 +6,7 @@ import java.util.List;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import com.example.application.port.out.NotificationEventPublisher;
-import com.example.application.port.out.NotificationRepository;
+import com.example.application.port.out.repository.NotificationRepository;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationStatus;
 

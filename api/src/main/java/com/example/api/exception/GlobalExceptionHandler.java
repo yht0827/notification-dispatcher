@@ -12,8 +12,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import com.example.api.dto.response.ApiResponse;
 import com.example.api.dto.response.ErrorResponse;
-import com.example.api.response.ApiResponse;
 
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +36,7 @@ public class GlobalExceptionHandler {
 		log.warn("ValidationException: {}", e.getMessage());
 		return ResponseEntity
 			.badRequest()
-			.body(ErrorResponse.of(ErrorCode.INVALID_REQUEST.name(), "입력값이 올바르지 않습니다.",
+			.body(ErrorResponse.of(ErrorCode.INVALID_REQUEST.name(), ErrorCode.INVALID_REQUEST.getMessage(),
 				extractFieldErrors(e.getBindingResult())));
 	}
 
@@ -45,7 +45,7 @@ public class GlobalExceptionHandler {
 		log.warn("BindException: {}", e.getMessage());
 		return ResponseEntity
 			.badRequest()
-			.body(ErrorResponse.of(ErrorCode.INVALID_REQUEST.name(), "입력값이 올바르지 않습니다.",
+			.body(ErrorResponse.of(ErrorCode.INVALID_REQUEST.name(), ErrorCode.INVALID_REQUEST.getMessage(),
 				extractFieldErrors(e.getBindingResult())));
 	}
 
@@ -59,7 +59,7 @@ public class GlobalExceptionHandler {
 
 		return ResponseEntity
 			.badRequest()
-			.body(ErrorResponse.of(ErrorCode.INVALID_REQUEST.name(), "입력 데이터 타입이 올바르지 않습니다.",
+			.body(ErrorResponse.of(ErrorCode.INVALID_REQUEST.name(), ErrorCode.INVALID_REQUEST.getMessage(),
 				List.of(new ErrorResponse.FieldError(field, message))));
 	}
 
@@ -68,7 +68,7 @@ public class GlobalExceptionHandler {
 		log.warn("HttpMessageNotReadableException: {}", e.getMessage());
 		return ResponseEntity
 			.badRequest()
-			.body(ErrorResponse.of(ErrorCode.INVALID_REQUEST.name(), "요청 본문을 읽을 수 없거나 형식이 올바르지 않습니다."));
+			.body(ErrorResponse.of(ErrorCode.INVALID_REQUEST.name(), ErrorCode.INVALID_REQUEST.getMessage()));
 	}
 
 	@ExceptionHandler(HandlerMethodValidationException.class)
@@ -76,7 +76,7 @@ public class GlobalExceptionHandler {
 		log.warn("HandlerMethodValidationException: {}", e.getMessage());
 		return ResponseEntity
 			.badRequest()
-			.body(ErrorResponse.of(ErrorCode.INVALID_REQUEST.name(), "입력값이 올바르지 않습니다."));
+			.body(ErrorResponse.of(ErrorCode.INVALID_REQUEST.name(), ErrorCode.INVALID_REQUEST.getMessage()));
 	}
 
 	@ExceptionHandler(ConstraintViolationException.class)
@@ -84,7 +84,7 @@ public class GlobalExceptionHandler {
 		log.warn("ConstraintViolationException: {}", e.getMessage());
 		return ResponseEntity
 			.badRequest()
-			.body(ErrorResponse.of(ErrorCode.INVALID_REQUEST.name(), "입력값이 올바르지 않습니다."));
+			.body(ErrorResponse.of(ErrorCode.INVALID_REQUEST.name(), ErrorCode.INVALID_REQUEST.getMessage()));
 	}
 
 	@ExceptionHandler(Exception.class)

@@ -1,4 +1,4 @@
-package com.example.application.port.out;
+package com.example.application.port.out.repository;
 
 import java.util.List;
 

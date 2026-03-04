@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.application.port.out.NotificationEventPublisher;
-import com.example.application.port.out.OutboxRepository;
+import com.example.application.port.out.repository.OutboxRepository;
 import com.example.domain.outbox.Outbox;
 import com.example.domain.outbox.OutboxStatus;
 import com.example.infrastructure.config.rabbitmq.NotificationRabbitConfig;

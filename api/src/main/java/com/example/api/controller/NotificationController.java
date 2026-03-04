@@ -22,13 +22,13 @@ import com.example.api.dto.response.NotificationGroupSliceResponse;
 import com.example.api.dto.response.NotificationListSliceResponse;
 import com.example.api.dto.response.NotificationResponse;
 import com.example.api.dto.response.NotificationSendResponse;
+import com.example.api.dto.response.ApiResponse;
 import com.example.api.exception.ErrorCode;
 import com.example.api.exception.NotificationException;
+import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.NotificationCommandUseCase;
-import com.example.application.port.in.NotificationCommandUseCase.SendCommand;
 import com.example.application.port.in.NotificationQueryUseCase;
 import com.example.application.port.in.result.NotificationCommandResult;
-import com.example.api.response.ApiResponse;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

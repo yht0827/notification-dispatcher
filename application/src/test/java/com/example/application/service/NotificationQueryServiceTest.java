@@ -15,11 +15,12 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.example.application.port.in.NotificationGroupSlice;
+import com.example.application.mapper.NotificationResultMapper;
+import com.example.application.port.in.result.CursorSlice;
 import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.application.port.in.result.NotificationListResult;
-import com.example.application.port.out.NotificationGroupRepository;
-import com.example.application.port.out.NotificationRepository;
+import com.example.application.port.out.repository.NotificationGroupRepository;
+import com.example.application.port.out.repository.NotificationRepository;
 import com.example.domain.notification.NotificationGroup;
 
 @ExtendWith(MockitoExtension.class)
@@ -50,7 +51,7 @@ class NotificationQueryServiceTest {
 		when(groupRepository.findRecentByCursor(null, 3)).thenReturn(List.of(first, second, third));
 
 		// when
-		NotificationGroupSlice<NotificationListResult> slice = queryService.getRecentGroups(null, 2);
+		CursorSlice<NotificationListResult> slice = queryService.getRecentGroups(null, 2);
 
 		// then
 		assertThat(slice.items()).hasSize(2);
@@ -69,7 +70,7 @@ class NotificationQueryServiceTest {
 		when(groupRepository.findRecentByCursor(50L, 3)).thenReturn(List.of(only));
 
 		// when
-		NotificationGroupSlice<NotificationListResult> slice = queryService.getRecentGroups(50L, 2);
+		CursorSlice<NotificationListResult> slice = queryService.getRecentGroups(50L, 2);
 
 		// then
 		assertThat(slice.items()).hasSize(1);
@@ -95,7 +96,7 @@ class NotificationQueryServiceTest {
 		)).thenReturn(List.of(first, second, third));
 
 		// when
-		NotificationGroupSlice<NotificationGroupResult> slice =
+		CursorSlice<NotificationGroupResult> slice =
 			queryService.getGroupsByClientId("order-service", null, 2);
 
 		// then
@@ -119,7 +120,7 @@ class NotificationQueryServiceTest {
 		)).thenReturn(List.of(only));
 
 		// when
-		NotificationGroupSlice<NotificationGroupResult> slice =
+		CursorSlice<NotificationGroupResult> slice =
 			queryService.getGroupsByClientId("order-service", 50L, 2);
 
 		// then
