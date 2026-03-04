@@ -38,6 +38,7 @@ feign:
 # ─────────────────────────────────────────
 resilience4j:
   retry:
+    retry-aspect-order: 2
     instances:
       mockApi:
         max-attempts: 3
@@ -49,6 +50,7 @@ resilience4j:
         ignore-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiNonRetryableException
   circuitbreaker:
+    circuit-breaker-aspect-order: 1
     instances:
       mockApi:
         sliding-window-size: 20

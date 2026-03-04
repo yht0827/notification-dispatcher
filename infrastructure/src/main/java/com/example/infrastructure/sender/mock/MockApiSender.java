@@ -18,30 +18,25 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @RequiredArgsConstructor
 public class MockApiSender {
-
 	private final MockApiCaller mockApiCaller;
 	private final MockApiProperties properties;
 
-	public SendResult send(Notification notification, ChannelType channelType) {
+	public SendResult send(Notification n, ChannelType channelType) {
 		if (!properties.isEnabled()) {
-			log.debug("mock API 비활성화: notificationId={}", notification.getId());
+			log.debug("mock API 비활성화: notificationId={}", n.getId());
 			return SendResult.success();
 		}
 
 		try {
-			return mockApiCaller.call(MockApiSendRequest.from(notification, channelType));
+			return mockApiCaller.call(MockApiSendRequest.from(n, channelType));
 		} catch (MockApiNonRetryableException e) {
-			log.debug("mock API 예외(재시도 불가) 매핑: notificationId={}, channel={}, reason={}",
-				notification.getId(), channelType, e.getMessage());
+			log.debug("mock API 예외(재시도 불가) 매핑: notificationId={}, channel={}, reason={}", n.getId(), channelType,
+				e.getMessage());
 			return failNonRetryable(e.getMessage());
 		} catch (MockApiRetryableException e) {
-			log.debug("mock API 예외(재시도 가능) 매핑: notificationId={}, channel={}, reason={}",
-				notification.getId(), channelType, e.getMessage());
+			log.debug("mock API 예외(재시도 가능) 매핑: notificationId={}, channel={}, reason={}", n.getId(), channelType,
+				e.getMessage());
 			return failRetryable(e.getMessage());
-		} catch (RuntimeException e) {
-			log.debug("mock API 예외(기타) 매핑: notificationId={}, channel={}, reason={}",
-				notification.getId(), channelType, e.getMessage());
-			return failRetryable("알 수 없는 오류: " + e.getMessage());
 		}
 	}
 

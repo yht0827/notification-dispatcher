@@ -75,17 +75,17 @@ class MockApiSenderTest {
 	}
 
 	@Test
-	@DisplayName("예상치 못한 예외는 retryable 실패로 변환한다")
-	void send_returnsRetryableFailureWhenUnexpectedExceptionThrown() {
+	@DisplayName("caller에서 정규화된 retryable 예외는 retryable 실패로 변환한다")
+	void send_returnsRetryableFailureForNormalizedCallerException() {
 		when(properties.isEnabled()).thenReturn(true);
 		when(mockApiCaller.call(any(MockApiSendRequest.class)))
-			.thenThrow(new IllegalStateException("boom"));
+			.thenThrow(new MockApiRetryableException("외부 API 호출 오류: boom"));
 
 		SendResult result = mockApiSender.send(createNotification(), ChannelType.EMAIL);
 
 		assertThat(result.isFailure()).isTrue();
 		assertThat(result.isRetryableFailure()).isTrue();
-		assertThat(result.failReason()).contains("알 수 없는 오류");
+		assertThat(result.failReason()).contains("외부 API 호출 오류");
 	}
 
 	private Notification createNotification() {

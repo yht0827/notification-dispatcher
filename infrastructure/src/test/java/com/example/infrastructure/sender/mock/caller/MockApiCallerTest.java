@@ -86,4 +86,15 @@ class MockApiCallerTest {
 			.isInstanceOf(MockApiRetryableException.class)
 			.hasMessageContaining("네트워크/타임아웃 오류");
 	}
+
+	@Test
+	@DisplayName("예상치 못한 런타임 예외도 retryable 예외로 정규화한다")
+	void call_wrapsUnexpectedRuntimeAsRetryable() {
+		MockApiSendRequest request = new MockApiSendRequest("req-runtime", "EMAIL", "user@example.com", "hello", null);
+		when(mockApiClient.send(request)).thenThrow(new IllegalStateException("boom"));
+
+		assertThatThrownBy(() -> mockApiCaller.call(request))
+			.isInstanceOf(MockApiRetryableException.class)
+			.hasMessageContaining("외부 API 호출 오류");
+	}
 }
