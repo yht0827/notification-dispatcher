@@ -102,8 +102,8 @@ spring:
   rabbitmq:
     host: localhost
     port: 5672
-    username: application
-    password: application
+    username: ${RABBITMQ_USER:application}
+    password: ${RABBITMQ_PASSWORD:application}
   datasource:
     url: jdbc:mysql://localhost:3306/notification?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
     username: application
