@@ -19,6 +19,8 @@ public record NotificationRabbitProperties(
 	private static final int DEFAULT_RETRY_BASE_DELAY_MILLIS = 5000;
 	private static final int DEFAULT_CONCURRENCY = 1;
 	private static final int DEFAULT_MAX_CONCURRENCY = 10;
+	private static final int MAX_RETRY_BACKOFF_SHIFT = 10;
+	private static final String WAIT_EXCHANGE_SUFFIX = ".exchange";
 
 	public int resolveMaxRetryCount() {
 		return maxRetryCount > 0 ? maxRetryCount : DEFAULT_MAX_RETRY_COUNT;
@@ -29,7 +31,9 @@ public record NotificationRabbitProperties(
 	}
 
 	public long calculateRetryDelayMillis(int retryCount) {
-		return (long) resolveRetryBaseDelayMillis() * (1L << Math.min(retryCount, 10));
+		int normalizedRetryCount = Math.max(retryCount, 0);
+		int cappedShift = Math.min(normalizedRetryCount, MAX_RETRY_BACKOFF_SHIFT);
+		return (long)resolveRetryBaseDelayMillis() * (1L << cappedShift);
 	}
 
 	public int resolveConcurrency() {
@@ -37,6 +41,23 @@ public record NotificationRabbitProperties(
 	}
 
 	public int resolveMaxConcurrency() {
-		return maxConcurrency > 0 ? maxConcurrency : DEFAULT_MAX_CONCURRENCY;
+		int resolvedMaxConcurrency = maxConcurrency > 0 ? maxConcurrency : DEFAULT_MAX_CONCURRENCY;
+		return Math.max(resolvedMaxConcurrency, resolveConcurrency());
+	}
+
+	public int resolvePrefetchCount() {
+		return resolveConcurrency();
+	}
+
+	public String workRoutingKey() {
+		return workQueue;
+	}
+
+	public String waitRoutingKey() {
+		return waitQueue;
+	}
+
+	public String waitExchange() {
+		return waitQueue + WAIT_EXCHANGE_SUFFIX;
 	}
 }

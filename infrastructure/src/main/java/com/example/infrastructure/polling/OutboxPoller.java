@@ -20,7 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = NotificationRabbitConfig.STREAM_ENABLED_PROPERTY, havingValue = "true")
+@ConditionalOnProperty(name = NotificationRabbitConfig.MESSAGING_ENABLED_PROPERTY, havingValue = "true")
 public class OutboxPoller {
 
 	private final OutboxRepository outboxRepository;

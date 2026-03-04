@@ -1,4 +1,4 @@
-package com.example.infrastructure.stream;
+package com.example.infrastructure.messaging;
 
 import java.util.List;
 
@@ -9,7 +9,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.OutboxRepository;
-import com.example.application.service.event.OutboxSavedEvent;
+import com.example.application.port.out.event.OutboxSavedEvent;
 import com.example.infrastructure.config.rabbitmq.NotificationRabbitConfig;
 
 import lombok.RequiredArgsConstructor;
@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = NotificationRabbitConfig.STREAM_ENABLED_PROPERTY, havingValue = "true")
+@ConditionalOnProperty(name = NotificationRabbitConfig.MESSAGING_ENABLED_PROPERTY, havingValue = "true")
 public class OutboxEventListener {
 
 	private final NotificationEventPublisher eventPublisher;

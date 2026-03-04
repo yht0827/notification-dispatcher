@@ -1,4 +1,4 @@
-package com.example.infrastructure.stream.exception;
+package com.example.infrastructure.messaging.exception;
 
 public class DeadLetterPublishException extends RuntimeException {
 

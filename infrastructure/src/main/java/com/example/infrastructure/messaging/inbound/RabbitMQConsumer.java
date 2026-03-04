@@ -1,20 +1,22 @@
-package com.example.infrastructure.stream.inbound;
+package com.example.infrastructure.messaging.inbound;
 
-import com.example.infrastructure.config.rabbitmq.NotificationRabbitProperties;
-import com.example.infrastructure.stream.exception.NonRetryableStreamMessageException;
-import com.example.infrastructure.stream.exception.RetryableStreamMessageException;
-import com.example.infrastructure.stream.payload.NotificationStreamPayload;
-import com.example.infrastructure.stream.port.DeadLetterPublisher;
-import com.example.infrastructure.stream.port.WaitPublisher;
-import com.rabbitmq.client.Channel;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.io.IOException;
+
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 
-import java.io.IOException;
+import com.example.infrastructure.config.rabbitmq.NotificationRabbitProperties;
+import com.example.infrastructure.messaging.exception.NonRetryableMessageException;
+import com.example.infrastructure.messaging.exception.RetryableMessageException;
+import com.example.infrastructure.messaging.payload.NotificationMessagePayload;
+import com.example.infrastructure.messaging.port.DeadLetterPublisher;
+import com.example.infrastructure.messaging.port.WaitPublisher;
+import com.rabbitmq.client.Channel;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -26,8 +28,8 @@ public class RabbitMQConsumer {
 	private final NotificationRabbitProperties properties;
 
 	@RabbitListener(queues = "#{notificationRabbitProperties.workQueue()}", containerFactory = "rabbitListenerContainerFactory")
-	public void onMessage(NotificationStreamPayload payload, Message message, Channel channel,
-						  @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {
+	public void onMessage(NotificationMessagePayload payload, Message message, Channel channel,
+		@Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {
 		Long notificationId = null;
 		int retryCount = 0;
 
@@ -37,11 +39,11 @@ public class RabbitMQConsumer {
 			recordHandler.process(notificationId, retryCount);
 			channel.basicAck(deliveryTag, false);
 			log.debug("메시지 ACK 완료: notificationId={}, retryCount={}", notificationId, retryCount);
-		} catch (NonRetryableStreamMessageException e) {
+		} catch (NonRetryableMessageException e) {
 			publishToDeadLetter(payload, notificationId, e.getMessage());
 			channel.basicAck(deliveryTag, false);
 			log.warn("재시도 불필요 메시지 DLQ 전송: notificationId={}, reason={}", notificationId, e.getMessage());
-		} catch (RetryableStreamMessageException e) {
+		} catch (RetryableMessageException e) {
 			publishToWait(notificationId, retryCount, e.getMessage());
 			channel.basicAck(deliveryTag, false);
 			log.info("WAIT 큐 이동: notificationId={}, retryCount={}, reason={}", notificationId, retryCount, e.getMessage());
@@ -51,14 +53,14 @@ public class RabbitMQConsumer {
 		}
 	}
 
-	private Long validatePayload(NotificationStreamPayload payload) {
+	private Long validatePayload(NotificationMessagePayload payload) {
 		if (payload == null || payload.getNotificationId() == null) {
-			throw new NonRetryableStreamMessageException("payload 또는 notificationId 값이 비어 있습니다.");
+			throw new NonRetryableMessageException("payload 또는 notificationId 값이 비어 있습니다.");
 		}
 		return payload.getNotificationId();
 	}
 
-	private void publishToDeadLetter(NotificationStreamPayload payload, Long notificationId, String reason) {
+	private void publishToDeadLetter(NotificationMessagePayload payload, Long notificationId, String reason) {
 		dlqPublisher.publish(null, payload, notificationId, reason);
 	}
 

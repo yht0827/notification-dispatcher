@@ -1,4 +1,4 @@
-package com.example.infrastructure.stream;
+package com.example.infrastructure.messaging;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -16,13 +16,13 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageProperties;
 
 import com.example.infrastructure.config.rabbitmq.NotificationRabbitProperties;
-import com.example.infrastructure.stream.exception.NonRetryableStreamMessageException;
-import com.example.infrastructure.stream.exception.RetryableStreamMessageException;
-import com.example.infrastructure.stream.inbound.RabbitMQConsumer;
-import com.example.infrastructure.stream.inbound.RabbitMQRecordHandler;
-import com.example.infrastructure.stream.payload.NotificationStreamPayload;
-import com.example.infrastructure.stream.port.DeadLetterPublisher;
-import com.example.infrastructure.stream.port.WaitPublisher;
+import com.example.infrastructure.messaging.exception.NonRetryableMessageException;
+import com.example.infrastructure.messaging.exception.RetryableMessageException;
+import com.example.infrastructure.messaging.inbound.RabbitMQConsumer;
+import com.example.infrastructure.messaging.inbound.RabbitMQRecordHandler;
+import com.example.infrastructure.messaging.payload.NotificationMessagePayload;
+import com.example.infrastructure.messaging.port.DeadLetterPublisher;
+import com.example.infrastructure.messaging.port.WaitPublisher;
 import com.rabbitmq.client.Channel;
 
 @ExtendWith(MockitoExtension.class)
@@ -63,7 +63,7 @@ class RabbitMQConsumerTest {
 	@DisplayName("처리 성공 시 ACK만 수행한다")
 	void onMessage_acknowledgesWhenProcessSucceeds() throws IOException {
 		// given
-		NotificationStreamPayload payload = new NotificationStreamPayload(20L, 0);
+		NotificationMessagePayload payload = new NotificationMessagePayload(20L, 0);
 
 		// when
 		consumer.onMessage(payload, createMessage(), channel, 1L);
@@ -79,9 +79,9 @@ class RabbitMQConsumerTest {
 	@DisplayName("처리 중 non-retryable 오류는 DLQ 전송 후 ACK 한다")
 	void onMessage_sendsDlqAndAckWhenProcessFailsNonRetryable() throws IOException {
 		// given
-		NotificationStreamPayload payload = new NotificationStreamPayload(10L, 0);
+		NotificationMessagePayload payload = new NotificationMessagePayload(10L, 0);
 
-		doThrow(new NonRetryableStreamMessageException("max retry exceeded"))
+		doThrow(new NonRetryableMessageException("max retry exceeded"))
 			.when(recordHandler)
 			.process(10L, 0);
 
@@ -97,9 +97,9 @@ class RabbitMQConsumerTest {
 	@DisplayName("처리 중 retryable 오류는 WAIT 큐로 전송 후 ACK 한다")
 	void onMessage_sendsToWaitQueueWhenProcessFailsRetryable() throws IOException {
 		// given
-		NotificationStreamPayload payload = new NotificationStreamPayload(30L, 1);
+		NotificationMessagePayload payload = new NotificationMessagePayload(30L, 1);
 
-		doThrow(new RetryableStreamMessageException("일시적 오류"))
+		doThrow(new RetryableMessageException("일시적 오류"))
 			.when(recordHandler)
 			.process(30L, 1);
 
@@ -115,7 +115,7 @@ class RabbitMQConsumerTest {
 	@DisplayName("notificationId가 null이면 DLQ 전송 후 ACK 한다")
 	void onMessage_sendsDlqAndAckWhenNotificationIdNull() throws IOException {
 		// given
-		NotificationStreamPayload payload = new NotificationStreamPayload();
+		NotificationMessagePayload payload = new NotificationMessagePayload();
 		payload.setNotificationId(null);
 		payload.setRetryCount(0);
 
@@ -136,7 +136,7 @@ class RabbitMQConsumerTest {
 	@DisplayName("예상치 못한 예외는 NACK(requeue=false) 처리한다")
 	void onMessage_nacksOnUnexpectedException() throws IOException {
 		// given
-		NotificationStreamPayload payload = new NotificationStreamPayload(60L, 0);
+		NotificationMessagePayload payload = new NotificationMessagePayload(60L, 0);
 
 		doThrow(new IllegalStateException("unexpected failure"))
 			.when(recordHandler)

@@ -1,4 +1,4 @@
-package com.example.infrastructure.stream;
+package com.example.infrastructure.messaging;
 
 import static org.mockito.Mockito.*;
 
@@ -11,8 +11,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
 import com.example.infrastructure.config.rabbitmq.NotificationRabbitProperties;
-import com.example.infrastructure.stream.outbound.RabbitMQPublisher;
-import com.example.infrastructure.stream.payload.NotificationStreamPayload;
+import com.example.infrastructure.messaging.outbound.RabbitMQPublisher;
+import com.example.infrastructure.messaging.payload.NotificationMessagePayload;
 
 @ExtendWith(MockitoExtension.class)
 class RabbitMQPublisherTest {
@@ -45,7 +45,7 @@ class RabbitMQPublisherTest {
 		verify(rabbitTemplate).convertAndSend(
 			eq("notification.work.exchange"),
 			eq("notification.work"),
-			any(NotificationStreamPayload.class)
+			any(NotificationMessagePayload.class)
 		);
 	}
 
@@ -54,7 +54,7 @@ class RabbitMQPublisherTest {
 	void publish_propagatesException() {
 		doThrow(new RuntimeException("connection refused"))
 			.when(rabbitTemplate)
-			.convertAndSend(anyString(), anyString(), any(NotificationStreamPayload.class));
+			.convertAndSend(anyString(), anyString(), any(NotificationMessagePayload.class));
 
 		org.assertj.core.api.Assertions.assertThatThrownBy(() -> publisher.publish(1L))
 			.isInstanceOf(RuntimeException.class)

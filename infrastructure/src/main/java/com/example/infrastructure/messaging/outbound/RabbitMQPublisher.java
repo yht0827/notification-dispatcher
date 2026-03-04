@@ -1,10 +1,10 @@
-package com.example.infrastructure.stream.outbound;
+package com.example.infrastructure.messaging.outbound;
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
 import com.example.application.port.out.NotificationEventPublisher;
 import com.example.infrastructure.config.rabbitmq.NotificationRabbitProperties;
-import com.example.infrastructure.stream.payload.NotificationStreamPayload;
+import com.example.infrastructure.messaging.payload.NotificationMessagePayload;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,8 +18,8 @@ public class RabbitMQPublisher implements NotificationEventPublisher {
 
 	@Override
 	public void publish(Long notificationId) {
-		NotificationStreamPayload payload = new NotificationStreamPayload(notificationId);
-		rabbitTemplate.convertAndSend(properties.workExchange(), properties.workQueue(), payload);
+		NotificationMessagePayload payload = new NotificationMessagePayload(notificationId);
+		rabbitTemplate.convertAndSend(properties.workExchange(), properties.workRoutingKey(), payload);
 		log.info("RabbitMQ 발행: notificationId={}", notificationId);
 	}
 }

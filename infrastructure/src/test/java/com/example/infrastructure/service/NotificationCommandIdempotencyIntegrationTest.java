@@ -1,6 +1,6 @@
 package com.example.infrastructure.service;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.*;
 
 import java.util.List;
 
@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import com.example.application.port.in.NotificationCommandUseCase;
 import com.example.application.port.in.NotificationCommandUseCase.SendCommand;
+import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.out.NotificationGroupRepository;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.NotificationGroup;
@@ -38,15 +39,15 @@ class NotificationCommandIdempotencyIntegrationTest extends IntegrationTestSuppo
 		);
 
 		// when
-		NotificationGroup first = commandUseCase.request(command);
-		NotificationGroup second = commandUseCase.request(command);
+		NotificationCommandResult first = commandUseCase.request(command);
+		NotificationCommandResult second = commandUseCase.request(command);
 
 		// then
-		assertThat(second.getId()).isEqualTo(first.getId());
-		assertThat(second.getTotalCount()).isEqualTo(2);
+		assertThat(second.groupId()).isEqualTo(first.groupId());
+		assertThat(second.totalCount()).isEqualTo(2);
 		NotificationGroup stored = groupRepository
 			.findByClientIdAndIdempotencyKey("idem-test-client", "idem-integration-1001")
 			.orElseThrow();
-		assertThat(stored.getId()).isEqualTo(first.getId());
+		assertThat(stored.getId()).isEqualTo(first.groupId());
 	}
 }

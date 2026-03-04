@@ -1,17 +1,17 @@
-package com.example.infrastructure.stream.inbound;
+package com.example.infrastructure.messaging.inbound;
 
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 import com.example.application.port.in.NotificationDispatchUseCase;
-import com.example.application.port.in.NotificationDispatchUseCase.DispatchResult;
+import com.example.application.port.in.result.NotificationDispatchResult;
 import com.example.application.port.out.DispatchLockManager;
 import com.example.application.port.out.NotificationRepository;
 import com.example.domain.exception.InvalidStatusTransitionException;
 import com.example.domain.exception.UnsupportedChannelException;
 import com.example.domain.notification.Notification;
 import com.example.infrastructure.config.rabbitmq.NotificationRabbitProperties;
-import com.example.infrastructure.stream.exception.NonRetryableStreamMessageException;
-import com.example.infrastructure.stream.exception.RetryableStreamMessageException;
+import com.example.infrastructure.messaging.exception.NonRetryableMessageException;
+import com.example.infrastructure.messaging.exception.RetryableMessageException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +35,7 @@ public class RabbitMQRecordHandler {
 
 		try {
 			Notification notification = loadNotification(notificationId);
-			DispatchResult dispatchResult = dispatchService.dispatch(notification);
+			NotificationDispatchResult dispatchResult = dispatchService.dispatch(notification);
 			if (dispatchResult.isFailure()) {
 				throw toDispatchFailureException(notificationId, retryCount, dispatchResult.failReason());
 			}
@@ -47,32 +47,32 @@ public class RabbitMQRecordHandler {
 
 	private void validateNotificationId(Long notificationId) {
 		if (notificationId == null) {
-			throw new NonRetryableStreamMessageException("notificationId 값이 비어 있습니다.");
+			throw new NonRetryableMessageException("notificationId 값이 비어 있습니다.");
 		}
 	}
 
 	private Notification loadNotification(Long notificationId) {
 		return notificationRepository.findById(notificationId)
-			.orElseThrow(() -> new NonRetryableStreamMessageException("알림을 찾을 수 없음: " + notificationId));
+			.orElseThrow(() -> new NonRetryableMessageException("알림을 찾을 수 없음: " + notificationId));
 	}
 
 	private RuntimeException handleException(Long notificationId, RuntimeException exception) {
-		RuntimeException streamException = mapToStreamException(notificationId, exception);
-		if (!(streamException instanceof NonRetryableStreamMessageException)) {
+		RuntimeException messageException = mapToMessageException(notificationId, exception);
+		if (!(messageException instanceof NonRetryableMessageException)) {
 			lockManager.release(notificationId);
 		}
-		return streamException;
+		return messageException;
 	}
 
-	private RuntimeException mapToStreamException(Long notificationId, RuntimeException exception) {
-		if (exception instanceof NonRetryableStreamMessageException
-			|| exception instanceof RetryableStreamMessageException) {
+	private RuntimeException mapToMessageException(Long notificationId, RuntimeException exception) {
+		if (exception instanceof NonRetryableMessageException
+			|| exception instanceof RetryableMessageException) {
 			return exception;
 		}
 
 		if (exception instanceof ObjectOptimisticLockingFailureException) {
 			log.info("낙관적 락 충돌 (이미 처리됨): notificationId={}", notificationId);
-			return new NonRetryableStreamMessageException("낙관적 락 충돌: 이미 다른 인스턴스에서 처리됨", exception);
+			return new NonRetryableMessageException("낙관적 락 충돌: 이미 다른 인스턴스에서 처리됨", exception);
 		}
 
 		if (exception instanceof InvalidStatusTransitionException e) {
@@ -95,7 +95,7 @@ public class RabbitMQRecordHandler {
 		}
 
 		log.error("예상치 못한 예외 발생: notificationId={}", notificationId, exception);
-		return new RetryableStreamMessageException("예상치 못한 오류: " + exception.getMessage(), exception);
+		return new RetryableMessageException("예상치 못한 오류: " + exception.getMessage(), exception);
 	}
 
 	private RuntimeException toDispatchFailureException(Long notificationId, int retryCount, String reason) {
@@ -103,16 +103,16 @@ public class RabbitMQRecordHandler {
 		if (retryCount >= properties.resolveMaxRetryCount()) {
 			return toNonRetryableAfterMarkFailed(notificationId, failureReason, "재시도 한도 초과: " + failureReason, null);
 		}
-		return new RetryableStreamMessageException("알림 발송 실패: " + failureReason);
+		return new RetryableMessageException("알림 발송 실패: " + failureReason);
 	}
 
-	private NonRetryableStreamMessageException toNonRetryableAfterMarkFailed(Long notificationId, String reason,
+	private NonRetryableMessageException toNonRetryableAfterMarkFailed(Long notificationId, String reason,
 		String message, Exception cause) {
 		dispatchService.markAsFailed(notificationId, reason);
 		if (cause == null) {
-			return new NonRetryableStreamMessageException(message);
+			return new NonRetryableMessageException(message);
 		}
-		return new NonRetryableStreamMessageException(message, cause);
+		return new NonRetryableMessageException(message, cause);
 	}
 
 	private String normalizeReason(String reason) {

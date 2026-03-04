@@ -1,4 +1,4 @@
-package com.example.infrastructure.stream;
+package com.example.infrastructure.messaging;
 
 import static org.mockito.Mockito.*;
 
@@ -12,8 +12,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.example.application.port.out.OutboxRepository;
-import com.example.application.service.event.OutboxSavedEvent;
 import com.example.application.port.out.NotificationEventPublisher;
+import com.example.application.port.out.event.OutboxSavedEvent;
 
 @ExtendWith(MockitoExtension.class)
 class OutboxEventListenerTest {

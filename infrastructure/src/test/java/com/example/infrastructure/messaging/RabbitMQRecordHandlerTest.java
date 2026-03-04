@@ -1,4 +1,4 @@
-package com.example.infrastructure.stream;
+package com.example.infrastructure.messaging;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -14,7 +14,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.example.application.port.in.NotificationDispatchUseCase;
-import com.example.application.port.in.NotificationDispatchUseCase.DispatchResult;
+import com.example.application.port.in.result.NotificationDispatchResult;
 import com.example.application.port.out.DispatchLockManager;
 import com.example.application.port.out.NotificationRepository;
 import com.example.domain.exception.InvalidStatusTransitionException;
@@ -23,9 +23,9 @@ import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
 import com.example.infrastructure.config.rabbitmq.NotificationRabbitProperties;
-import com.example.infrastructure.stream.exception.NonRetryableStreamMessageException;
-import com.example.infrastructure.stream.exception.RetryableStreamMessageException;
-import com.example.infrastructure.stream.inbound.RabbitMQRecordHandler;
+import com.example.infrastructure.messaging.exception.NonRetryableMessageException;
+import com.example.infrastructure.messaging.exception.RetryableMessageException;
+import com.example.infrastructure.messaging.inbound.RabbitMQRecordHandler;
 
 @ExtendWith(MockitoExtension.class)
 class RabbitMQRecordHandlerTest {
@@ -58,7 +58,7 @@ class RabbitMQRecordHandlerTest {
 		notification.startSending();
 		notification.markAsSent();
 		when(notificationRepository.findById(1L)).thenReturn(Optional.of(notification));
-		when(dispatchService.dispatch(notification)).thenReturn(DispatchResult.success());
+		when(dispatchService.dispatch(notification)).thenReturn(NotificationDispatchResult.success());
 
 		// when
 		recordHandler.process(1L, 0);
@@ -74,11 +74,11 @@ class RabbitMQRecordHandlerTest {
 		Notification notification = createNotification();
 		when(notificationRepository.findById(1L)).thenReturn(Optional.of(notification));
 		when(properties.resolveMaxRetryCount()).thenReturn(3);
-		when(dispatchService.dispatch(notification)).thenReturn(DispatchResult.fail("발송 실패"));
+		when(dispatchService.dispatch(notification)).thenReturn(NotificationDispatchResult.fail("발송 실패"));
 
 		// when & then
 		assertThatThrownBy(() -> recordHandler.process(1L, 0))
-			.isInstanceOf(RetryableStreamMessageException.class)
+			.isInstanceOf(RetryableMessageException.class)
 			.hasMessageContaining("발송 실패");
 		verify(lockManager).release(1L);
 	}
@@ -90,11 +90,11 @@ class RabbitMQRecordHandlerTest {
 		Notification notification = createNotification();
 		when(notificationRepository.findById(2L)).thenReturn(Optional.of(notification));
 		when(properties.resolveMaxRetryCount()).thenReturn(3);
-		when(dispatchService.dispatch(notification)).thenReturn(DispatchResult.fail("발송 실패"));
+		when(dispatchService.dispatch(notification)).thenReturn(NotificationDispatchResult.fail("발송 실패"));
 
 		// when & then
 		assertThatThrownBy(() -> recordHandler.process(2L, 3))
-			.isInstanceOf(NonRetryableStreamMessageException.class)
+			.isInstanceOf(NonRetryableMessageException.class)
 			.hasMessageContaining("재시도 한도 초과");
 		verify(dispatchService).markAsFailed(2L, "발송 실패");
 	}
@@ -103,7 +103,7 @@ class RabbitMQRecordHandlerTest {
 	@DisplayName("notificationId가 null이면 non-retryable 예외를 던진다")
 	void process_throwsNonRetryableWhenNotificationIdIsNull() {
 		assertThatThrownBy(() -> recordHandler.process(null, 0))
-			.isInstanceOf(NonRetryableStreamMessageException.class)
+			.isInstanceOf(NonRetryableMessageException.class)
 			.hasMessageContaining("notificationId");
 	}
 
@@ -113,7 +113,7 @@ class RabbitMQRecordHandlerTest {
 		when(notificationRepository.findById(999L)).thenReturn(Optional.empty());
 
 		assertThatThrownBy(() -> recordHandler.process(999L, 0))
-			.isInstanceOf(NonRetryableStreamMessageException.class)
+			.isInstanceOf(NonRetryableMessageException.class)
 			.hasMessageContaining("알림을 찾을 수 없음");
 		verify(lockManager, never()).release(999L);
 	}
@@ -137,7 +137,7 @@ class RabbitMQRecordHandlerTest {
 		when(dispatchService.dispatch(notification)).thenThrow(new IllegalStateException("boom"));
 
 		assertThatThrownBy(() -> recordHandler.process(20L, 0))
-			.isInstanceOf(RetryableStreamMessageException.class)
+			.isInstanceOf(RetryableMessageException.class)
 			.hasMessageContaining("예상치 못한 오류");
 
 		verify(lockManager).release(20L);
@@ -151,7 +151,7 @@ class RabbitMQRecordHandlerTest {
 		when(dispatchService.dispatch(notification)).thenThrow(new UnsupportedChannelException(ChannelType.EMAIL));
 
 		assertThatThrownBy(() -> recordHandler.process(3L, 0))
-			.isInstanceOf(NonRetryableStreamMessageException.class)
+			.isInstanceOf(NonRetryableMessageException.class)
 			.hasMessageContaining("지원하지 않는 채널");
 
 		verify(dispatchService).markAsFailed(3L, "지원하지 않는 채널입니다: EMAIL");
@@ -166,7 +166,7 @@ class RabbitMQRecordHandlerTest {
 			new InvalidStatusTransitionException("invalid transition"));
 
 		assertThatThrownBy(() -> recordHandler.process(4L, 0))
-			.isInstanceOf(NonRetryableStreamMessageException.class)
+			.isInstanceOf(NonRetryableMessageException.class)
 			.hasMessageContaining("상태 전이 오류");
 
 		verify(dispatchService).markAsFailed(4L, "상태 전이 오류");

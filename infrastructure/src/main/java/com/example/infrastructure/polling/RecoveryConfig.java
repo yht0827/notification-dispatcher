@@ -10,7 +10,7 @@ import com.example.application.port.out.NotificationRepository;
 import com.example.infrastructure.config.rabbitmq.NotificationRabbitConfig;
 
 @Configuration
-@ConditionalOnProperty(name = NotificationRabbitConfig.STREAM_ENABLED_PROPERTY, havingValue = "true")
+@ConditionalOnProperty(name = NotificationRabbitConfig.MESSAGING_ENABLED_PROPERTY, havingValue = "true")
 @EnableConfigurationProperties(RecoveryProperties.class)
 public class RecoveryConfig {
 

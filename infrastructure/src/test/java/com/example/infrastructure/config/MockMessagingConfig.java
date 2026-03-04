@@ -8,8 +8,8 @@ import com.example.application.port.out.NotificationEventPublisher;
 import com.example.infrastructure.config.rabbitmq.NotificationRabbitConfig;
 
 @Configuration
-@ConditionalOnProperty(name = NotificationRabbitConfig.STREAM_ENABLED_PROPERTY, havingValue = "false")
-public class MockStreamConfig {
+@ConditionalOnProperty(name = NotificationRabbitConfig.MESSAGING_ENABLED_PROPERTY, havingValue = "false")
+public class MockMessagingConfig {
 
 	@Bean
 	public NotificationEventPublisher notificationEventPublisher() {

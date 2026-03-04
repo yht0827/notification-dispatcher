@@ -13,11 +13,6 @@ import com.example.domain.notification.NotificationStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Redis 다운 시 DB에 PENDING 상태로 남아있는 Notification을 복구한다.
- * - PENDING 상태 + N분 경과한 Notification 조회
- * - Redis Stream에 재발행
- */
 @Slf4j
 @RequiredArgsConstructor
 public class NotificationRecoveryPoller {
