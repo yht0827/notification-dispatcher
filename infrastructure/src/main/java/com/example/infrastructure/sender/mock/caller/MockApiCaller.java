@@ -1,5 +1,6 @@
 package com.example.infrastructure.sender.mock.caller;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 
 import com.example.application.port.out.result.SendResult;
@@ -25,18 +26,24 @@ public class MockApiCaller {
 	public SendResult call(MockApiSendRequest request) {
 		log.debug("mock API 호출: requestId={}, channel={}", request.requestId(), request.channelType());
 
-		MockApiSendSuccessResponse response = mockApiFeignClient.send(request);
+		ResponseEntity<MockApiSendSuccessResponse> response = mockApiFeignClient.send(request);
+		if (!response.getStatusCode().is2xxSuccessful()) {
+			throw new MockApiRetryableException("외부 API 성공 응답 상태 코드가 아닙니다: " + response.getStatusCode().value());
+		}
 
-		if (response == null || !"SUCCESS".equalsIgnoreCase(response.result())) {
+		MockApiSendSuccessResponse responseBody = response.getBody();
+
+		if (responseBody == null) {
 			throw new MockApiRetryableException("외부 API 성공 응답이 비어 있습니다.");
 		}
 
-		log.debug("mock API 응답 수신: requestId={}, result={}", request.requestId(), response.result());
+		log.debug("mock API 응답 수신: requestId={}, status={}",
+			request.requestId(), response.getStatusCode().value());
 		return SendResult.success();
 	}
 
 	private SendResult fallbackOnCircuitOpen(MockApiSendRequest request, CallNotPermittedException e) {
-		log.warn("circuit breaker OPEN: requestId={}, channel={}", request.requestId(), request.channelType());
-		return SendResult.failRetryable("circuit breaker OPEN - 외부 API 연속 장애");
+		log.warn("서킷 브레이커 OPEN: requestId={}, channel={}", request.requestId(), request.channelType());
+		return SendResult.failRetryable("서킷 브레이커 OPEN - 외부 API 연속 장애");
 	}
 }

@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import com.example.domain.exception.UnsupportedChannelException;
 import com.example.domain.notification.ChannelType;
+import com.example.infrastructure.sender.exception.DuplicateChannelSenderRegistrationException;
 
 class ChannelSenderFactoryTest {
 
@@ -50,7 +51,7 @@ class ChannelSenderFactoryTest {
 		ChannelSenderFactory factory = new ChannelSenderFactory(List.of(first, duplicate));
 
 		assertThatThrownBy(factory::init)
-			.isInstanceOf(IllegalStateException.class)
+			.isInstanceOf(DuplicateChannelSenderRegistrationException.class)
 			.hasMessageContaining("중복 ChannelSender 등록");
 	}
 

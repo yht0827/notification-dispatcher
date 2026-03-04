@@ -1,6 +1,7 @@
 package com.example.infrastructure.sender.mock.caller;
 
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -11,5 +12,5 @@ import com.example.infrastructure.sender.mock.dto.MockApiSendSuccessResponse;
 public interface MockApiFeignClient {
 
 	@PostMapping("${notification.external.mock.send-path}")
-	MockApiSendSuccessResponse send(@RequestBody MockApiSendRequest request);
+	ResponseEntity<MockApiSendSuccessResponse> send(@RequestBody MockApiSendRequest request);
 }

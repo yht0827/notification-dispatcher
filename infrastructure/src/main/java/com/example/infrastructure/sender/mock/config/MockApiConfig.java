@@ -6,7 +6,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import com.example.infrastructure.sender.mock.caller.MockApiErrorDecoder;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Configuration
 @EnableConfigurationProperties(MockApiProperties.class)
@@ -14,7 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class MockApiConfig {
 
 	@Bean
-	public MockApiErrorDecoder mockApiErrorDecoder(ObjectMapper objectMapper) {
-		return new MockApiErrorDecoder(objectMapper);
+	public MockApiErrorDecoder mockApiErrorDecoder() {
+		return new MockApiErrorDecoder();
 	}
 }

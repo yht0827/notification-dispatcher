@@ -1,20 +1,12 @@
 package com.example.infrastructure.sender.mock.caller;
 
-import com.example.infrastructure.sender.mock.dto.MockApiSendFailResponse;
 import com.example.infrastructure.sender.mock.exception.MockApiNonRetryableException;
 import com.example.infrastructure.sender.mock.exception.MockApiRetryableException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import feign.Response;
 import feign.codec.ErrorDecoder;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
-@RequiredArgsConstructor
 public class MockApiErrorDecoder implements ErrorDecoder {
-
-	private final ObjectMapper objectMapper;
 
 	@Override
 	public Exception decode(String methodKey, Response response) {
@@ -29,24 +21,15 @@ public class MockApiErrorDecoder implements ErrorDecoder {
 	}
 
 	private String resolveMessage(Response response) {
-		if (response.body() == null) {
-			return "no response body";
+		String reason = response.reason();
+		if (reason != null && !reason.isBlank()) {
+			return reason;
 		}
 
-		try {
-			byte[] body = response.body().asInputStream().readAllBytes();
-			if (body.length == 0) {
-				return "no response body";
-			}
-
-			MockApiSendFailResponse failResponse = objectMapper.readValue(body, MockApiSendFailResponse.class);
-			if (failResponse.message() != null && !failResponse.message().isBlank()) {
-				return failResponse.message();
-			}
-		} catch (Exception e) {
-			log.debug("mock API 실패 응답 파싱 실패: status={}, reason={}", response.status(), e.getMessage());
-		}
-
-		return "unknown error";
+		return switch (response.status()) {
+			case 429 -> "Too Many Requests";
+			case 503 -> "Service Unavailable";
+			default -> "HTTP " + response.status();
+		};
 	}
 }

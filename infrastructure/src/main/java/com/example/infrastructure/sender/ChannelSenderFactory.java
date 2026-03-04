@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import com.example.domain.exception.UnsupportedChannelException;
 import com.example.domain.notification.ChannelType;
+import com.example.infrastructure.sender.exception.DuplicateChannelSenderRegistrationException;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +26,7 @@ public class ChannelSenderFactory {
 		for (ChannelSender sender : senders) {
 			ChannelSender existing = senderMap.put(sender.getChannelType(), sender);
 			if (existing != null) {
-				throw new IllegalStateException("중복 ChannelSender 등록: " + sender.getChannelType());
+				throw new DuplicateChannelSenderRegistrationException(sender.getChannelType());
 			}
 		}
 	}
