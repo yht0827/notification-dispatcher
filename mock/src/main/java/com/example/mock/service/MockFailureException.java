@@ -1,7 +1,9 @@
 package com.example.mock.service;
 
+import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
+@Getter
 public class MockFailureException extends RuntimeException {
 
     private final HttpStatus status;
@@ -31,12 +33,4 @@ public class MockFailureException extends RuntimeException {
         this.messageLength = messageLength;
         this.startedAtMillis = startedAtMillis;
     }
-
-    public HttpStatus getStatus() { return status; }
-    public String getErrorCode() { return errorCode; }
-    public String getRequestId() { return requestId; }
-    public String getChannelType() { return channelType; }
-    public String getReceiver() { return receiver; }
-    public int getMessageLength() { return messageLength; }
-    public long getStartedAtMillis() { return startedAtMillis; }
 }
