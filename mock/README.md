@@ -44,6 +44,7 @@
 주요 설정값(`mock/src/main/resources/application.yml` 기준):
 
 - `mock.mode`: `RANDOM | ALWAYS_SUCCESS | ALWAYS_FAIL | ALWAYS_DELAY`
+- `notification.external.mock.name`: Feign 클라이언트 이름(기본값 `mockApi`)
 - `mock.latency.enabled`: 지연 시뮬레이션 사용 여부
 - `mock.latency.probability`: `RANDOM` 모드에서 지연 발생 확률
 - `mock.latency.min-ms`: 최소 지연 시간(ms)

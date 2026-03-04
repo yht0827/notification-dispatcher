@@ -18,6 +18,7 @@ notification:
     enabled: true
   external:
     mock:
+      name: mockApi
       enabled: false
       base-url: http://localhost:8081
       send-path: /mock/send

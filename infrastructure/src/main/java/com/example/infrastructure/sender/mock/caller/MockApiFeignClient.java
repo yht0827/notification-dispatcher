@@ -8,9 +8,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import com.example.infrastructure.sender.mock.dto.MockApiSendRequest;
 import com.example.infrastructure.sender.mock.dto.MockApiSendSuccessResponse;
 
-@FeignClient(name = "mockApi", url = "${notification.external.mock.base-url}")
-public interface MockApiFeignClient {
+@FeignClient(
+	name = "${notification.external.mock.name:mockApi}",
+	url = "${notification.external.mock.base-url}"
+)
+public interface MockApiFeignClient extends MockApiClient {
 
-	@PostMapping("${notification.external.mock.send-path}")
+	@Override
+	@PostMapping("${notification.external.mock.send-path:/mock/send}")
 	ResponseEntity<MockApiSendSuccessResponse> send(@RequestBody MockApiSendRequest request);
 }

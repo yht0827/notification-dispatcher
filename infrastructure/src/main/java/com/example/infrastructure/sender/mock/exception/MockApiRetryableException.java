@@ -6,4 +6,8 @@ public class MockApiRetryableException extends RuntimeException {
 		super(message);
 	}
 
+	public MockApiRetryableException(String message, Throwable cause) {
+		super(message, cause);
+	}
+
 }
