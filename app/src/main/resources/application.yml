@@ -9,6 +9,12 @@ spring:
   cloud:
     compatibility-verifier:
       enabled: false
+    openfeign:
+      client:
+        config:
+          mockApi:
+            connect-timeout: 1000
+            read-timeout: 3000
 
 # ─────────────────────────────────────────
 # Notification Messaging (공통 기본값)
@@ -22,16 +28,6 @@ notification:
       enabled: false
       base-url: http://localhost:8081
       send-path: /mock/send
-
-# ─────────────────────────────────────────
-# Feign Client
-# ─────────────────────────────────────────
-feign:
-  client:
-    config:
-      mockApi:
-        connect-timeout: 1000
-        read-timeout: 3000
 
 # ─────────────────────────────────────────
 # Resilience4j

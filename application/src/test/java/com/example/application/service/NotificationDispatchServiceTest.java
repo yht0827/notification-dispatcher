@@ -93,6 +93,26 @@ class NotificationDispatchServiceTest {
 	}
 
 	@Test
+	@DisplayName("SENDING 상태 재시도에서도 발송을 계속 진행한다")
+	void dispatch_continuesWhenAlreadySendingForRetry() {
+		// given
+		Notification notification = createNotification();
+		notification.startSending();
+		when(notificationRepository.save(notification)).thenReturn(notification);
+		when(notificationSender.send(notification)).thenReturn(SendResult.success());
+
+		// when
+		NotificationDispatchResult result = dispatchService.dispatch(notification);
+
+		// then
+		assertThat(result.isSuccess()).isTrue();
+		assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
+		assertThat(notification.getAttemptCount()).isEqualTo(2);
+		verify(notificationSender).send(notification);
+		verify(notificationRepository, times(2)).save(notification);
+	}
+
+	@Test
 	@DisplayName("발송 실패 시 실패 결과를 반환한다")
 	void dispatch_returnsFailureWhenSendFails() {
 		// given

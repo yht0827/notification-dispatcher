@@ -55,8 +55,8 @@ services:
       - "15672:15672"
       - "15692:15692"
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-application}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-application}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
     command: >
       sh -c "rabbitmq-plugins enable --offline rabbitmq_prometheus && exec rabbitmq-server"
     healthcheck:

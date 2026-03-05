@@ -186,7 +186,7 @@ class RabbitMQRecordHandlerTest {
 			.isInstanceOf(NonRetryableMessageException.class)
 			.hasMessageContaining("상태 전이 오류");
 
-		verify(dispatchService).markAsFailed(4L, "상태 전이 오류");
+		verify(dispatchService).markAsFailed(4L, "상태 전이 오류 - invalid transition");
 	}
 
 	private Notification createNotification() {

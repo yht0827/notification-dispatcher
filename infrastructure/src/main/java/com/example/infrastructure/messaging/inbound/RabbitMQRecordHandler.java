@@ -20,6 +20,9 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class RabbitMQRecordHandler {
 
+	private static final String UNKNOWN_ERROR_REASON = "알 수 없는 오류";
+	private static final String STATUS_TRANSITION_REASON_PREFIX = "상태 전이 오류";
+
 	private final NotificationRepository notificationRepository;
 	private final NotificationDispatchUseCase dispatchService;
 	private final NotificationRabbitProperties properties;
@@ -80,10 +83,11 @@ public class RabbitMQRecordHandler {
 		}
 
 		if (exception instanceof InvalidStatusTransitionException e) {
+			String reason = formatStatusTransitionReason(e);
 			return toNonRetryableAfterMarkFailed(
 				notificationId,
-				"상태 전이 오류",
-				"알림 상태 전이 오류로 재시도하지 않습니다.",
+				reason,
+				"알림 상태 전이 오류로 재시도하지 않습니다: " + reason,
 				e
 			);
 		}
@@ -135,9 +139,23 @@ public class RabbitMQRecordHandler {
 	}
 
 	private String normalizeReason(String reason) {
-		if (reason == null || reason.isBlank()) {
-			return "알 수 없는 오류";
+		if (reason == null) {
+			return UNKNOWN_ERROR_REASON;
 		}
-		return reason;
+
+		String normalizedReason = reason.replaceAll("\\s+", " ").trim();
+		if (normalizedReason.isBlank()) {
+			return UNKNOWN_ERROR_REASON;
+		}
+
+		return normalizedReason;
+	}
+
+	private String formatStatusTransitionReason(InvalidStatusTransitionException exception) {
+		String detail = normalizeReason(exception.getMessage());
+		if (UNKNOWN_ERROR_REASON.equals(detail)) {
+			return STATUS_TRANSITION_REASON_PREFIX;
+		}
+		return STATUS_TRANSITION_REASON_PREFIX + " - " + detail;
 	}
 }

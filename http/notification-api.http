@@ -105,17 +105,18 @@ POST {{host}}/api/v1/notifications
 Content-Type: {{contentType}}
 
 {
-  "clientId": "marketing-service",
-  "sender": "MyShop",
-  "title": "신규 프로모션 안내",
-  "content": "지금 가입하시면 20% 할인!",
+  "clientId": "bulk-test-service",
+  "sender": "ScenarioRunner",
+  "title": "시나리오 테스트",
+  "content": "20건 대량 발송 테스트",
   "channelType": "EMAIL",
   "receivers": [
-    "user1@example.com",
-    "user2@example.com",
-    "user3@example.com"
+    "user01@example.com", "user02@example.com", "user03@example.com", "user04@example.com", "user05@example.com",
+    "user06@example.com", "user07@example.com", "user08@example.com", "user09@example.com", "user10@example.com",
+    "user11@example.com", "user12@example.com", "user13@example.com", "user14@example.com", "user15@example.com",
+    "user16@example.com", "user17@example.com", "user18@example.com", "user19@example.com", "user20@example.com"
   ],
-  "idempotencyKey": "marketing-campaign-20260223"
+  "idempotencyKey": "scenario-bulk-20"
 }
 
 ### 카카오 알림 발송
