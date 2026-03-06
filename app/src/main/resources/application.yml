@@ -14,7 +14,7 @@ spring:
         config:
           mockApi:
             connect-timeout: 1000
-            read-timeout: 3000
+            read-timeout: 5000
 
 # ─────────────────────────────────────────
 # Notification Messaging (공통 기본값)
@@ -22,6 +22,8 @@ spring:
 notification:
   messaging:
     enabled: true
+  rabbitmq:
+    listener-virtual-threads: true
   external:
     mock:
       name: mockApi
@@ -37,9 +39,9 @@ resilience4j:
     retry-aspect-order: 2
     instances:
       mockApi:
-        max-attempts: 3
+        max-attempts: 2
         wait-duration: 200ms
-        enable-exponential-backoff: true
+        enable-exponential-backoff: false
         exponential-backoff-multiplier: 2
         retry-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiRetryableException
@@ -50,7 +52,7 @@ resilience4j:
     instances:
       mockApi:
         sliding-window-size: 20
-        minimum-number-of-calls: 10
+        minimum-number-of-calls: 20
         failure-rate-threshold: 50 # 10건 중 5건 실패 시 OPEN
         wait-duration-in-open-state: 10s
         record-exceptions:
@@ -80,7 +82,7 @@ management:
 # ─────────────────────────────────────────
 outbox:
   poll-interval-millis: 1000        # 1초마다 폴링
-  batch-size: 200                   # 1회당 200개씩 처리
+  batch-size: 100                   # 1회당 100개씩 처리
 
 recovery:
   poll-interval-millis: 300000      # 5분마다 폴링
@@ -106,7 +108,7 @@ spring:
     password: application
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
-      maximum-pool-size: 50
+      maximum-pool-size: 30
       minimum-idle: 10
       connection-timeout: 5000   # 5초 대기 후 TimeoutException (기본 30초)
   jpa:
@@ -135,9 +137,9 @@ notification:
     dlq-exchange: notification.dlq.exchange    # DLQ Exchange
     max-retry-count: 3                         # 최대 재시도 횟수
     retry-base-delay-millis: 5000              # 기본 재시도 지연 (ms)
-    concurrency: 1                             # 초기 동시 처리 스레드
-    max-concurrency: 10                        # 최대 동시 처리 스레드
-    prefetch: 1                                # Consumer prefetch count
+    concurrency: 2
+    max-concurrency: 2
+    prefetch: 100
     batch-listener-enabled: false              # 배치 리스너 활성화
     batch-size: 50                             # 배치 수집 크기
     batch-receive-timeout-millis: 200          # 배치 수집 대기(ms)
