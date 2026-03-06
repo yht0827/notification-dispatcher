@@ -7,4 +7,5 @@ public final class RabbitBeanNames {
 
 	public static final String LISTENER_CONTAINER_FACTORY = "rabbitListenerContainerFactory";
 	public static final String BATCH_LISTENER_CONTAINER_FACTORY = "rabbitBatchListenerContainerFactory";
+	public static final String LISTENER_TASK_EXECUTOR = "rabbitListenerTaskExecutor";
 }

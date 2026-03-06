@@ -14,6 +14,7 @@ public record NotificationRabbitProperties(
 	int concurrency,               // 초기 1
 	int maxConcurrency,            // 최대 10
 	int prefetch,                  // 기본 concurrency와 동일
+	Boolean listenerVirtualThreads,// null이면 spring.threads.virtual.enabled 상속
 	boolean batchListenerEnabled,  // 배치 리스너 ON/OFF
 	int batchSize,                 // 배치 리스너 크기
 	int batchReceiveTimeoutMillis  // 배치 수집 대기 시간(ms)
@@ -59,6 +60,10 @@ public record NotificationRabbitProperties(
 		}
 		int resolvedConcurrency = resolveConcurrency();
 		return resolvedConcurrency > 0 ? resolvedConcurrency : DEFAULT_PREFETCH_COUNT;
+	}
+
+	public boolean resolveListenerVirtualThreads(boolean appVirtualThreadsEnabled) {
+		return listenerVirtualThreads != null ? listenerVirtualThreads : appVirtualThreadsEnabled;
 	}
 
 	public boolean resolveBatchListenerEnabled() {

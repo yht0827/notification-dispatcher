@@ -2,6 +2,7 @@ package com.example.infrastructure.config.rabbitmq;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Executor;
 
 import org.springframework.amqp.core.AcknowledgeMode;
 import org.springframework.amqp.core.Binding;
@@ -16,10 +17,14 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import com.example.application.port.in.NotificationDispatchUseCase;
 import com.example.application.port.out.DispatchLockManager;
@@ -60,18 +65,21 @@ public class NotificationRabbitConfig {
 	public SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
 		ConnectionFactory cf,
 		MessageConverter mc,
-		NotificationRabbitProperties p
+		NotificationRabbitProperties p,
+		@Qualifier(RabbitBeanNames.LISTENER_TASK_EXECUTOR) Executor listenerTaskExecutor
 	) {
-		return createBaseListenerContainerFactory(cf, mc, p);
+		return createBaseListenerContainerFactory(cf, mc, p, listenerTaskExecutor);
 	}
 
 	@Bean(name = RabbitBeanNames.BATCH_LISTENER_CONTAINER_FACTORY)
 	public SimpleRabbitListenerContainerFactory rabbitBatchListenerContainerFactory(
 		ConnectionFactory cf,
 		MessageConverter mc,
-		NotificationRabbitProperties p
+		NotificationRabbitProperties p,
+		@Qualifier(RabbitBeanNames.LISTENER_TASK_EXECUTOR) Executor listenerTaskExecutor
 	) {
-		SimpleRabbitListenerContainerFactory factory = createBaseListenerContainerFactory(cf, mc, p);
+		SimpleRabbitListenerContainerFactory factory = createBaseListenerContainerFactory(cf, mc, p,
+			listenerTaskExecutor);
 		factory.setConsumerBatchEnabled(true);
 		factory.setBatchListener(true);
 		factory.setBatchSize(p.resolveBatchSize());
@@ -79,10 +87,32 @@ public class NotificationRabbitConfig {
 		return factory;
 	}
 
+	@Bean(name = RabbitBeanNames.LISTENER_TASK_EXECUTOR)
+	public Executor rabbitListenerTaskExecutor(
+		NotificationRabbitProperties properties,
+		@Value("${spring.threads.virtual.enabled:false}") boolean appVirtualThreadsEnabled
+	) {
+		if (properties.resolveListenerVirtualThreads(appVirtualThreadsEnabled)) {
+			SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor("rabbit-listener-vt-");
+			executor.setVirtualThreads(true);
+			return executor;
+		}
+
+		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+		executor.setThreadNamePrefix("rabbit-listener-");
+		executor.setCorePoolSize(properties.resolveConcurrency());
+		executor.setMaxPoolSize(properties.resolveMaxConcurrency());
+		executor.setQueueCapacity(0);
+		executor.setAllowCoreThreadTimeOut(true);
+		executor.initialize();
+		return executor;
+	}
+
 	private SimpleRabbitListenerContainerFactory createBaseListenerContainerFactory(
 		ConnectionFactory connectionFactory,
 		MessageConverter messageConverter,
-		NotificationRabbitProperties properties
+		NotificationRabbitProperties properties,
+		Executor listenerTaskExecutor
 	) {
 		SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
 		factory.setConnectionFactory(connectionFactory);
@@ -91,6 +121,7 @@ public class NotificationRabbitConfig {
 		factory.setConcurrentConsumers(properties.resolveConcurrency());
 		factory.setMaxConcurrentConsumers(properties.resolveMaxConcurrency());
 		factory.setPrefetchCount(properties.resolvePrefetchCount());
+		factory.setTaskExecutor(listenerTaskExecutor);
 		return factory;
 	}
 
