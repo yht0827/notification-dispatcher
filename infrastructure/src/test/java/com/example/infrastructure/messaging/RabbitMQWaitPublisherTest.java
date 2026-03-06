@@ -39,7 +39,11 @@ class RabbitMQWaitPublisherTest {
 			3,
 			5000,
 			1,
-			10
+			10,
+			1,
+			false,
+			50,
+			200
 		);
 		waitPublisher = new RabbitMQWaitPublisher(rabbitTemplate, properties);
 	}

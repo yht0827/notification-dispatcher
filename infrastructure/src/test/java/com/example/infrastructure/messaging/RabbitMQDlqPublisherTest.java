@@ -36,7 +36,11 @@ class RabbitMQDlqPublisherTest {
 			3,
 			5000,
 			1,
-			10
+			10,
+			1,
+			false,
+			50,
+			200
 		);
 		dlqPublisher = new RabbitMQDlqPublisher(rabbitTemplate, properties);
 	}

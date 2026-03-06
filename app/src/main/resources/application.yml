@@ -128,15 +128,19 @@ spring:
 
 notification:
   rabbitmq:
-    work-queue: notification.work          # Work 큐 이름
+    work-queue: notification.work              # Work 큐 이름
     work-exchange: notification.work.exchange  # Work Exchange
-    wait-queue: notification.wait          # Wait 큐 이름
-    dlq-queue: notification.dlq            # DLQ 큐 이름
+    wait-queue: notification.wait              # Wait 큐 이름
+    dlq-queue: notification.dlq                # DLQ 큐 이름
     dlq-exchange: notification.dlq.exchange    # DLQ Exchange
-    max-retry-count: 3                     # 최대 재시도 횟수
-    retry-base-delay-millis: 5000          # 기본 재시도 지연 (ms)
-    concurrency: 1                         # 초기 동시 처리 스레드
-    max-concurrency: 10                    # 최대 동시 처리 스레드
+    max-retry-count: 3                         # 최대 재시도 횟수
+    retry-base-delay-millis: 5000              # 기본 재시도 지연 (ms)
+    concurrency: 1                             # 초기 동시 처리 스레드
+    max-concurrency: 10                        # 최대 동시 처리 스레드
+    prefetch: 1                                # Consumer prefetch count
+    batch-listener-enabled: false              # 배치 리스너 활성화
+    batch-size: 50                             # 배치 수집 크기
+    batch-receive-timeout-millis: 200          # 배치 수집 대기(ms)
   external:
     mock:
       enabled: true

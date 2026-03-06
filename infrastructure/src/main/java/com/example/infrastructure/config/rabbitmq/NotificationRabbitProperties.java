@@ -12,13 +12,20 @@ public record NotificationRabbitProperties(
 	int maxRetryCount,             // 최대 3회
 	int retryBaseDelayMillis,      // 기본 5000ms
 	int concurrency,               // 초기 1
-	int maxConcurrency             // 최대 10
+	int maxConcurrency,            // 최대 10
+	int prefetch,                  // 기본 concurrency와 동일
+	boolean batchListenerEnabled,  // 배치 리스너 ON/OFF
+	int batchSize,                 // 배치 리스너 크기
+	int batchReceiveTimeoutMillis  // 배치 수집 대기 시간(ms)
 ) {
 
 	private static final int DEFAULT_MAX_RETRY_COUNT = 3;
 	private static final int DEFAULT_RETRY_BASE_DELAY_MILLIS = 5000;
 	private static final int DEFAULT_CONCURRENCY = 1;
 	private static final int DEFAULT_MAX_CONCURRENCY = 10;
+	private static final int DEFAULT_PREFETCH_COUNT = 1;
+	private static final int DEFAULT_BATCH_SIZE = 50;
+	private static final int DEFAULT_BATCH_RECEIVE_TIMEOUT_MILLIS = 200;
 	private static final int MAX_RETRY_BACKOFF_SHIFT = 10;
 	private static final String WAIT_EXCHANGE_SUFFIX = ".exchange";
 
@@ -47,7 +54,25 @@ public record NotificationRabbitProperties(
 	}
 
 	public int resolvePrefetchCount() {
-		return resolveConcurrency();
+		if (prefetch > 0) {
+			return prefetch;
+		}
+		int resolvedConcurrency = resolveConcurrency();
+		return resolvedConcurrency > 0 ? resolvedConcurrency : DEFAULT_PREFETCH_COUNT;
+	}
+
+	public boolean resolveBatchListenerEnabled() {
+		return batchListenerEnabled;
+	}
+
+	public int resolveBatchSize() {
+		return batchSize > 0 ? batchSize : DEFAULT_BATCH_SIZE;
+	}
+
+	public long resolveBatchReceiveTimeoutMillis() {
+		return batchReceiveTimeoutMillis > 0
+			? batchReceiveTimeoutMillis
+			: DEFAULT_BATCH_RECEIVE_TIMEOUT_MILLIS;
 	}
 
 	public String workRoutingKey() {

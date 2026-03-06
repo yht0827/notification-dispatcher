@@ -25,6 +25,7 @@ import com.example.application.port.in.NotificationDispatchUseCase;
 import com.example.application.port.out.DispatchLockManager;
 import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.repository.NotificationRepository;
+import com.example.infrastructure.messaging.inbound.RabbitMQBatchConsumer;
 import com.example.infrastructure.messaging.inbound.RabbitMQConsumer;
 import com.example.infrastructure.messaging.inbound.RabbitMQRecordHandler;
 import com.example.infrastructure.messaging.outbound.RabbitMQDlqPublisher;
@@ -61,13 +62,35 @@ public class NotificationRabbitConfig {
 		MessageConverter mc,
 		NotificationRabbitProperties p
 	) {
+		return createBaseListenerContainerFactory(cf, mc, p);
+	}
+
+	@Bean(name = RabbitBeanNames.BATCH_LISTENER_CONTAINER_FACTORY)
+	public SimpleRabbitListenerContainerFactory rabbitBatchListenerContainerFactory(
+		ConnectionFactory cf,
+		MessageConverter mc,
+		NotificationRabbitProperties p
+	) {
+		SimpleRabbitListenerContainerFactory factory = createBaseListenerContainerFactory(cf, mc, p);
+		factory.setConsumerBatchEnabled(true);
+		factory.setBatchListener(true);
+		factory.setBatchSize(p.resolveBatchSize());
+		factory.setReceiveTimeout(p.resolveBatchReceiveTimeoutMillis());
+		return factory;
+	}
+
+	private SimpleRabbitListenerContainerFactory createBaseListenerContainerFactory(
+		ConnectionFactory connectionFactory,
+		MessageConverter messageConverter,
+		NotificationRabbitProperties properties
+	) {
 		SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
-		factory.setConnectionFactory(cf);
-		factory.setMessageConverter(mc);
+		factory.setConnectionFactory(connectionFactory);
+		factory.setMessageConverter(messageConverter);
 		factory.setAcknowledgeMode(AcknowledgeMode.MANUAL);
-		factory.setConcurrentConsumers(p.resolveConcurrency()); // 초기 스레드 풀 크기
-		factory.setMaxConcurrentConsumers(p.resolveMaxConcurrency()); // 최대 스레드 풀 크기
-		factory.setPrefetchCount(p.resolvePrefetchCount());
+		factory.setConcurrentConsumers(properties.resolveConcurrency());
+		factory.setMaxConcurrentConsumers(properties.resolveMaxConcurrency());
+		factory.setPrefetchCount(properties.resolvePrefetchCount());
 		return factory;
 	}
 
@@ -212,10 +235,30 @@ public class NotificationRabbitConfig {
 	}
 
 	@Bean
+	@ConditionalOnProperty(
+		prefix = "notification.rabbitmq",
+		name = "batch-listener-enabled",
+		havingValue = "false",
+		matchIfMissing = true
+	)
 	public RabbitMQConsumer rabbitMQConsumer(
 		RabbitMQRecordHandler recordHandler,
 		DeadLetterPublisher dlqPublisher,
 		WaitPublisher waitPublisher) {
 		return new RabbitMQConsumer(recordHandler, dlqPublisher, waitPublisher);
+	}
+
+	@Bean
+	@ConditionalOnProperty(
+		prefix = "notification.rabbitmq",
+		name = "batch-listener-enabled",
+		havingValue = "true"
+	)
+	public RabbitMQBatchConsumer rabbitMQBatchConsumer(
+		RabbitMQRecordHandler recordHandler,
+		DeadLetterPublisher dlqPublisher,
+		WaitPublisher waitPublisher,
+		MessageConverter messageConverter) {
+		return new RabbitMQBatchConsumer(recordHandler, dlqPublisher, waitPublisher, messageConverter);
 	}
 }
