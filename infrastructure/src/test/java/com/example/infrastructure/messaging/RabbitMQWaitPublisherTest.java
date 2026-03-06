@@ -41,6 +41,7 @@ class RabbitMQWaitPublisherTest {
 			1,
 			10,
 			1,
+			null,
 			false,
 			50,
 			200

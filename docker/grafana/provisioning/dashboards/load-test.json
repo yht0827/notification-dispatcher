@@ -555,58 +555,6 @@
       ]
     },
     {
-      "id": 20,
-      "type": "stat",
-      "title": "에러율",
-      "gridPos": {
-        "x": 19,
-        "y": 23,
-        "w": 5,
-        "h": 4
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit",
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 0.01
-              },
-              {
-                "color": "red",
-                "value": 0.05
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
-        "colorMode": "background",
-        "graphMode": "none"
-      },
-      "targets": [
-        {
-          "expr": "(sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\",status=~\"5..\"}[1m])) or vector(0))/sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))",
-          "legendFormat": "에러율"
-        }
-      ]
-    },
-    {
       "id": 21,
       "type": "stat",
       "title": "P99 응답시간",
@@ -655,6 +603,58 @@
         {
           "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
           "legendFormat": "P99"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "type": "stat",
+      "title": "에러율",
+      "gridPos": {
+        "x": 19,
+        "y": 23,
+        "w": 5,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.01
+              },
+              {
+                "color": "red",
+                "value": 0.05
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "expr": "(sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\",status=~\"5..\"}[1m])) or vector(0))/sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))",
+          "legendFormat": "에러율"
         }
       ]
     },
@@ -1133,13 +1133,50 @@
       ]
     },
     {
+      "id": 28,
+      "type": "timeseries",
+      "title": "MySQL Container CPU",
+      "description": "notification-mysql 컨테이너 CPU 사용량. 1.0 = 100%, 멀티코어에서는 100%를 초과할 수 있음.",
+      "gridPos": {
+        "x": 0,
+        "y": 68,
+        "w": 24,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service=\"mysql\"}[1m])) or sum(rate(container_cpu_usage_seconds_total{name=~\".*notification-mysql.*\"}[1m])) or sum(rate(container_cpu_usage_seconds_total{container=~\".*notification-mysql.*\"}[1m]))",
+          "legendFormat": "MySQL CPU"
+        }
+      ]
+    },
+    {
       "collapsed": false,
       "id": 104,
       "title": "Messaging (RabbitMQ) & Redis Memory",
       "type": "row",
       "gridPos": {
         "x": 0,
-        "y": 68,
+        "y": 76,
         "w": 24,
         "h": 1
       }
@@ -1151,7 +1188,7 @@
       "description": "WORK/WAIT/DLQ 큐의 전체 메시지 수(ready + unacked)",
       "gridPos": {
         "x": 0,
-        "y": 69,
+        "y": 77,
         "w": 12,
         "h": 8
       },
@@ -1196,7 +1233,7 @@
       "description": "Ready=대기 메시지, Unacked=소비 중 미ACK 메시지",
       "gridPos": {
         "x": 12,
-        "y": 69,
+        "y": 77,
         "w": 12,
         "h": 8
       },
@@ -1236,7 +1273,7 @@
       "title": "Redis Memory",
       "gridPos": {
         "x": 0,
-        "y": 77,
+        "y": 85,
         "w": 8,
         "h": 8
       },
@@ -1276,7 +1313,7 @@
       "title": "Connected Clients",
       "gridPos": {
         "x": 8,
-        "y": 77,
+        "y": 85,
         "w": 8,
         "h": 8
       },
@@ -1316,7 +1353,7 @@
       "title": "Commands/s",
       "gridPos": {
         "x": 16,
-        "y": 77,
+        "y": 85,
         "w": 8,
         "h": 8
       },

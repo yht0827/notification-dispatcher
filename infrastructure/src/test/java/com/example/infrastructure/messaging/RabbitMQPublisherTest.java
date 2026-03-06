@@ -31,6 +31,7 @@ class RabbitMQPublisherTest {
 			"notification.dlq",
 			"notification.dlq.exchange",
 			3, 5000, 1, 10, 1,
+			null,
 			false, 50, 200
 		);
 		publisher = new RabbitMQPublisher(rabbitTemplate, properties);
