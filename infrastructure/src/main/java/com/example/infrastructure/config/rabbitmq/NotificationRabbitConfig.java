@@ -32,6 +32,7 @@ import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.repository.NotificationRepository;
 import com.example.infrastructure.messaging.inbound.RabbitMQBatchConsumer;
 import com.example.infrastructure.messaging.inbound.RabbitMQConsumer;
+import com.example.infrastructure.messaging.inbound.MessageProcessOrchestrator;
 import com.example.infrastructure.messaging.inbound.RabbitMQRecordHandler;
 import com.example.infrastructure.messaging.outbound.RabbitMQDlqPublisher;
 import com.example.infrastructure.messaging.outbound.RabbitMQPublisher;
@@ -266,6 +267,14 @@ public class NotificationRabbitConfig {
 	}
 
 	@Bean
+	public MessageProcessOrchestrator messageProcessOrchestrator(
+		RabbitMQRecordHandler recordHandler,
+		DeadLetterPublisher dlqPublisher,
+		WaitPublisher waitPublisher) {
+		return new MessageProcessOrchestrator(recordHandler, dlqPublisher, waitPublisher);
+	}
+
+	@Bean
 	@ConditionalOnProperty(
 		prefix = "notification.rabbitmq",
 		name = "batch-listener-enabled",
@@ -273,10 +282,8 @@ public class NotificationRabbitConfig {
 		matchIfMissing = true
 	)
 	public RabbitMQConsumer rabbitMQConsumer(
-		RabbitMQRecordHandler recordHandler,
-		DeadLetterPublisher dlqPublisher,
-		WaitPublisher waitPublisher) {
-		return new RabbitMQConsumer(recordHandler, dlqPublisher, waitPublisher);
+		MessageProcessOrchestrator orchestrator) {
+		return new RabbitMQConsumer(orchestrator);
 	}
 
 	@Bean
@@ -286,10 +293,8 @@ public class NotificationRabbitConfig {
 		havingValue = "true"
 	)
 	public RabbitMQBatchConsumer rabbitMQBatchConsumer(
-		RabbitMQRecordHandler recordHandler,
-		DeadLetterPublisher dlqPublisher,
-		WaitPublisher waitPublisher,
+		MessageProcessOrchestrator orchestrator,
 		MessageConverter messageConverter) {
-		return new RabbitMQBatchConsumer(recordHandler, dlqPublisher, waitPublisher, messageConverter);
+		return new RabbitMQBatchConsumer(orchestrator, messageConverter);
 	}
 }

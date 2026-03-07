@@ -1,8 +1,11 @@
 package com.example.infrastructure.messaging;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 
@@ -15,26 +18,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageProperties;
 
-import com.example.infrastructure.messaging.exception.NonRetryableMessageException;
-import com.example.infrastructure.messaging.exception.RetryableMessageException;
+import com.example.infrastructure.messaging.inbound.MessageProcessDecision;
+import com.example.infrastructure.messaging.inbound.MessageProcessOrchestrator;
 import com.example.infrastructure.messaging.inbound.RabbitMQConsumer;
-import com.example.infrastructure.messaging.inbound.RabbitMQRecordHandler;
 import com.example.infrastructure.messaging.payload.NotificationMessagePayload;
-import com.example.infrastructure.messaging.port.DeadLetterPublisher;
-import com.example.infrastructure.messaging.port.WaitPublisher;
 import com.rabbitmq.client.Channel;
 
 @ExtendWith(MockitoExtension.class)
 class RabbitMQConsumerTest {
 
 	@Mock
-	private RabbitMQRecordHandler recordHandler;
-
-	@Mock
-	private DeadLetterPublisher dlqPublisher;
-
-	@Mock
-	private WaitPublisher waitPublisher;
+	private MessageProcessOrchestrator orchestrator;
 
 	@Mock
 	private Channel channel;
@@ -43,7 +37,7 @@ class RabbitMQConsumerTest {
 
 	@BeforeEach
 	void setUp() {
-		consumer = new RabbitMQConsumer(recordHandler, dlqPublisher, waitPublisher);
+		consumer = new RabbitMQConsumer(orchestrator);
 	}
 
 	private Message createMessage() {
@@ -51,129 +45,26 @@ class RabbitMQConsumerTest {
 	}
 
 	@Test
-	@DisplayName("처리 성공 시 ACK만 수행한다")
+	@DisplayName("orchestrator가 ACK를 반환하면 ACK 한다")
 	void onMessage_acknowledgesWhenProcessSucceeds() throws IOException {
-		// given
 		NotificationMessagePayload payload = new NotificationMessagePayload(20L, 0);
+		when(orchestrator.process(any())).thenReturn(MessageProcessDecision.ack(1L));
 
-		// when
 		consumer.onMessage(payload, createMessage(), channel, 1L);
 
-		// then
-		verify(recordHandler).process(20L, 0);
 		verify(channel).basicAck(1L, false);
-		verify(dlqPublisher, never()).publish(any(), any(), any(), anyString());
-		verify(waitPublisher, never()).publish(anyLong(), anyInt(), anyString());
+		verify(channel, never()).basicNack(1L, false, false);
 	}
 
 	@Test
-	@DisplayName("처리 중 non-retryable 오류는 DLQ 전송 후 ACK 한다")
-	void onMessage_sendsDlqAndAckWhenProcessFailsNonRetryable() throws IOException {
-		// given
-		NotificationMessagePayload payload = new NotificationMessagePayload(10L, 0);
-
-		doThrow(new NonRetryableMessageException("max retry exceeded"))
-			.when(recordHandler)
-			.process(10L, 0);
-
-		// when
-		consumer.onMessage(payload, createMessage(), channel, 1L);
-
-		// then
-		verify(dlqPublisher).publish(eq("1"), eq(payload), eq(10L), eq("max retry exceeded"));
-		verify(channel).basicAck(1L, false);
-	}
-
-	@Test
-	@DisplayName("처리 중 retryable 오류는 WAIT 큐로 전송 후 ACK 한다")
-	void onMessage_sendsToWaitQueueWhenProcessFailsRetryable() throws IOException {
-		// given
-		NotificationMessagePayload payload = new NotificationMessagePayload(30L, 1);
-
-		doThrow(new RetryableMessageException("일시적 오류"))
-			.when(recordHandler)
-			.process(30L, 1);
-
-		// when
-		consumer.onMessage(payload, createMessage(), channel, 2L);
-
-		// then
-		verify(waitPublisher).publish(30L, 1, "일시적 오류");
-		verify(channel).basicAck(2L, false);
-	}
-
-	@Test
-	@DisplayName("notificationId가 null이면 DLQ 전송 후 ACK 한다")
-	void onMessage_sendsDlqAndAckWhenNotificationIdNull() throws IOException {
-		// given
-		NotificationMessagePayload payload = new NotificationMessagePayload();
-		payload.setNotificationId(null);
-		payload.setRetryCount(0);
-
-		// when
-		consumer.onMessage(payload, createMessage(), channel, 3L);
-
-		// then
-		verify(dlqPublisher).publish(
-			eq("3"),
-			eq(payload),
-			isNull(),
-			contains("payload 또는 notificationId 값이 비어 있습니다")
-		);
-		verify(channel).basicAck(3L, false);
-	}
-
-	@Test
-	@DisplayName("예상치 못한 예외는 NACK(requeue=false) 처리한다")
+	@DisplayName("orchestrator가 NACK를 반환하면 NACK 한다")
 	void onMessage_nacksOnUnexpectedException() throws IOException {
-		// given
 		NotificationMessagePayload payload = new NotificationMessagePayload(60L, 0);
+		when(orchestrator.process(any())).thenReturn(MessageProcessDecision.nack(5L));
 
-		doThrow(new IllegalStateException("unexpected failure"))
-			.when(recordHandler)
-			.process(60L, 0);
-
-		// when
 		consumer.onMessage(payload, createMessage(), channel, 5L);
 
-		// then
 		verify(channel).basicNack(5L, false, false);
 		verify(channel, never()).basicAck(anyLong(), anyBoolean());
-		verify(dlqPublisher, never()).publish(any(), any(), any(), anyString());
-		verify(waitPublisher, never()).publish(anyLong(), anyInt(), anyString());
-	}
-
-	@Test
-	@DisplayName("payload가 null이면 DLQ 전송 후 ACK 한다")
-	void onMessage_sendsDlqAndAckWhenPayloadNull() throws IOException {
-		// when
-		consumer.onMessage(null, createMessage(), channel, 4L);
-
-		// then
-		verify(dlqPublisher).publish(
-			eq("4"),
-			isNull(),
-			isNull(),
-			contains("payload 또는 notificationId 값이 비어 있습니다")
-		);
-		verify(channel).basicAck(4L, false);
-	}
-
-	@Test
-	@DisplayName("메시지 ID가 있으면 sourceRecordId로 DLQ 전송한다")
-	void onMessage_usesMessageIdAsSourceRecordIdForDlq() throws IOException {
-		NotificationMessagePayload payload = new NotificationMessagePayload(15L, 0);
-		doThrow(new NonRetryableMessageException("invalid payload"))
-			.when(recordHandler)
-			.process(15L, 0);
-
-		MessageProperties messageProperties = new MessageProperties();
-		messageProperties.setMessageId("msg-123");
-		Message message = new Message(new byte[0], messageProperties);
-
-		consumer.onMessage(payload, message, channel, 9L);
-
-		verify(dlqPublisher).publish(eq("msg-123"), eq(payload), eq(15L), eq("invalid payload"));
-		verify(channel).basicAck(9L, false);
 	}
 }

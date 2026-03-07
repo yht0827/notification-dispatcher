@@ -23,5 +23,7 @@ public interface NotificationGroupRepository {
 
     List<NotificationGroup> findByGroupType(GroupType groupType);
 
+	void bulkApplyDispatchCounts(List<NotificationGroupCountUpdate> updates);
+
     void delete(NotificationGroup group);
 }

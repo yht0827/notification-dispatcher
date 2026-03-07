@@ -20,6 +20,9 @@ public interface NotificationJpaRepository extends JpaRepository<Notification, L
 	@Query("select n from Notification n left join fetch n.group where n.id = :id")
 	Optional<Notification> findById(@Param("id") Long id);
 
+	@Query("select distinct n from Notification n left join fetch n.group where n.id in :ids")
+	List<Notification> findAllByIdIn(@Param("ids") List<Long> ids);
+
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("select n from Notification n where n.id = :id")
 	Optional<Notification> findByIdWithPessimisticLock(@Param("id") Long id);

@@ -9,17 +9,27 @@ import java.util.Optional;
 
 public interface NotificationRepository {
 
-    Notification save(Notification notification);
+	Notification save(Notification notification);
 
-    Optional<Notification> findById(Long id);
+	List<Notification> saveAll(List<Notification> notifications);
 
-    List<Notification> findByReceiver(String receiver);
+	Optional<Notification> findById(Long id);
+
+	List<Notification> findAllByIdIn(List<Long> ids);
+
+	List<Notification> findByReceiver(String receiver);
 
 	List<Notification> findByReceiverAndStatus(String receiver, NotificationStatus status);
 
 	List<Notification> findByStatus(NotificationStatus status);
 
 	List<Notification> findByStatusAndCreatedAtBefore(NotificationStatus status, LocalDateTime threshold, int limit);
+
+	void bulkStartSending(List<Long> notificationIds, LocalDateTime updatedAt);
+
+	void bulkMarkAsSent(List<Long> notificationIds, LocalDateTime sentAt, LocalDateTime updatedAt);
+
+	void bulkMarkAsFailed(List<NotificationFailureUpdate> failureUpdates, LocalDateTime updatedAt);
 
 	void delete(Notification notification);
 }

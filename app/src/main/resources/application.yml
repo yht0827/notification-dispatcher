@@ -15,6 +15,14 @@ spring:
           mockApi:
             connect-timeout: 1000
             read-timeout: 5000
+  jpa:
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+          batch_versioned_data: true
+        order_inserts: true
+        order_updates: true
 
 # ─────────────────────────────────────────
 # Notification Messaging (공통 기본값)
@@ -111,6 +119,8 @@ spring:
       maximum-pool-size: 30
       minimum-idle: 10
       connection-timeout: 5000   # 5초 대기 후 TimeoutException (기본 30초)
+      data-source-properties:
+        rewriteBatchedStatements: true
   jpa:
     open-in-view: false
     hibernate:
@@ -140,7 +150,7 @@ notification:
     concurrency: 2
     max-concurrency: 2
     prefetch: 100
-    batch-listener-enabled: false              # 배치 리스너 활성화
+    batch-listener-enabled: true               # 배치 리스너 활성화
     batch-size: 50                             # 배치 수집 크기
     batch-receive-timeout-millis: 200          # 배치 수집 대기(ms)
   external:
@@ -176,6 +186,9 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      data-source-properties:
+        rewriteBatchedStatements: true
   jpa:
     open-in-view: false
     hibernate:

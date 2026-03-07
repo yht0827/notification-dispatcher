@@ -1,6 +1,8 @@
 package com.example.infrastructure.analysis;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.EntityStatistics;
@@ -14,7 +16,10 @@ import org.springframework.test.context.TestPropertySource;
 
 import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
+import com.example.application.port.in.result.BatchDispatchResult;
 import com.example.application.port.in.result.NotificationDispatchResult;
+import com.example.application.port.out.NotificationSender;
+import com.example.application.port.out.result.SendResult;
 import com.example.application.service.NotificationCommandService;
 import com.example.application.service.NotificationDispatchService;
 import com.example.domain.notification.ChannelType;
@@ -26,6 +31,7 @@ import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationRepository;
 
 import jakarta.persistence.EntityManagerFactory;
+import org.springframework.boot.test.mock.mockito.MockBean;
 
 @TestPropertySource(properties = {
 	"spring.jpa.properties.hibernate.generate_statistics=true"
@@ -50,6 +56,9 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
+	@MockBean
+	private NotificationSender notificationSender;
+
 	private Statistics statistics;
 
 	@BeforeEach
@@ -57,6 +66,7 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 		truncateTables();
 		statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
 		statistics.clear();
+		given(notificationSender.send(any(Notification.class))).willReturn(SendResult.success());
 	}
 
 	@Test
@@ -109,6 +119,25 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 		assertEntityStats(NotificationGroup.class, 0, 1, 0);
 	}
 
+	@Test
+	@DisplayName("dispatchBatch 성공은 상태 전이를 batch write로 반영하고 group 카운터를 집계한다")
+	void dispatchBatch_success_appliesStatusTransitionsAndGroupCounts() {
+		java.util.List<Long> notificationIds = createNotifications(3);
+		Long groupId = groupRepository.findByIdWithNotifications(createGroupIdForExistingNotifications(notificationIds)).orElseThrow().getId();
+		statistics.clear();
+
+		java.util.List<Notification> detachedNotifications = notificationRepository.findAllByIdIn(notificationIds);
+		java.util.List<BatchDispatchResult> results = dispatchService.dispatchBatch(detachedNotifications);
+
+		assertThat(results).hasSize(3);
+		assertThat(results).allMatch(BatchDispatchResult::isSuccess);
+		assertThat(countNotificationsByStatus("SENT")).isEqualTo(3);
+		assertThat(sumAttemptCount()).isEqualTo(3);
+		assertThat(countSentNotifications()).isEqualTo(3);
+		assertThat(groupSentCount(groupId)).isEqualTo(3);
+		assertThat(groupFailedCount(groupId)).isZero();
+	}
+
 	private Long createSingleNotification() {
 		SendCommand command = new SendCommand(
 			"dispatch-client",
@@ -125,11 +154,85 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 		return group.getNotifications().getFirst().getId();
 	}
 
+	private java.util.List<Long> createNotifications(int receiverCount) {
+		NotificationGroup group = groupRepository.findByIdWithNotifications(createGroupId(receiverCount)).orElseThrow();
+		return group.getNotifications().stream()
+			.map(Notification::getId)
+			.toList();
+	}
+
+	private Long createGroupIdForExistingNotifications(java.util.List<Long> notificationIds) {
+		return notificationRepository.findById(notificationIds.getFirst())
+			.orElseThrow()
+			.getGroup()
+			.getId();
+	}
+
+	private Long createGroupId(int receiverCount) {
+		java.util.List<String> receivers = java.util.stream.IntStream.range(0, receiverCount)
+			.mapToObj(index -> "batch-" + index + "@example.com")
+			.toList();
+
+		NotificationCommandResult result = commandService.request(new SendCommand(
+			"batch-pattern-client",
+			"sender",
+			"title",
+			"content",
+			ChannelType.EMAIL,
+			receivers,
+			"idem-batch-" + receiverCount
+		));
+		return result.groupId();
+	}
+
 	private void assertEntityStats(Class<?> entityType, long inserts, long updates, long deletes) {
 		EntityStatistics entityStatistics = statistics.getEntityStatistics(entityType.getName());
 		assertThat(entityStatistics.getInsertCount()).isEqualTo(inserts);
 		assertThat(entityStatistics.getUpdateCount()).isEqualTo(updates);
 		assertThat(entityStatistics.getDeleteCount()).isEqualTo(deletes);
+	}
+
+	private int countNotificationsByStatus(String status) {
+		Integer count = jdbcTemplate.queryForObject(
+			"SELECT COUNT(*) FROM notification WHERE status = ?",
+			Integer.class,
+			status
+		);
+		return count == null ? 0 : count;
+	}
+
+	private int sumAttemptCount() {
+		Integer sum = jdbcTemplate.queryForObject(
+			"SELECT COALESCE(SUM(attempt_count), 0) FROM notification",
+			Integer.class
+		);
+		return sum == null ? 0 : sum;
+	}
+
+	private int countSentNotifications() {
+		Integer count = jdbcTemplate.queryForObject(
+			"SELECT COUNT(*) FROM notification WHERE sent_at IS NOT NULL",
+			Integer.class
+		);
+		return count == null ? 0 : count;
+	}
+
+	private int groupSentCount(Long groupId) {
+		Integer count = jdbcTemplate.queryForObject(
+			"SELECT sent_count FROM notification_group WHERE id = ?",
+			Integer.class,
+			groupId
+		);
+		return count == null ? 0 : count;
+	}
+
+	private int groupFailedCount(Long groupId) {
+		Integer count = jdbcTemplate.queryForObject(
+			"SELECT failed_count FROM notification_group WHERE id = ?",
+			Integer.class,
+			groupId
+		);
+		return count == null ? 0 : count;
 	}
 
 	private void truncateTables() {
