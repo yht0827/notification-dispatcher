@@ -12,8 +12,7 @@ public record MessageProcessContext(
 	String invalidReason
 ) {
 
-	public static MessageProcessContext valid(NotificationMessagePayload payload, String sourceRecordId,
-		long deliveryTag) {
+	public static MessageProcessContext valid(NotificationMessagePayload payload, String sourceRecordId, long deliveryTag) {
 		return new MessageProcessContext(payload, sourceRecordId, deliveryTag, null);
 	}
 
@@ -23,6 +22,10 @@ public record MessageProcessContext(
 
 	public boolean isInvalid() {
 		return invalidReason != null;
+	}
+
+	public static MessageProcessContext fromTypedPayload(NotificationMessagePayload payload, Message message, long deliveryTag) {
+		return valid(payload, resolveSourceRecordId(message, deliveryTag), deliveryTag);
 	}
 
 	public static MessageProcessContext fromAmqpMessage(Message message, MessageConverter messageConverter) {

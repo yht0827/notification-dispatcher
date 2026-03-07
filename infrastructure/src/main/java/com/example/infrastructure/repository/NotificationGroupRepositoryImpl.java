@@ -1,7 +1,5 @@
 package com.example.infrastructure.repository;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -16,6 +14,9 @@ import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.domain.notification.GroupType;
 import com.example.domain.notification.NotificationGroup;
 
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+
 import lombok.RequiredArgsConstructor;
 
 @Repository
@@ -28,11 +29,6 @@ public class NotificationGroupRepositoryImpl implements NotificationGroupReposit
 	@Override
 	public NotificationGroup save(NotificationGroup group) {
 		return jpaRepository.save(group);
-	}
-
-	@Override
-	public NotificationGroup saveAndFlush(NotificationGroup group) {
-		return jpaRepository.saveAndFlush(group);
 	}
 
 	@Override
@@ -58,6 +54,12 @@ public class NotificationGroupRepositoryImpl implements NotificationGroupReposit
 	}
 
 	@Override
+	public List<NotificationGroup> findRecentByCursor(Long cursorId, int limit) {
+		int normalizedLimit = normalizeLimit(limit);
+		return jpaRepository.findRecentSlice(cursorId, PageRequest.of(0, normalizedLimit));
+	}
+
+	@Override
 	public List<NotificationGroup> findByGroupType(GroupType groupType) {
 		return jpaRepository.findByGroupType(groupType);
 	}
@@ -74,7 +76,8 @@ public class NotificationGroupRepositoryImpl implements NotificationGroupReposit
 			SET sent_count = sent_count + ?,
 			    failed_count = failed_count + ?,
 			    updated_at = ?
-			WHERE id = ?
+			WHERE deleted_at IS NULL
+			  AND id = ?
 			""", new BatchPreparedStatementSetter() {
 			@Override
 			public void setValues(PreparedStatement ps, int index) throws SQLException {
@@ -90,6 +93,11 @@ public class NotificationGroupRepositoryImpl implements NotificationGroupReposit
 				return updates.size();
 			}
 		});
+	}
+
+	@Override
+	public void delete(NotificationGroup group) {
+		jpaRepository.delete(group);
 	}
 
 	private int normalizeLimit(int limit) {

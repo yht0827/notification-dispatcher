@@ -1,8 +1,8 @@
 package com.example.infrastructure.analysis;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.BDDMockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.EntityStatistics;
@@ -13,24 +13,25 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import com.example.application.port.in.command.SendCommand;
-import com.example.application.port.in.result.BatchDispatchResult;
 import com.example.application.port.in.result.NotificationCommandResult;
+import com.example.application.port.in.result.BatchDispatchResult;
+import com.example.application.port.in.result.NotificationDispatchResult;
 import com.example.application.port.out.NotificationSender;
-import com.example.application.port.out.repository.NotificationGroupRepository;
-import com.example.application.port.out.repository.NotificationRepository;
-import com.example.application.port.out.SendResult;
+import com.example.application.port.out.result.SendResult;
+import com.example.application.service.NotificationCommandService;
 import com.example.application.service.NotificationDispatchService;
-import com.example.application.service.NotificationWriteService;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
 import com.example.domain.outbox.Outbox;
 import com.example.infrastructure.support.IntegrationTestSupportNoTx;
+import com.example.application.port.out.repository.NotificationGroupRepository;
+import com.example.application.port.out.repository.NotificationRepository;
 
 import jakarta.persistence.EntityManagerFactory;
+import org.springframework.boot.test.mock.mockito.MockBean;
 
 @TestPropertySource(properties = {
 	"spring.jpa.properties.hibernate.generate_statistics=true"
@@ -38,7 +39,7 @@ import jakarta.persistence.EntityManagerFactory;
 class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 
 	@Autowired
-	private NotificationWriteService commandService;
+	private NotificationCommandService commandService;
 
 	@Autowired
 	private NotificationDispatchService dispatchService;
@@ -55,7 +56,7 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
-	@MockitoBean
+	@MockBean
 	private NotificationSender notificationSender;
 
 	private Statistics statistics;
@@ -78,8 +79,7 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 			"content",
 			ChannelType.EMAIL,
 			java.util.List.of("a@test.com", "b@test.com"),
-			"idem-write-pattern",
-			null
+			"idem-write-pattern"
 		);
 
 		NotificationCommandResult result = commandService.request(command);
@@ -91,16 +91,17 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 	}
 
 	@Test
-	@DisplayName("dispatchBatch 단건 성공은 notification과 group을 갱신한다")
+	@DisplayName("dispatch 성공은 notification과 group을 갱신한다")
 	void dispatch_success_updatesNotificationAndGroup() {
 		Long notificationId = createSingleNotification();
+		statistics.clear();
 
 		Notification detached = notificationRepository.findById(notificationId).orElseThrow();
-		java.util.List<BatchDispatchResult> results = dispatchService.dispatchBatch(java.util.List.of(detached));
+		NotificationDispatchResult result = dispatchService.dispatch(detached);
 
-		assertThat(results).singleElement().satisfies(result -> assertThat(result.isSuccess()).isTrue());
-		assertThat(countNotificationsByStatus("SENT")).isEqualTo(1);
-		assertThat(countSentNotifications()).isEqualTo(1);
+		assertThat(result.isSuccess()).isTrue();
+		assertEntityStats(Notification.class, 0, 1, 0);
+		assertEntityStats(NotificationGroup.class, 0, 1, 0);
 	}
 
 	@Test
@@ -122,9 +123,7 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 	@DisplayName("dispatchBatch 성공은 상태 전이를 batch write로 반영하고 group 카운터를 집계한다")
 	void dispatchBatch_success_appliesStatusTransitionsAndGroupCounts() {
 		java.util.List<Long> notificationIds = createNotifications(3);
-		Long groupId = groupRepository.findByIdWithNotifications(createGroupIdForExistingNotifications(notificationIds))
-			.orElseThrow()
-			.getId();
+		Long groupId = groupRepository.findByIdWithNotifications(createGroupIdForExistingNotifications(notificationIds)).orElseThrow().getId();
 		statistics.clear();
 
 		java.util.List<Notification> detachedNotifications = notificationRepository.findAllByIdIn(notificationIds);
@@ -147,8 +146,7 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 			"content",
 			ChannelType.EMAIL,
 			java.util.List.of("one@test.com"),
-			"idem-dispatch",
-			null
+			"idem-dispatch"
 		);
 
 		NotificationCommandResult result = commandService.request(command);
@@ -182,8 +180,7 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 			"content",
 			ChannelType.EMAIL,
 			receivers,
-			"idem-batch-" + receiverCount,
-			null
+			"idem-batch-" + receiverCount
 		));
 		return result.groupId();
 	}

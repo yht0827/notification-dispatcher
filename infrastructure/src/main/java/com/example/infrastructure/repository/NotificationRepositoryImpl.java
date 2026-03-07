@@ -1,14 +1,11 @@
 package com.example.infrastructure.repository;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -18,30 +15,32 @@ import com.example.application.port.out.repository.NotificationRepository;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationStatus;
 
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+
 import lombok.RequiredArgsConstructor;
 
 @Repository
 @RequiredArgsConstructor
 public class NotificationRepositoryImpl implements NotificationRepository {
 
-	private final NotificationJpaRepository jpaRepository;
-	private final JdbcTemplate jdbcTemplate;
-	private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final NotificationJpaRepository jpaRepository;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
-	@Override
-	public Notification save(Notification notification) {
-		return jpaRepository.save(notification);
-	}
+    @Override
+    public Notification save(Notification notification) {
+        return jpaRepository.save(notification);
+    }
 
 	@Override
 	public List<Notification> saveAll(List<Notification> notifications) {
 		return jpaRepository.saveAll(notifications);
 	}
 
-	@Override
-	public Optional<Notification> findById(Long id) {
-		return jpaRepository.findById(id);
-	}
+    @Override
+    public Optional<Notification> findById(Long id) {
+        return jpaRepository.findById(id);
+    }
 
 	@Override
 	public List<Notification> findAllByIdIn(List<Long> ids) {
@@ -51,10 +50,15 @@ public class NotificationRepositoryImpl implements NotificationRepository {
 		return jpaRepository.findAllByIdIn(ids);
 	}
 
-	@Override
-	public long countUnreadByClientIdAndReceiver(String clientId, String receiver, LocalDateTime from) {
-		return jpaRepository.countUnreadByClientIdAndReceiver(clientId, receiver, from);
-	}
+    @Override
+    public List<Notification> findByReceiver(String receiver) {
+        return jpaRepository.findByReceiver(receiver);
+    }
+
+    @Override
+    public List<Notification> findByReceiverAndStatus(String receiver, NotificationStatus status) {
+        return jpaRepository.findByReceiverAndStatus(receiver, status);
+    }
 
 	@Override
 	public List<Notification> findByStatus(NotificationStatus status) {
@@ -62,8 +66,7 @@ public class NotificationRepositoryImpl implements NotificationRepository {
 	}
 
 	@Override
-	public List<Notification> findByStatusAndCreatedAtBefore(NotificationStatus status, LocalDateTime threshold,
-		int limit) {
+	public List<Notification> findByStatusAndCreatedAtBefore(NotificationStatus status, LocalDateTime threshold, int limit) {
 		int normalizedLimit = normalizeLimit(limit);
 		return jpaRepository.findByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(
 			status,
@@ -79,14 +82,15 @@ public class NotificationRepositoryImpl implements NotificationRepository {
 		}
 
 		namedParameterJdbcTemplate.update("""
-				UPDATE notification
-				SET status = :sendingStatus,
-				    attempt_count = attempt_count + 1,
-				    updated_at = :updatedAt,
-				    version = version + 1
-				WHERE id IN (:ids)
-				  AND status IN (:allowedStatuses)
-				""",
+			UPDATE notification
+			SET status = :sendingStatus,
+			    attempt_count = attempt_count + 1,
+			    updated_at = :updatedAt,
+			    version = version + 1
+			WHERE deleted_at IS NULL
+			  AND id IN (:ids)
+			  AND status IN (:allowedStatuses)
+			""",
 			new MapSqlParameterSource()
 				.addValue("sendingStatus", NotificationStatus.SENDING.name())
 				.addValue("updatedAt", updatedAt)
@@ -105,15 +109,16 @@ public class NotificationRepositoryImpl implements NotificationRepository {
 		}
 
 		namedParameterJdbcTemplate.update("""
-				UPDATE notification
-				SET status = :sentStatus,
-				    sent_at = :sentAt,
-				    fail_reason = NULL,
-				    updated_at = :updatedAt,
-				    version = version + 1
-				WHERE id IN (:ids)
-				  AND status = :currentStatus
-				""",
+			UPDATE notification
+			SET status = :sentStatus,
+			    sent_at = :sentAt,
+			    fail_reason = NULL,
+			    updated_at = :updatedAt,
+			    version = version + 1
+			WHERE deleted_at IS NULL
+			  AND id IN (:ids)
+			  AND status = :currentStatus
+			""",
 			new MapSqlParameterSource()
 				.addValue("sentStatus", NotificationStatus.SENT.name())
 				.addValue("sentAt", sentAt)
@@ -129,13 +134,14 @@ public class NotificationRepositoryImpl implements NotificationRepository {
 			return;
 		}
 
-		jdbcTemplate.batchUpdate("""
+		namedParameterJdbcTemplate.getJdbcTemplate().batchUpdate("""
 			UPDATE notification
 			SET status = ?,
 			    fail_reason = ?,
 			    updated_at = ?,
 			    version = version + 1
-			WHERE id = ?
+			WHERE deleted_at IS NULL
+			  AND id = ?
 			  AND status = ?
 			""", new BatchPreparedStatementSetter() {
 			@Override

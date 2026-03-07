@@ -31,12 +31,14 @@ import com.example.application.port.out.DispatchLockManager;
 import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.repository.NotificationRepository;
 import com.example.infrastructure.messaging.inbound.RabbitMQBatchConsumer;
+import com.example.infrastructure.messaging.inbound.RabbitMQConsumer;
+import com.example.infrastructure.messaging.inbound.MessageProcessOrchestrator;
 import com.example.infrastructure.messaging.inbound.RabbitMQRecordHandler;
 import com.example.infrastructure.messaging.outbound.RabbitMQDlqPublisher;
 import com.example.infrastructure.messaging.outbound.RabbitMQPublisher;
 import com.example.infrastructure.messaging.outbound.RabbitMQWaitPublisher;
-import com.example.infrastructure.messaging.outbound.DeadLetterPublisher;
-import com.example.infrastructure.messaging.outbound.WaitPublisher;
+import com.example.infrastructure.messaging.port.DeadLetterPublisher;
+import com.example.infrastructure.messaging.port.WaitPublisher;
 
 @Configuration
 @ConditionalOnProperty(name = RabbitPropertyKeys.MESSAGING_ENABLED, havingValue = "true")
@@ -58,6 +60,16 @@ public class NotificationRabbitConfig {
 		RabbitTemplate template = new RabbitTemplate(cf);
 		template.setMessageConverter(mc);
 		return template;
+	}
+
+	@Bean(name = RabbitBeanNames.LISTENER_CONTAINER_FACTORY)
+	public SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
+		ConnectionFactory cf,
+		MessageConverter mc,
+		NotificationRabbitProperties p,
+		@Qualifier(RabbitBeanNames.LISTENER_TASK_EXECUTOR) Executor listenerTaskExecutor
+	) {
+		return createBaseListenerContainerFactory(cf, mc, p, listenerTaskExecutor);
 	}
 
 	@Bean(name = RabbitBeanNames.BATCH_LISTENER_CONTAINER_FACTORY)
@@ -249,17 +261,40 @@ public class NotificationRabbitConfig {
 	public RabbitMQRecordHandler rabbitMQRecordHandler(
 		NotificationRepository notificationRepository,
 		NotificationDispatchUseCase dispatchService,
+		NotificationRabbitProperties properties,
 		DispatchLockManager lockManager) {
-		return new RabbitMQRecordHandler(notificationRepository, dispatchService, lockManager);
+		return new RabbitMQRecordHandler(notificationRepository, dispatchService, properties, lockManager);
 	}
 
 	@Bean
-	public RabbitMQBatchConsumer rabbitMQBatchConsumer(
+	public MessageProcessOrchestrator messageProcessOrchestrator(
 		RabbitMQRecordHandler recordHandler,
 		DeadLetterPublisher dlqPublisher,
-		WaitPublisher waitPublisher,
-		io.micrometer.core.instrument.MeterRegistry meterRegistry,
+		WaitPublisher waitPublisher) {
+		return new MessageProcessOrchestrator(recordHandler, dlqPublisher, waitPublisher);
+	}
+
+	@Bean
+	@ConditionalOnProperty(
+		prefix = "notification.rabbitmq",
+		name = "batch-listener-enabled",
+		havingValue = "false",
+		matchIfMissing = true
+	)
+	public RabbitMQConsumer rabbitMQConsumer(
+		MessageProcessOrchestrator orchestrator) {
+		return new RabbitMQConsumer(orchestrator);
+	}
+
+	@Bean
+	@ConditionalOnProperty(
+		prefix = "notification.rabbitmq",
+		name = "batch-listener-enabled",
+		havingValue = "true"
+	)
+	public RabbitMQBatchConsumer rabbitMQBatchConsumer(
+		MessageProcessOrchestrator orchestrator,
 		MessageConverter messageConverter) {
-		return new RabbitMQBatchConsumer(recordHandler, dlqPublisher, waitPublisher, meterRegistry, messageConverter);
+		return new RabbitMQBatchConsumer(orchestrator, messageConverter);
 	}
 }

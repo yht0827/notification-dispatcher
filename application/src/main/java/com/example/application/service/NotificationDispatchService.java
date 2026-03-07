@@ -1,6 +1,5 @@
 package com.example.application.service;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -12,12 +11,13 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.example.application.port.in.NotificationDispatchUseCase;
 import com.example.application.port.in.result.BatchDispatchResult;
-import com.example.application.port.out.NotificationSender;
-import com.example.application.port.out.SendResult;
+import com.example.application.port.in.result.NotificationDispatchResult;
 import com.example.application.port.out.repository.NotificationFailureUpdate;
 import com.example.application.port.out.repository.NotificationGroupCountUpdate;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationRepository;
+import com.example.application.port.out.NotificationSender;
+import com.example.application.port.out.result.SendResult;
 import com.example.domain.exception.UnsupportedChannelException;
 import com.example.domain.notification.Notification;
 
@@ -33,6 +33,38 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 	private final NotificationGroupRepository notificationGroupRepository;
 	private final NotificationSender notificationSender;
 	private final TransactionTemplate transactionTemplate;
+
+	@Override
+	@Transactional
+	public NotificationDispatchResult dispatch(Notification notification) {
+		// 메시지 중복 처리 방지
+		if (notification.isTerminal()) {
+			log.debug("이미 종결 상태인 알림 발송 생략: id={}, status={}",
+				notification.getId(), notification.getStatus());
+			return NotificationDispatchResult.success();
+		}
+
+		// PENDING → SENDING
+		notification.startSending();
+		Notification managedNotification = notificationRepository.save(notification);
+
+		// API 전송
+		SendResult sendResult = notificationSender.send(managedNotification);
+
+		if (sendResult.isSuccess()) {
+			// SENDING → SENT
+			managedNotification.markAsSent();
+			notificationRepository.save(managedNotification);
+			log.info("알림 발송 성공: id={}, receiver={}", managedNotification.getId(), managedNotification.getReceiver());
+			return NotificationDispatchResult.success();
+		} else {
+			log.warn("알림 발송 실패: id={}, reason={}", managedNotification.getId(), sendResult.failReason());
+			if (sendResult.isNonRetryableFailure()) {
+				return NotificationDispatchResult.failNonRetryable(sendResult.failReason());
+			}
+			return NotificationDispatchResult.failRetryable(sendResult.failReason());
+		}
+	}
 
 	@Override
 	public List<BatchDispatchResult> dispatchBatch(List<Notification> notifications) {
@@ -83,7 +115,7 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 				notificationIds.add(notification.getId());
 				preparedById.put(notification.getId(), notification);
 			}
-			notificationRepository.bulkStartSending(notificationIds, LocalDateTime.now());
+			notificationRepository.bulkStartSending(notificationIds, java.time.LocalDateTime.now());
 			return preparedById;
 		});
 	}
@@ -131,16 +163,13 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 				} else if (sendResult.isNonRetryableFailure()) {
 					failedUpdates.add(new NotificationFailureUpdate(notificationId, sendResult.failReason()));
 					accumulateGroupCount(groupCountUpdates, notification, 0, 1);
-					results.put(notificationId,
-						BatchDispatchResult.failNonRetryable(notificationId, sendResult.failReason()));
+					results.put(notificationId, BatchDispatchResult.failNonRetryable(notificationId, sendResult.failReason()));
 				} else {
-					results.put(notificationId,
-						BatchDispatchResult.failRetryable(notificationId, sendResult.failReason(),
-							sendResult.retryDelayMillis()));
+					results.put(notificationId, BatchDispatchResult.failRetryable(notificationId, sendResult.failReason()));
 				}
 			}
 
-			LocalDateTime updatedAt = LocalDateTime.now();
+			java.time.LocalDateTime updatedAt = java.time.LocalDateTime.now();
 			notificationRepository.bulkMarkAsSent(sentIds, updatedAt, updatedAt);
 			notificationRepository.bulkMarkAsFailed(failedUpdates, updatedAt);
 			if (!groupCountUpdates.isEmpty()) {
@@ -168,7 +197,4 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 			current.failedDelta() + failedDelta
 		));
 	}
-
 }
-
-

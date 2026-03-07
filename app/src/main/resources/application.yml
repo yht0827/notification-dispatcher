@@ -30,7 +30,6 @@ spring:
 notification:
   messaging:
     enabled: true
-
   rabbitmq:
     listener-virtual-threads: false
   external:
@@ -38,69 +37,36 @@ notification:
       name: mockApi
       enabled: false
       base-url: http://localhost:8081
-
-# ─────────────────────────────────────────
-# API Key 인증
-# ─────────────────────────────────────────
-api:
-  valid-keys:
-    - "dev-api-key-001"
+      send-path: /mock/send
 
 # ─────────────────────────────────────────
 # Resilience4j
 # ─────────────────────────────────────────
 resilience4j:
   retry:
-    configs:
-      channel:
+    retry-aspect-order: 2
+    instances:
+      mockApi:
         max-attempts: 2
         wait-duration: 200ms
+        enable-exponential-backoff: false
+        exponential-backoff-multiplier: 2
         retry-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiRetryableException
         ignore-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiNonRetryableException
-          - com.example.infrastructure.sender.mock.exception.MockApiRateLimitException
-    instances:
-      email-api:
-        base-config: channel
-      sms-api:
-        base-config: channel
-      kakao-api:
-        base-config: channel
   circuitbreaker:
-    configs:
-      channel:
+    circuit-breaker-aspect-order: 1
+    instances:
+      mockApi:
         sliding-window-size: 20
         minimum-number-of-calls: 20
-        failure-rate-threshold: 30 # mixed-latency VU15 재검증(r1~r3) 기준
+        failure-rate-threshold: 50 # 10건 중 5건 실패 시 OPEN
         wait-duration-in-open-state: 10s
         record-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiRetryableException
-          - com.example.infrastructure.sender.mock.exception.MockApiRateLimitException
         ignore-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiNonRetryableException
-    instances:
-      email-api:
-        base-config: channel
-      sms-api:
-        base-config: channel
-      kakao-api:
-        base-config: channel
-  ratelimiter:
-    configs:
-      channel:
-        limit-refresh-period: 1s
-        timeout-duration: 0s         # 대기 없이 즉시 실패
-    instances:
-      email-api:
-        base-config: channel
-        limit-for-period: 30
-      sms-api:
-        base-config: channel
-        limit-for-period: 50
-      kakao-api:
-        base-config: channel
-        limit-for-period: 30
 # ─────────────────────────────────────────
 # Actuator / Metrics
 # ─────────────────────────────────────────
@@ -130,19 +96,6 @@ recovery:
   poll-interval-millis: 300000      # 5분마다 폴링
   threshold-minutes: 5              # 5분 이상 PENDING이면 복구
   batch-size: 100                   # 1회당 100개씩 처리
-
-archive:
-  enabled: false
-  retention-days: 7
-  batch-size: 1000
-  cron: "0 0 0 * * *"
-  partition-cron: "0 5 0 1 * *"
-  partition-retention-months: 12
-  s3:
-    enabled: false
-    bucket: ${ARCHIVE_S3_BUCKET:notification-archive}
-    prefix: ${ARCHIVE_S3_PREFIX:archive}
-    region: ${ARCHIVE_S3_REGION:ap-northeast-2}
 
 ---
 # ─────────────────────────────────────────
@@ -182,14 +135,6 @@ spring:
     baseline-on-migrate: true
   data:
     redis:
-      timeout: 1s
-      connect-timeout: 1s
-      lettuce:
-        pool:
-          max-active: 16
-          max-idle: 8
-          min-idle: 2
-          max-wait: 500ms
       host: localhost
       port: 6379
 
@@ -202,10 +147,10 @@ notification:
     dlq-exchange: notification.dlq.exchange    # DLQ Exchange
     max-retry-count: 3                         # 최대 재시도 횟수
     retry-base-delay-millis: 5000              # 기본 재시도 지연 (ms)
-    retry-jitter-factor: 0.20                  # 재시도 대기 지터 비율 (20%)
     concurrency: 2
     max-concurrency: 2
-    prefetch: 5
+    prefetch: 100
+    batch-listener-enabled: true               # 배치 리스너 활성화
     batch-size: 50                             # 배치 수집 크기
     batch-receive-timeout-millis: 200          # 배치 수집 대기(ms)
   external:
@@ -255,13 +200,5 @@ spring:
     baseline-on-migrate: true
   data:
     redis:
-      timeout: 1s
-      connect-timeout: 1s
-      lettuce:
-        pool:
-          max-active: 16
-          max-idle: 8
-          min-idle: 2
-          max-wait: 500ms
       host: ${REDIS_HOST}
       port: ${REDIS_PORT:6379}
