@@ -12,8 +12,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.example.api.exception.GlobalExceptionHandler;
-import com.example.application.port.in.NotificationCommandUseCase;
 import com.example.application.port.in.NotificationQueryUseCase;
+import com.example.application.port.in.NotificationWriteUseCase;
 
 @WebMvcTest(NotificationController.class)
 @Import({GlobalExceptionHandler.class, NotificationController.class})
@@ -23,10 +23,10 @@ class NotificationControllerValidationTest {
 	private MockMvc mockMvc;
 
 	@MockitoBean
-	private NotificationCommandUseCase commandUseCase;
+	private NotificationQueryUseCase queryUseCase;
 
 	@MockitoBean
-	private NotificationQueryUseCase queryUseCase;
+	private NotificationWriteUseCase writeUseCase;
 
 	@Test
 	@DisplayName("receiver가 빈 문자열이면 400을 반환한다")

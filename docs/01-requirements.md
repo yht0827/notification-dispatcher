@@ -43,7 +43,7 @@
 ```text
 Client
   -> API (NotificationController)
-  -> Application (NotificationCommandService)
+  -> Application (NotificationWriteService)
   -> DB 저장 (notification_group, notification, outbox)
   -> OutboxPoller
   -> RabbitMQ WORK Queue

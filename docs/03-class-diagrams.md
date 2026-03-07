@@ -18,6 +18,7 @@
 classDiagram
     class NotificationController {
       +send(request)
+      +markAsRead(notificationId)
       +getNotificationBundles(cursorId, size)
       +getGroup(groupId)
       +getGroupsByClientId(clientId)
@@ -25,9 +26,10 @@ classDiagram
       +getNotificationsByReceiver(receiver)
     }
 
-    class NotificationCommandUseCase {
+    class NotificationWriteUseCase {
       <<interface>>
       +request(command) NotificationGroup
+      +markAsRead(notificationId) boolean
     }
 
     class NotificationQueryUseCase {
@@ -43,7 +45,7 @@ classDiagram
       +markAsFailed(notificationId, reason)
     }
 
-    class NotificationCommandService
+    class NotificationWriteService
     class NotificationQueryService
     class NotificationDispatchService
 
@@ -70,15 +72,15 @@ classDiagram
       +release(notificationId)
     }
 
-    NotificationController --> NotificationCommandUseCase
+    NotificationController --> NotificationWriteUseCase
     NotificationController --> NotificationQueryUseCase
 
-    NotificationCommandUseCase <|.. NotificationCommandService
+    NotificationWriteUseCase <|.. NotificationWriteService
     NotificationQueryUseCase <|.. NotificationQueryService
     NotificationDispatchUseCase <|.. NotificationDispatchService
 
-    NotificationCommandService --> NotificationGroupRepository
-    NotificationCommandService --> OutboxRepository
+    NotificationWriteService --> NotificationGroupRepository
+    NotificationWriteService --> OutboxRepository
     NotificationQueryService --> NotificationGroupRepository
     NotificationQueryService --> NotificationRepository
     NotificationDispatchService --> NotificationRepository
@@ -308,7 +310,7 @@ classDiagram
 | 클래스 | 레이어 | 주요 책임 |
 |-------|--------|-----------|
 | `NotificationController` | API | 요청 검증/DTO 변환/응답 생성 |
-| `NotificationCommandService` | Application | 멱등성 검사, 그룹 생성, Outbox 저장 |
+| `NotificationWriteService` | Application | 멱등성 검사, 그룹 생성, Outbox 저장 |
 | `NotificationQueryService` | Application | 그룹/알림 조회, 커서 페이지 계산 |
 | `NotificationDispatchService` | Application | 발송 상태 전이, 채널 발송 위임 |
 | `OutboxPoller` | Infrastructure | Outbox -> WORK 큐 발행 |

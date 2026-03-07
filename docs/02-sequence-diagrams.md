@@ -18,7 +18,7 @@
 sequenceDiagram
     participant C as Client
     participant API as NotificationController
-    participant CMD as NotificationCommandService
+    participant CMD as NotificationWriteService
     participant GR as NotificationGroupRepository
     participant OR as OutboxRepository
     participant DB as MySQL

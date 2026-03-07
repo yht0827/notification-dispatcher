@@ -1,7 +1,7 @@
 package com.example.infrastructure.analysis;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.doAnswer;
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,10 +17,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
-import com.example.application.port.in.NotificationCommandUseCase;
+import com.example.application.port.in.NotificationWriteUseCase;
 import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.out.repository.NotificationGroupRepository;
@@ -34,12 +34,12 @@ class IdempotencyRaceIntegrationTest extends IntegrationTestSupportNoTx {
 	private static final String IDEMPOTENCY_KEY = "idem-race-key";
 
 	@Autowired
-	private NotificationCommandUseCase commandUseCase;
+	private NotificationWriteUseCase commandUseCase;
 
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
-	@SpyBean
+	@MockitoSpyBean
 	private NotificationGroupRepository groupRepository;
 
 	@BeforeEach
@@ -179,7 +179,8 @@ class IdempotencyRaceIntegrationTest extends IntegrationTestSupportNoTx {
 		}
 	}
 
-	private List<Object> executeConcurrently(Callable<Object> first, Callable<Object> second, int timeoutSeconds) throws Exception {
+	private List<Object> executeConcurrently(Callable<Object> first, Callable<Object> second, int timeoutSeconds) throws
+		Exception {
 		ExecutorService executor = Executors.newFixedThreadPool(2);
 		CountDownLatch startLatch = new CountDownLatch(1);
 		try {

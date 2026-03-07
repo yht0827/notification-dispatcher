@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,17 +18,18 @@ import com.example.api.dto.request.NotificationGroupQueryRequest;
 import com.example.api.dto.request.NotificationListQueryRequest;
 import com.example.api.dto.request.NotificationReceiverQueryRequest;
 import com.example.api.dto.request.NotificationSendRequest;
+import com.example.api.dto.response.ApiResponse;
 import com.example.api.dto.response.NotificationGroupDetailResponse;
 import com.example.api.dto.response.NotificationGroupSliceResponse;
 import com.example.api.dto.response.NotificationListSliceResponse;
+import com.example.api.dto.response.NotificationReadResponse;
 import com.example.api.dto.response.NotificationResponse;
 import com.example.api.dto.response.NotificationSendResponse;
-import com.example.api.dto.response.ApiResponse;
 import com.example.api.exception.ErrorCode;
 import com.example.api.exception.NotificationException;
-import com.example.application.port.in.command.SendCommand;
-import com.example.application.port.in.NotificationCommandUseCase;
 import com.example.application.port.in.NotificationQueryUseCase;
+import com.example.application.port.in.NotificationWriteUseCase;
+import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,7 +44,7 @@ import lombok.RequiredArgsConstructor;
 @Validated
 public class NotificationController {
 
-	private final NotificationCommandUseCase commandUseCase;
+	private final NotificationWriteUseCase writeUseCase;
 	private final NotificationQueryUseCase queryUseCase;
 
 	@Operation(summary = "알림 발송", description = "단일 또는 대량 알림을 발송합니다.")
@@ -59,7 +61,7 @@ public class NotificationController {
 			request.idempotencyKey()
 		);
 
-		NotificationCommandResult result = commandUseCase.request(command);
+		NotificationCommandResult result = writeUseCase.request(command);
 		return ApiResponse.ok(NotificationSendResponse.of(result.groupId(), result.totalCount()));
 	}
 
@@ -101,6 +103,15 @@ public class NotificationController {
 			.map(NotificationResponse::from)
 			.map(ApiResponse::ok)
 			.orElseThrow(() -> new NotificationException(ErrorCode.NOTIFICATION_NOT_FOUND));
+	}
+
+	@Operation(summary = "알림 읽음 처리")
+	@PatchMapping("/{notificationId}/read")
+	public ApiResponse<NotificationReadResponse> markAsRead(@PathVariable Long notificationId) {
+		if (!writeUseCase.markAsRead(notificationId)) {
+			throw new NotificationException(ErrorCode.NOTIFICATION_NOT_FOUND);
+		}
+		return ApiResponse.ok(NotificationReadResponse.of(notificationId));
 	}
 
 	@Operation(summary = "수신자별 알림 목록 조회")

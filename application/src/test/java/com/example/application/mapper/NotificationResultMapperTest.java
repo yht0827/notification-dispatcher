@@ -93,6 +93,7 @@ class NotificationResultMapperTest {
 		assertThat(result.groupId()).isEqualTo(100L);
 		assertThat(result.receiver()).isEqualTo("receiver");
 		assertThat(result.channelType()).isEqualTo(ChannelType.EMAIL);
+		assertThat(result.isRead()).isFalse();
 	}
 
 	@Test

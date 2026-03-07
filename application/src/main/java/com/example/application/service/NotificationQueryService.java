@@ -3,6 +3,7 @@ package com.example.application.service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,7 +16,9 @@ import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.application.port.in.result.NotificationListResult;
 import com.example.application.port.in.result.NotificationResult;
 import com.example.application.port.out.repository.NotificationGroupRepository;
+import com.example.application.port.out.repository.NotificationReadStatusRepository;
 import com.example.application.port.out.repository.NotificationRepository;
+import com.example.domain.notification.Notification;
 
 import lombok.RequiredArgsConstructor;
 
@@ -26,6 +29,7 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 
 	private final NotificationGroupRepository groupRepository;
 	private final NotificationRepository notificationRepository;
+	private final NotificationReadStatusRepository notificationReadStatusRepository;
 	private final NotificationResultMapper mapper;
 
 	@Override
@@ -35,7 +39,10 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 
 	@Override
 	public Optional<NotificationGroupDetailResult> getGroupDetail(Long groupId) {
-		return groupRepository.findByIdWithNotifications(groupId).map(mapper::toGroupDetailResult);
+		LocalDateTime from = detailFrom();
+		return groupRepository.findByIdWithNotifications(groupId)
+			.filter(group -> NotificationDetailRetentionPolicy.isWithinRetention(group.getCreatedAt(), from))
+			.map(mapper::toGroupDetailResult);
 	}
 
 	@Override
@@ -63,18 +70,38 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 
 	@Override
 	public Optional<NotificationResult> getNotification(Long notificationId) {
-		return notificationRepository.findById(notificationId).map(mapper::toNotificationResult);
+		LocalDateTime from = detailFrom();
+		return notificationRepository.findById(notificationId)
+			.filter(
+				notification -> NotificationDetailRetentionPolicy.isWithinRetention(notification.getCreatedAt(), from))
+			.map(notification -> mapper.toNotificationResult(
+				notification,
+				notificationReadStatusRepository.existsByNotificationId(notification.getId())
+			));
 	}
 
 	@Override
 	public List<NotificationResult> getNotificationsByReceiver(String receiver) {
-		return notificationRepository.findByReceiver(receiver)
+		List<Notification> notifications = notificationRepository.findByReceiver(receiver);
+		Set<Long> readNotificationIds = notificationReadStatusRepository.findReadNotificationIds(
+			notifications.stream()
+				.map(Notification::getId)
+				.toList()
+		);
+		return notifications
 			.stream()
-			.map(mapper::toNotificationResult)
+			.map(notification -> mapper.toNotificationResult(
+				notification,
+				readNotificationIds.contains(notification.getId())
+			))
 			.toList();
 	}
 
 	private int normalizeSize(int size) {
 		return Math.max(size, 1);
+	}
+
+	private LocalDateTime detailFrom() {
+		return NotificationDetailRetentionPolicy.detailFrom(LocalDateTime.now());
 	}
 }

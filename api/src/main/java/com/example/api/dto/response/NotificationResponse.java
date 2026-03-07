@@ -38,7 +38,10 @@ public record NotificationResponse(
 	String failReason,
 
 	@Schema(description = "생성일시")
-	LocalDateTime createdAt
+	LocalDateTime createdAt,
+
+	@Schema(description = "읽음 여부", example = "false")
+	boolean isRead
 ) {
 	public static NotificationResponse from(NotificationResult notification) {
 		return new NotificationResponse(
@@ -51,7 +54,8 @@ public record NotificationResponse(
 			notification.status(),
 			notification.sentAt(),
 			notification.failReason(),
-			notification.createdAt()
+			notification.createdAt(),
+			notification.isRead()
 		);
 	}
 }

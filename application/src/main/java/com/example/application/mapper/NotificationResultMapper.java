@@ -68,6 +68,10 @@ public class NotificationResultMapper {
 	}
 
 	public NotificationResult toNotificationResult(Notification notification) {
+		return toNotificationResult(notification, false);
+	}
+
+	public NotificationResult toNotificationResult(Notification notification, boolean isRead) {
 		Optional<NotificationGroup> group = Optional.ofNullable(notification.getGroup());
 		return new NotificationResult(
 			notification.getId(),
@@ -79,7 +83,8 @@ public class NotificationResultMapper {
 			notification.getStatus(),
 			notification.getSentAt(),
 			notification.getFailReason(),
-			notification.getCreatedAt()
+			notification.getCreatedAt(),
+			isRead
 		);
 	}
 

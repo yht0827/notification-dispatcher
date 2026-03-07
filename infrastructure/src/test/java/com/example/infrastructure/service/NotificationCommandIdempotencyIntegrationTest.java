@@ -8,7 +8,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import com.example.application.port.in.NotificationCommandUseCase;
+import com.example.application.port.in.NotificationWriteUseCase;
 import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.out.repository.NotificationGroupRepository;
@@ -19,7 +19,7 @@ import com.example.infrastructure.support.IntegrationTestSupport;
 class NotificationCommandIdempotencyIntegrationTest extends IntegrationTestSupport {
 
 	@Autowired
-	private NotificationCommandUseCase commandUseCase;
+	private NotificationWriteUseCase commandUseCase;
 
 	@Autowired
 	private NotificationGroupRepository groupRepository;

@@ -1,0 +1,44 @@
+package com.example.infrastructure.repository;
+
+import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+
+import org.springframework.stereotype.Repository;
+
+import com.example.application.port.out.repository.NotificationReadStatusRepository;
+import com.example.domain.notification.NotificationReadStatus;
+
+import lombok.RequiredArgsConstructor;
+
+@Repository
+@RequiredArgsConstructor
+public class NotificationReadStatusRepositoryImpl implements NotificationReadStatusRepository {
+
+	private final NotificationReadStatusJpaRepository jpaRepository;
+
+	@Override
+	public void markAsRead(Long notificationId, LocalDateTime readAt) {
+		if (jpaRepository.existsById(notificationId)) {
+			return;
+		}
+		jpaRepository.save(NotificationReadStatus.create(notificationId, readAt));
+	}
+
+	@Override
+	public boolean existsByNotificationId(Long notificationId) {
+		return jpaRepository.existsById(notificationId);
+	}
+
+	@Override
+	public Set<Long> findReadNotificationIds(List<Long> notificationIds) {
+		if (notificationIds == null || notificationIds.isEmpty()) {
+			return Set.of();
+		}
+		return jpaRepository.findAllByNotificationIdIn(notificationIds)
+			.stream()
+			.map(NotificationReadStatus::getNotificationId)
+			.collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+	}
+}
