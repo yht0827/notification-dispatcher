@@ -23,7 +23,7 @@
       "gridPos": {
         "x": 0,
         "y": 1,
-        "w": 8,
+        "w": 12,
         "h": 8
       },
       "fieldConfig": {
@@ -63,9 +63,9 @@
       "type": "timeseries",
       "title": "JVM Memory (Heap)",
       "gridPos": {
-        "x": 8,
+        "x": 12,
         "y": 1,
-        "w": 8,
+        "w": 12,
         "h": 8
       },
       "fieldConfig": {
@@ -99,46 +99,6 @@
         {
           "expr": "jvm_memory_max_bytes{application=\"notification-dispatcher\", area=\"heap\"}",
           "legendFormat": "Heap Max"
-        }
-      ]
-    },
-    {
-      "id": 29,
-      "type": "timeseries",
-      "title": "JVM Threads",
-      "gridPos": {
-        "x": 16,
-        "y": 1,
-        "w": 8,
-        "h": 8
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "lineWidth": 2
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        },
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        }
-      },
-      "targets": [
-        {
-          "expr": "jvm_threads_live_threads{application=\"notification-dispatcher\"}",
-          "legendFormat": "Live Threads"
-        },
-        {
-          "expr": "jvm_threads_daemon_threads{application=\"notification-dispatcher\"}",
-          "legendFormat": "Daemon Threads"
         }
       ]
     },
@@ -466,7 +426,7 @@
       "gridPos": {
         "x": 0,
         "y": 23,
-        "w": 4,
+        "w": 5,
         "h": 4
       },
       "fieldConfig": {
@@ -498,17 +458,17 @@
     {
       "id": 22,
       "type": "stat",
-      "title": "Request Count (1m)",
-      "description": "최근 1분 총 요청 수",
+      "title": "Peak TPS",
+      "description": "테스트 구간 내 최고 TPS (최근 30분)",
       "gridPos": {
-        "x": 4,
+        "x": 5,
         "y": 23,
-        "w": 4,
+        "w": 5,
         "h": 4
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
+          "unit": "reqps",
           "decimals": 1,
           "color": {
             "fixedColor": "blue",
@@ -537,17 +497,17 @@
       },
       "targets": [
         {
-          "expr": "increase(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m])",
-          "legendFormat": "Request Count"
+          "expr": "max_over_time(sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))[30m:1m])",
+          "legendFormat": "Peak TPS"
         }
       ]
     },
     {
       "id": 19,
       "type": "stat",
-      "title": "Avg 응답시간",
+      "title": "P95 응답시간",
       "gridPos": {
-        "x": 8,
+        "x": 10,
         "y": 23,
         "w": 4,
         "h": 4
@@ -589,71 +549,19 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_sum{application=\"notification-dispatcher\"}[1m])) / sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))",
-          "legendFormat": "Avg"
-        }
-      ]
-    },
-    {
-      "id": 21,
-      "type": "stat",
-      "title": "P95 응답시간",
-      "gridPos": {
-        "x": 12,
-        "y": 23,
-        "w": 4,
-        "h": 4
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 0.5
-              },
-              {
-                "color": "red",
-                "value": 1.0
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
-        "colorMode": "background",
-        "graphMode": "none"
-      },
-      "targets": [
-        {
           "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
           "legendFormat": "P95"
         }
       ]
     },
     {
-      "id": 30,
+      "id": 21,
       "type": "stat",
       "title": "P99 응답시간",
       "gridPos": {
-        "x": 16,
+        "x": 14,
         "y": 23,
-        "w": 4,
+        "w": 5,
         "h": 4
       },
       "fieldConfig": {
@@ -703,9 +611,9 @@
       "type": "stat",
       "title": "에러율",
       "gridPos": {
-        "x": 20,
+        "x": 19,
         "y": 23,
-        "w": 4,
+        "w": 5,
         "h": 4
       },
       "fieldConfig": {
@@ -753,11 +661,11 @@
     {
       "id": 9,
       "type": "timeseries",
-      "title": "HTTP Response Time (Avg / P95 / P99 / Max)",
+      "title": "HTTP Response Time (P50 / P95 / P99)",
       "gridPos": {
         "x": 0,
         "y": 27,
-        "w": 8,
+        "w": 12,
         "h": 8
       },
       "fieldConfig": {
@@ -781,8 +689,8 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_sum{application=\"notification-dispatcher\"}[1m])) / sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))",
-          "legendFormat": "Avg"
+          "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
+          "legendFormat": "P50"
         },
         {
           "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
@@ -791,31 +699,44 @@
         {
           "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
           "legendFormat": "P99"
-        },
-        {
-          "expr": "max(http_server_requests_seconds_max{application=\"notification-dispatcher\"})",
-          "legendFormat": "Max"
         }
       ]
     },
     {
       "id": 10,
       "type": "timeseries",
-      "title": "HTTP Request Count / Success / Fail (1m)",
+      "title": "HTTP Request Rate & Error Rate",
       "gridPos": {
-        "x": 8,
+        "x": 12,
         "y": 27,
-        "w": 8,
+        "w": 12,
         "h": 8
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
+          "unit": "reqps",
           "custom": {
             "lineWidth": 2
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Error Rate"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "tooltip": {
@@ -829,20 +750,16 @@
       },
       "targets": [
         {
-          "expr": "increase(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m])",
-          "legendFormat": "Total"
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))",
+          "legendFormat": "Total RPS"
         },
         {
-          "expr": "increase(http_server_requests_seconds_count{application=\"notification-dispatcher\", status!~\"4..|5..\"}[1m])",
-          "legendFormat": "Success"
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\", status=~\"5..\"}[1m]))",
+          "legendFormat": "5xx RPS"
         },
         {
-          "expr": "increase(http_server_requests_seconds_count{application=\"notification-dispatcher\", status=~\"4..\"}[1m]) or vector(0)",
-          "legendFormat": "4xx"
-        },
-        {
-          "expr": "increase(http_server_requests_seconds_count{application=\"notification-dispatcher\", status=~\"5..\"}[1m]) or vector(0)",
-          "legendFormat": "5xx"
+          "expr": "(sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\", status=~\"5..\"}[1m])) or vector(0)) / sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))",
+          "legendFormat": "Error Rate"
         }
       ]
     },
@@ -851,9 +768,9 @@
       "type": "timeseries",
       "title": "HTTP Response Time by URI (P95)",
       "gridPos": {
-        "x": 16,
+        "x": 0,
         "y": 35,
-        "w": 8,
+        "w": 24,
         "h": 8
       },
       "fieldConfig": {
@@ -1315,7 +1232,7 @@
       "gridPos": {
         "x": 0,
         "y": 77,
-        "w": 6,
+        "w": 8,
         "h": 8
       },
       "fieldConfig": {
@@ -1353,9 +1270,9 @@
       "type": "timeseries",
       "title": "Connected Clients",
       "gridPos": {
-        "x": 6,
+        "x": 8,
         "y": 77,
-        "w": 6,
+        "w": 8,
         "h": 8
       },
       "fieldConfig": {
@@ -1393,9 +1310,9 @@
       "type": "timeseries",
       "title": "Commands/s",
       "gridPos": {
-        "x": 12,
+        "x": 16,
         "y": 77,
-        "w": 6,
+        "w": 8,
         "h": 8
       },
       "fieldConfig": {
@@ -1421,46 +1338,6 @@
         {
           "expr": "rate(redis_commands_processed_total[1m])",
           "legendFormat": "Commands/s"
-        }
-      ]
-    },
-    {
-      "id": 28,
-      "type": "timeseries",
-      "title": "Keyspace Hit/Miss",
-      "gridPos": {
-        "x": 18,
-        "y": 77,
-        "w": 6,
-        "h": 8
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "ops",
-          "custom": {
-            "lineWidth": 2
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        },
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        }
-      },
-      "targets": [
-        {
-          "expr": "rate(redis_keyspace_hits_total[1m]) or vector(0)",
-          "legendFormat": "Hits/s"
-        },
-        {
-          "expr": "rate(redis_keyspace_misses_total[1m]) or vector(0)",
-          "legendFormat": "Misses/s"
         }
       ]
     }

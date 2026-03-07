@@ -13,15 +13,13 @@ class NotificationDispatchResultTest {
 		NotificationDispatchResult result = new NotificationDispatchResult(
 			true,
 			"ignored",
-			NotificationDispatchResult.FailureType.NON_RETRYABLE,
-			10_000L
+			NotificationDispatchResult.FailureType.NON_RETRYABLE
 		);
 
 		assertThat(result.isSuccess()).isTrue();
 		assertThat(result.isFailure()).isFalse();
 		assertThat(result.failReason()).isNull();
 		assertThat(result.failureType()).isNull();
-		assertThat(result.retryDelayMillis()).isNull();
 		assertThat(result.isRetryableFailure()).isFalse();
 		assertThat(result.isNonRetryableFailure()).isFalse();
 	}
@@ -29,11 +27,10 @@ class NotificationDispatchResultTest {
 	@Test
 	@DisplayName("실패 결과에 타입이 없으면 RETRYABLE로 기본 설정한다")
 	void failureConstructor_defaultsFailureTypeToRetryable() {
-		NotificationDispatchResult result = new NotificationDispatchResult(false, "temporary", null, 15_000L);
+		NotificationDispatchResult result = new NotificationDispatchResult(false, "temporary", null);
 
 		assertThat(result.isFailure()).isTrue();
 		assertThat(result.failureType()).isEqualTo(NotificationDispatchResult.FailureType.RETRYABLE);
-		assertThat(result.retryDelayMillis()).isEqualTo(15_000L);
 		assertThat(result.isRetryableFailure()).isTrue();
 		assertThat(result.isNonRetryableFailure()).isFalse();
 	}

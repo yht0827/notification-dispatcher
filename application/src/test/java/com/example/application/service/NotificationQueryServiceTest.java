@@ -2,11 +2,9 @@ package com.example.application.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.List;
 
@@ -18,14 +16,13 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.example.application.service.mapper.NotificationResultMapper;
+import com.example.application.mapper.NotificationResultMapper;
 import com.example.application.port.in.result.CursorSlice;
 import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationGroupResult;
+import com.example.application.port.in.result.NotificationListResult;
 import com.example.application.port.in.result.NotificationResult;
-import com.example.application.port.in.result.NotificationUnreadCountResult;
 import com.example.application.port.out.repository.NotificationGroupRepository;
-import com.example.application.port.out.repository.NotificationReadStatusRepository;
 import com.example.application.port.out.repository.NotificationRepository;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.GroupType;
@@ -42,14 +39,52 @@ class NotificationQueryServiceTest {
 	@Mock
 	private NotificationRepository notificationRepository;
 
-	@Mock
-	private NotificationReadStatusRepository notificationReadStatusRepository;
-
 	@Spy
 	private NotificationResultMapper mapper;
 
 	@InjectMocks
 	private NotificationQueryService queryService;
+
+	@Test
+	@DisplayName("알림 묶음 조회 시 요청 크기보다 하나 더 조회해 hasNext와 nextCursorId를 계산한다")
+	void getRecentGroups_returnsSliceWithCursor() {
+		// given
+		NotificationGroup first = org.mockito.Mockito.mock(NotificationGroup.class);
+		NotificationGroup second = org.mockito.Mockito.mock(NotificationGroup.class);
+		NotificationGroup third = org.mockito.Mockito.mock(NotificationGroup.class);
+		when(first.getId()).thenReturn(300L);
+		when(second.getId()).thenReturn(200L);
+
+		when(groupRepository.findRecentByCursor(null, 3)).thenReturn(List.of(first, second, third));
+
+		// when
+		CursorSlice<NotificationListResult> slice = queryService.getRecentGroups(null, 2);
+
+		// then
+		assertThat(slice.items()).hasSize(2);
+		assertThat(slice.items().get(0).groupId()).isEqualTo(300L);
+		assertThat(slice.items().get(1).groupId()).isEqualTo(200L);
+		assertThat(slice.hasNext()).isTrue();
+		assertThat(slice.nextCursorId()).isEqualTo(200L);
+		verify(groupRepository).findRecentByCursor(null, 3);
+	}
+
+	@Test
+	@DisplayName("추가 데이터가 없으면 hasNext는 false이고 nextCursorId는 null이다")
+	void getRecentGroups_returnsSliceWithoutNextCursor() {
+		// given
+		NotificationGroup only = org.mockito.Mockito.mock(NotificationGroup.class);
+		when(groupRepository.findRecentByCursor(50L, 3)).thenReturn(List.of(only));
+
+		// when
+		CursorSlice<NotificationListResult> slice = queryService.getRecentGroups(50L, 2);
+
+		// then
+		assertThat(slice.items()).hasSize(1);
+		assertThat(slice.hasNext()).isFalse();
+		assertThat(slice.nextCursorId()).isNull();
+		verify(groupRepository).findRecentByCursor(50L, 3);
+	}
 
 	@Test
 	@DisplayName("요청자별 조회 시 hasNext가 true이면 nextCursorId가 설정된다")
@@ -142,36 +177,17 @@ class NotificationQueryServiceTest {
 		when(group.getFailedCount()).thenReturn(0);
 		when(group.getPendingCount()).thenReturn(1);
 		when(group.isCompleted()).thenReturn(false);
-		when(group.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(1));
 		when(group.getNotifications()).thenReturn(List.of(notification));
 		when(notification.getId()).thenReturn(101L);
 		when(notification.getReceiver()).thenReturn("user@example.com");
 		when(notification.getStatus()).thenReturn(NotificationStatus.PENDING);
 		when(groupRepository.findByIdWithNotifications(10L)).thenReturn(Optional.of(group));
-		when(notificationReadStatusRepository.findReadAtByNotificationIds(List.of(101L)))
-			.thenReturn(java.util.Map.of(101L, LocalDateTime.of(2026, 3, 8, 12, 0)));
 
 		Optional<NotificationGroupDetailResult> result = queryService.getGroupDetail(10L);
 
 		assertThat(result).isPresent();
 		assertThat(result.orElseThrow().notifications()).hasSize(1);
 		assertThat(result.orElseThrow().notifications().getFirst().notificationId()).isEqualTo(101L);
-		assertThat(result.orElseThrow().notifications().getFirst().isRead()).isTrue();
-		assertThat(result.orElseThrow().notifications().getFirst().readAt())
-			.isEqualTo(LocalDateTime.of(2026, 3, 8, 12, 0));
-		verify(groupRepository).findByIdWithNotifications(10L);
-	}
-
-	@Test
-	@DisplayName("그룹 상세 조회 시 7일 이전 데이터는 반환하지 않는다")
-	void getGroupDetail_returnsEmptyWhenOlderThanSevenDays() {
-		NotificationGroup group = org.mockito.Mockito.mock(NotificationGroup.class);
-		when(group.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(8));
-		when(groupRepository.findByIdWithNotifications(10L)).thenReturn(Optional.of(group));
-
-		Optional<NotificationGroupDetailResult> result = queryService.getGroupDetail(10L);
-
-		assertThat(result).isEmpty();
 		verify(groupRepository).findByIdWithNotifications(10L);
 	}
 
@@ -187,53 +203,36 @@ class NotificationQueryServiceTest {
 		when(notification.getId()).thenReturn(1L);
 		when(notification.getReceiver()).thenReturn("01012345678");
 		when(notification.getStatus()).thenReturn(NotificationStatus.SENT);
-		when(notification.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(1));
 		when(notification.getGroup()).thenReturn(group);
 		when(notificationRepository.findById(1L)).thenReturn(Optional.of(notification));
-		when(notificationReadStatusRepository.findReadAtByNotificationId(1L))
-			.thenReturn(LocalDateTime.of(2026, 3, 8, 12, 0));
 
 		Optional<NotificationResult> result = queryService.getNotification(1L);
 
 		assertThat(result).isPresent();
 		assertThat(result.orElseThrow().groupId()).isEqualTo(20L);
 		assertThat(result.orElseThrow().receiver()).isEqualTo("01012345678");
-		assertThat(result.orElseThrow().isRead()).isTrue();
-		assertThat(result.orElseThrow().readAt()).isEqualTo(LocalDateTime.of(2026, 3, 8, 12, 0));
 		verify(notificationRepository).findById(1L);
 	}
 
 	@Test
-	@DisplayName("알림 단건 조회 시 7일 이전 데이터는 반환하지 않는다")
-	void getNotification_returnsEmptyWhenOlderThanSevenDays() {
+	@DisplayName("수신자별 조회 시 전체 목록을 매핑해 반환한다")
+	void getNotificationsByReceiver_returnsMappedNotifications() {
+		NotificationGroup group = org.mockito.Mockito.mock(NotificationGroup.class);
 		Notification notification = org.mockito.Mockito.mock(Notification.class);
-		when(notification.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(8));
-		when(notificationRepository.findById(1L)).thenReturn(Optional.of(notification));
+		when(group.getId()).thenReturn(20L);
+		when(group.getSender()).thenReturn("sender");
+		when(group.getTitle()).thenReturn("title");
+		when(group.getChannelType()).thenReturn(ChannelType.KAKAO);
+		when(notification.getId()).thenReturn(1L);
+		when(notification.getReceiver()).thenReturn("friend");
+		when(notification.getStatus()).thenReturn(NotificationStatus.SENT);
+		when(notification.getGroup()).thenReturn(group);
+		when(notificationRepository.findByReceiver("friend")).thenReturn(List.of(notification));
 
-		Optional<NotificationResult> result = queryService.getNotification(1L);
+		List<NotificationResult> results = queryService.getNotificationsByReceiver("friend");
 
-		assertThat(result).isEmpty();
-		verify(notificationRepository).findById(1L);
+		assertThat(results).hasSize(1);
+		assertThat(results.getFirst().channelType()).isEqualTo(ChannelType.KAKAO);
+		verify(notificationRepository).findByReceiver("friend");
 	}
-
-	@Test
-	@DisplayName("읽지 않은 알림 개수는 최근 7일 + clientId + receiver 기준으로 DB를 직접 조회한다")
-	void getUnreadCount_returnsCount() {
-		when(notificationRepository.countUnreadByClientIdAndReceiver(
-			org.mockito.ArgumentMatchers.eq("client-1"),
-			org.mockito.ArgumentMatchers.eq("user@example.com"),
-			any(LocalDateTime.class)
-		)).thenReturn(7L);
-
-		NotificationUnreadCountResult result = queryService.getUnreadCount("client-1", "user@example.com");
-
-		assertThat(result.receiver()).isEqualTo("user@example.com");
-		assertThat(result.unreadCount()).isEqualTo(7L);
-		verify(notificationRepository).countUnreadByClientIdAndReceiver(
-			org.mockito.ArgumentMatchers.eq("client-1"),
-			org.mockito.ArgumentMatchers.eq("user@example.com"),
-			any(LocalDateTime.class)
-		);
-	}
-
 }
