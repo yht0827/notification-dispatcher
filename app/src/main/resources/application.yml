@@ -97,6 +97,14 @@ recovery:
   threshold-minutes: 5              # 5분 이상 PENDING이면 복구
   batch-size: 100                   # 1회당 100개씩 처리
 
+archive:
+  enabled: false
+  run-on-startup: false
+  retention-days: 7
+  batch-size: 1000
+  cron: "0 0 0 * * *"
+  partition-cron: "0 5 0 1 * *"
+
 ---
 # ─────────────────────────────────────────
 # Local 환경
