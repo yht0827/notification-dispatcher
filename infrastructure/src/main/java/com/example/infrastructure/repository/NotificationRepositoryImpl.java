@@ -7,7 +7,7 @@ import java.util.Optional;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
-import com.example.application.port.out.NotificationRepository;
+import com.example.application.port.out.repository.NotificationRepository;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationStatus;
 
@@ -46,15 +46,20 @@ public class NotificationRepositoryImpl implements NotificationRepository {
 
 	@Override
 	public List<Notification> findByStatusAndCreatedAtBefore(NotificationStatus status, LocalDateTime threshold, int limit) {
+		int normalizedLimit = normalizeLimit(limit);
 		return jpaRepository.findByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(
 			status,
 			threshold,
-			PageRequest.of(0, limit)
+			PageRequest.of(0, normalizedLimit)
 		);
 	}
 
 	@Override
 	public void delete(Notification notification) {
 		jpaRepository.delete(notification);
-    }
+	}
+
+	private int normalizeLimit(int limit) {
+		return Math.max(limit, 1);
+	}
 }

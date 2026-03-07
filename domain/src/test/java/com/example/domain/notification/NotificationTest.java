@@ -41,6 +41,21 @@ class NotificationTest {
     }
 
     @Test
+    @DisplayName("SENDING 상태에서 재시도 시작 시 상태를 유지하고 시도 횟수를 증가시킨다")
+    void startSending_inSendingStateKeepsStatusAndIncrementsAttempt() {
+        // given
+        Notification notification = createNotification();
+        notification.startSending();
+
+        // when
+        notification.startSending();
+
+        // then
+        assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENDING);
+        assertThat(notification.getAttemptCount()).isEqualTo(2);
+    }
+
+    @Test
     @DisplayName("알림을 발송 완료 처리하면 상태가 SENT로 변경된다")
     void markAsSent_statusChangesToSent() {
         // given

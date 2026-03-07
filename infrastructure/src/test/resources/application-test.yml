@@ -1,4 +1,7 @@
 spring:
+  cloud:
+    compatibility-verifier:
+      enabled: false
   jpa:
     open-in-view: false
     hibernate:
@@ -9,5 +12,10 @@ spring:
         format_sql: true
 
 notification:
-  stream:
+  messaging:
     enabled: false
+  external:
+    mock:
+      enabled: false
+      base-url: http://localhost:8081
+      send-path: /mock/send

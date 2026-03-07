@@ -1,11 +1,10 @@
 package com.example.application.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.ArgumentMatchers.any;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 import org.junit.jupiter.api.DisplayName;
@@ -13,11 +12,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.example.application.port.in.NotificationGroupSlice;
-import com.example.application.port.out.NotificationGroupRepository;
-import com.example.application.port.out.NotificationRepository;
+import com.example.application.mapper.NotificationResultMapper;
+import com.example.application.port.in.result.CursorSlice;
+import com.example.application.port.in.result.NotificationGroupResult;
+import com.example.application.port.in.result.NotificationListResult;
+import com.example.application.port.out.repository.NotificationGroupRepository;
+import com.example.application.port.out.repository.NotificationRepository;
 import com.example.domain.notification.NotificationGroup;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,6 +31,9 @@ class NotificationQueryServiceTest {
 
 	@Mock
 	private NotificationRepository notificationRepository;
+
+	@Spy
+	private NotificationResultMapper mapper;
 
 	@InjectMocks
 	private NotificationQueryService queryService;
@@ -45,12 +51,12 @@ class NotificationQueryServiceTest {
 		when(groupRepository.findRecentByCursor(null, 3)).thenReturn(List.of(first, second, third));
 
 		// when
-		NotificationGroupSlice slice = queryService.getRecentGroups(null, 2);
+		CursorSlice<NotificationListResult> slice = queryService.getRecentGroups(null, 2);
 
 		// then
 		assertThat(slice.items()).hasSize(2);
-		assertThat(slice.items().get(0).getId()).isEqualTo(300L);
-		assertThat(slice.items().get(1).getId()).isEqualTo(200L);
+		assertThat(slice.items().get(0).groupId()).isEqualTo(300L);
+		assertThat(slice.items().get(1).groupId()).isEqualTo(200L);
 		assertThat(slice.hasNext()).isTrue();
 		assertThat(slice.nextCursorId()).isEqualTo(200L);
 		verify(groupRepository).findRecentByCursor(null, 3);
@@ -64,7 +70,7 @@ class NotificationQueryServiceTest {
 		when(groupRepository.findRecentByCursor(50L, 3)).thenReturn(List.of(only));
 
 		// when
-		NotificationGroupSlice slice = queryService.getRecentGroups(50L, 2);
+		CursorSlice<NotificationListResult> slice = queryService.getRecentGroups(50L, 2);
 
 		// then
 		assertThat(slice.items()).hasSize(1);
@@ -90,12 +96,13 @@ class NotificationQueryServiceTest {
 		)).thenReturn(List.of(first, second, third));
 
 		// when
-		NotificationGroupSlice slice = queryService.getGroupsByClientId("order-service", null, 2);
+		CursorSlice<NotificationGroupResult> slice =
+			queryService.getGroupsByClientId("order-service", null, 2);
 
 		// then
 		assertThat(slice.items()).hasSize(2);
-		assertThat(slice.items().get(0).getId()).isEqualTo(300L);
-		assertThat(slice.items().get(1).getId()).isEqualTo(200L);
+		assertThat(slice.items().get(0).id()).isEqualTo(300L);
+		assertThat(slice.items().get(1).id()).isEqualTo(200L);
 		assertThat(slice.hasNext()).isTrue();
 		assertThat(slice.nextCursorId()).isEqualTo(200L);
 	}
@@ -113,7 +120,8 @@ class NotificationQueryServiceTest {
 		)).thenReturn(List.of(only));
 
 		// when
-		NotificationGroupSlice slice = queryService.getGroupsByClientId("order-service", 50L, 2);
+		CursorSlice<NotificationGroupResult> slice =
+			queryService.getGroupsByClientId("order-service", 50L, 2);
 
 		// then
 		assertThat(slice.items()).hasSize(1);

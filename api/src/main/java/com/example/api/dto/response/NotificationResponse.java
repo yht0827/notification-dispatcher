@@ -1,11 +1,9 @@
 package com.example.api.dto.response;
 
 import java.time.LocalDateTime;
-import java.util.Optional;
 
+import com.example.application.port.in.result.NotificationResult;
 import com.example.domain.notification.ChannelType;
-import com.example.domain.notification.Notification;
-import com.example.domain.notification.NotificationGroup;
 import com.example.domain.notification.NotificationStatus;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -42,20 +40,18 @@ public record NotificationResponse(
 	@Schema(description = "생성일시")
 	LocalDateTime createdAt
 ) {
-	public static NotificationResponse from(Notification notification) {
-		var group = Optional.ofNullable(notification.getGroup());
-
+	public static NotificationResponse from(NotificationResult notification) {
 		return new NotificationResponse(
-			notification.getId(),
-			group.map(NotificationGroup::getId).orElse(null),
-			notification.getReceiver(),
-			group.map(NotificationGroup::getSender).orElse(null),
-			group.map(NotificationGroup::getTitle).orElse(null),
-			group.map(NotificationGroup::getChannelType).orElse(null),
-			notification.getStatus(),
-			notification.getSentAt(),
-			notification.getFailReason(),
-			notification.getCreatedAt()
+			notification.id(),
+			notification.groupId(),
+			notification.receiver(),
+			notification.sender(),
+			notification.title(),
+			notification.channelType(),
+			notification.status(),
+			notification.sentAt(),
+			notification.failReason(),
+			notification.createdAt()
 		);
 	}
 }

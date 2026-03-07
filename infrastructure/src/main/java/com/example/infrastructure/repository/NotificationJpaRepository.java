@@ -2,7 +2,9 @@ package com.example.infrastructure.repository;
 
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -17,6 +19,10 @@ public interface NotificationJpaRepository extends JpaRepository<Notification, L
 	@Override
 	@Query("select n from Notification n left join fetch n.group where n.id = :id")
 	Optional<Notification> findById(@Param("id") Long id);
+
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("select n from Notification n where n.id = :id")
+	Optional<Notification> findByIdWithPessimisticLock(@Param("id") Long id);
 
 	@Query("select n from Notification n left join fetch n.group where n.receiver = :receiver")
 	List<Notification> findByReceiver(@Param("receiver") String receiver);

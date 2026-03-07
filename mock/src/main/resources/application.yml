@@ -1,0 +1,26 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: mock-send
+  jackson:
+    mapper:
+      accept-case-insensitive-enums: true
+    deserialization:
+      read-unknown-enum-values-using-default-value: true
+
+mock:
+  mode: RANDOM  # RANDOM | ALWAYS_SUCCESS | ALWAYS_FAIL | ALWAYS_DELAY
+  latency:
+    enabled: true
+    probability: 0.15
+    min-ms: 300
+    max-ms: 2500
+  failure:
+    enabled: true
+    probability: 0.10
+    types: [500, 503, 429]
+  log:
+    include-masked-message-preview: false
+    message-preview-length: 20

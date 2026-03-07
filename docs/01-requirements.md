@@ -29,9 +29,9 @@
 | 채널 | Channel | 알림 전달 방식 (`EMAIL`, `SMS`, `KAKAO`) |
 | 멱등성 키 | Idempotency Key | 동일 요청 중복 처리를 막는 식별 키 |
 | Outbox | Outbox | 트랜잭션 내 이벤트 저장 후 비동기 발행하는 패턴 |
-| WORK 스트림 | WORK Stream | 실제 발송 처리 대상 메시지 스트림 |
-| WAIT 스트림 | WAIT Stream | 재시도 대기 메시지 스트림 |
-| DLQ | Dead Letter Queue | 재시도 불가 메시지 보관 스트림 |
+| WORK 큐 | WORK Queue | 실제 발송 처리 대상 메시지 큐 |
+| WAIT 큐 | WAIT Queue | 재시도 대기 메시지 큐 |
+| DLQ | Dead Letter Queue | 재시도 불가 메시지 보관 큐 |
 | 분산 락 | Distributed Lock | 중복 발송 방지를 위한 Redis 락 |
 
 ---
@@ -46,8 +46,8 @@ Client
   -> Application (NotificationCommandService)
   -> DB 저장 (notification_group, notification, outbox)
   -> OutboxPoller
-  -> Redis Stream WORK
-  -> RedisStreamConsumer
+  -> RabbitMQ WORK Queue
+  -> RabbitMQConsumer
   -> NotificationDispatchService
   -> ChannelSender(EMAIL/SMS/KAKAO)
 
@@ -61,8 +61,8 @@ Client
 |------|------|
 | Hexagonal Architecture | `api -> application(port) -> infrastructure(adapter)` 분리 |
 | Transactional Outbox | 알림 저장과 이벤트 저장을 동일 트랜잭션으로 처리 |
-| Redis Streams | Consumer Group 기반 비동기 처리 |
-| Retry with WAIT Stream | 재시도 대기열과 스케줄러를 분리한 재처리 |
+| RabbitMQ Queues | WORK/WAIT/DLQ 기반 비동기 처리 |
+| Retry with WAIT Queue | WAIT TTL + DLX 라우팅 기반 재처리 |
 | Distributed Lock | notificationId 단위 중복 처리 방지 |
 | Idempotency Key | `clientId + idempotencyKey` 기반 중복 요청 방지 |
 
@@ -72,7 +72,7 @@ Client
 |------|------|
 | `domain` | 엔티티/도메인 규칙 (`Notification`, `NotificationGroup`, `Outbox`) |
 | `application` | 유스케이스/서비스/포트 정의 |
-| `infrastructure` | JPA, Redis Stream, Lock, Sender 구현 |
+| `infrastructure` | JPA, RabbitMQ, Lock, Sender 구현 |
 | `api` | HTTP Controller, DTO, 예외 응답 |
 | `app` | Spring Boot 실행 진입점 (`@EnableScheduling`) |
 
@@ -128,8 +128,8 @@ Client
 5. 없으면 NotificationGroup + Notification N건 생성
 6. Notification별 Outbox 이벤트 N건 저장
 7. 201 Created 응답 (groupId, totalCount)
-8. OutboxPoller가 Outbox를 WORK 스트림으로 발행
-9. Consumer가 WORK를 읽어 채널 발송 수행
+8. OutboxPoller가 Outbox를 WORK 큐로 발행
+9. RabbitMQConsumer가 WORK를 읽어 채널 발송 수행
 ```
 
 #### Request Body
@@ -291,21 +291,21 @@ Client
 - 발행 성공 건만 `PROCESSED` 마킹 후 삭제
 - 발행 실패 건은 삭제하지 않고 다음 폴링에서 재시도
 
-### Redis Stream 소비
+### RabbitMQ 소비
 
-- WORK 스트림 Consumer Group 기반 수신
+- WORK 큐 수신 (manual ACK)
 - 메시지 처리 전 `DispatchLockManager.tryAcquire(notificationId)` 수행
 - 예외 분류:
-  - `RetryableStreamMessageException` -> WAIT 스트림 전송
-  - `NonRetryableStreamMessageException` -> DLQ 스트림 전송
+  - `RetryableMessageException` -> WAIT 큐 전송
+  - `NonRetryableMessageException` -> DLQ 큐 전송
 - WAIT/DLQ 전송 성공 시 원본 WORK 메시지 ACK
 
 ### 재시도 전략
 
-- 최대 재시도: `notification.stream.max-retry-count` (기본 3)
+- 최대 재시도: `notification.rabbitmq.max-retry-count` (기본 3)
 - 재시도 지연: `retryBaseDelayMillis * 2^retryCount`
-- WAIT 스케줄러가 만료(`nextRetryAt <= now`) 메시지를 WORK로 재발행
-- 재발행 시 `retryCount + 1`
+- WAIT 큐에 TTL 설정된 메시지가 만료되면 Broker DLX 라우팅으로 WORK 재진입
+- 재진입 시 `retryCount + 1`
 
 ### 시작 시 복구 전략
 
@@ -333,7 +333,7 @@ PENDING -> CANCELED
 | `FAILED` | 최종 실패 | O |
 | `CANCELED` | 취소 | O |
 
-> 구현 메모: 재시도는 Redis WAIT 스트림에서 관리하며, Notification 엔티티는 최종 결과(SENT/FAILED)만 기록한다.
+> 구현 메모: 재시도는 RabbitMQ WAIT 큐(TTL + DLX)에서 관리하며, Notification 엔티티는 최종 결과(SENT/FAILED)만 기록한다.
 
 ### Outbox 상태
 
@@ -357,7 +357,7 @@ PENDING -> CANCELED
 
 - 요청 저장과 이벤트 저장을 동일 트랜잭션으로 보장
 - 분산 락으로 동일 알림 중복 처리 방지
-- 재시도 가능한 오류는 WAIT 스트림에서 지수 백오프
+- 재시도 가능한 오류는 WAIT 큐에서 지수 백오프
 - 재시도 불가 오류는 DLQ에 보관
 
 ### 확장성

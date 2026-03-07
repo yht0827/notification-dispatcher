@@ -4,9 +4,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.application.port.in.NotificationDispatchUseCase;
-import com.example.application.port.out.NotificationRepository;
+import com.example.application.port.in.result.NotificationDispatchResult;
+import com.example.application.port.out.repository.NotificationRepository;
 import com.example.application.port.out.NotificationSender;
-import com.example.application.port.out.NotificationSender.SendResult;
+import com.example.application.port.out.result.SendResult;
 import com.example.domain.notification.Notification;
 
 import lombok.RequiredArgsConstructor;
@@ -22,11 +23,12 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 
 	@Override
 	@Transactional
-	public DispatchResult dispatch(Notification notification) {
+	public NotificationDispatchResult dispatch(Notification notification) {
+		// 메시지 중복 처리 방지
 		if (notification.isTerminal()) {
 			log.debug("이미 종결 상태인 알림 발송 생략: id={}, status={}",
 				notification.getId(), notification.getStatus());
-			return DispatchResult.success();
+			return NotificationDispatchResult.success();
 		}
 
 		// PENDING → SENDING
@@ -41,10 +43,13 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 			managedNotification.markAsSent();
 			notificationRepository.save(managedNotification);
 			log.info("알림 발송 성공: id={}, receiver={}", managedNotification.getId(), managedNotification.getReceiver());
-			return DispatchResult.success();
+			return NotificationDispatchResult.success();
 		} else {
 			log.warn("알림 발송 실패: id={}, reason={}", managedNotification.getId(), sendResult.failReason());
-			return DispatchResult.fail(sendResult.failReason());
+			if (sendResult.isNonRetryableFailure()) {
+				return NotificationDispatchResult.failNonRetryable(sendResult.failReason());
+			}
+			return NotificationDispatchResult.failRetryable(sendResult.failReason());
 		}
 	}
 

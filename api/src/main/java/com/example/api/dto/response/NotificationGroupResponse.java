@@ -2,9 +2,9 @@ package com.example.api.dto.response;
 
 import java.time.LocalDateTime;
 
+import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.GroupType;
-import com.example.domain.notification.NotificationGroup;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -46,20 +46,20 @@ public record NotificationGroupResponse(
 	@Schema(description = "생성일시")
 	LocalDateTime createdAt
 ) {
-	public static NotificationGroupResponse from(NotificationGroup group) {
+	public static NotificationGroupResponse from(NotificationGroupResult group) {
 		return new NotificationGroupResponse(
-			group.getId(),
-			group.getClientId(),
-			group.getSender(),
-			group.getTitle(),
-			group.getGroupType(),
-			group.getChannelType(),
-			group.getTotalCount(),
-			group.getSentCount(),
-			group.getFailedCount(),
-			group.getPendingCount(),
-			group.isCompleted(),
-			group.getCreatedAt()
+			group.id(),
+			group.clientId(),
+			group.sender(),
+			group.title(),
+			group.groupType(),
+			group.channelType(),
+			group.totalCount(),
+			group.sentCount(),
+			group.failedCount(),
+			group.pendingCount(),
+			group.completed(),
+			group.createdAt()
 		);
 	}
 }

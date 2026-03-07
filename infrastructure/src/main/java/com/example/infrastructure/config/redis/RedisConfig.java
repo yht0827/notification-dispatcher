@@ -1,21 +1,25 @@
 package com.example.infrastructure.config.redis;
 
+import org.springframework.boot.autoconfigure.data.redis.RedisProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import com.example.infrastructure.config.stream.NotificationStreamProperties;
-import com.example.infrastructure.config.stream.OutboxProperties;
-import com.example.infrastructure.config.stream.RecoveryProperties;
+import com.example.infrastructure.polling.OutboxProperties;
 
 @Configuration
-@EnableConfigurationProperties({NotificationStreamProperties.class, OutboxProperties.class, RecoveryProperties.class})
+@EnableConfigurationProperties(OutboxProperties.class)
 public class RedisConfig {
 
 	@Bean
-	public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory connectionFactory) {
-		return new StringRedisTemplate(connectionFactory);
+	public LettuceConnectionFactory lettuceConnectionFactory(RedisProperties redisProperties) {
+		return new LettuceConnectionFactory(redisProperties.getHost(), redisProperties.getPort());
+	}
+
+	@Bean
+	public StringRedisTemplate stringRedisTemplate(LettuceConnectionFactory lettuceConnectionFactory) {
+		return new StringRedisTemplate(lettuceConnectionFactory);
 	}
 }

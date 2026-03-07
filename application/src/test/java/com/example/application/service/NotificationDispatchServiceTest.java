@@ -15,10 +15,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.example.application.port.in.NotificationDispatchUseCase.DispatchResult;
-import com.example.application.port.out.NotificationRepository;
+import com.example.application.port.in.result.NotificationDispatchResult;
+import com.example.application.port.out.repository.NotificationRepository;
 import com.example.application.port.out.NotificationSender;
-import com.example.application.port.out.NotificationSender.SendResult;
+import com.example.application.port.out.result.SendResult;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
@@ -61,7 +61,7 @@ class NotificationDispatchServiceTest {
 		when(notificationSender.send(notification)).thenReturn(SendResult.success());
 
 		// when
-		DispatchResult result = dispatchService.dispatch(notification);
+		NotificationDispatchResult result = dispatchService.dispatch(notification);
 
 		// then
 		assertThat(result.isSuccess()).isTrue();
@@ -83,13 +83,33 @@ class NotificationDispatchServiceTest {
 		when(notificationSender.send(managed)).thenReturn(SendResult.success());
 
 		// when
-		DispatchResult result = dispatchService.dispatch(detached);
+		NotificationDispatchResult result = dispatchService.dispatch(detached);
 
 		// then
 		assertThat(result.isSuccess()).isTrue();
 		verify(notificationRepository).save(detached);
 		verify(notificationSender).send(managed);
 		verify(notificationRepository).save(managed);
+	}
+
+	@Test
+	@DisplayName("SENDING 상태 재시도에서도 발송을 계속 진행한다")
+	void dispatch_continuesWhenAlreadySendingForRetry() {
+		// given
+		Notification notification = createNotification();
+		notification.startSending();
+		when(notificationRepository.save(notification)).thenReturn(notification);
+		when(notificationSender.send(notification)).thenReturn(SendResult.success());
+
+		// when
+		NotificationDispatchResult result = dispatchService.dispatch(notification);
+
+		// then
+		assertThat(result.isSuccess()).isTrue();
+		assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
+		assertThat(notification.getAttemptCount()).isEqualTo(2);
+		verify(notificationSender).send(notification);
+		verify(notificationRepository, times(2)).save(notification);
 	}
 
 	@Test
@@ -101,12 +121,32 @@ class NotificationDispatchServiceTest {
 		when(notificationSender.send(notification)).thenReturn(SendResult.fail("발송 실패"));
 
 		// when
-		DispatchResult result = dispatchService.dispatch(notification);
+		NotificationDispatchResult result = dispatchService.dispatch(notification);
 
 		// then
 		assertThat(result.isFailure()).isTrue();
+		assertThat(result.isRetryableFailure()).isTrue();
 		assertThat(result.failReason()).isEqualTo("발송 실패");
 		assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENDING);
+		verify(notificationSender).send(notification);
+		verify(notificationRepository).save(notification);
+	}
+
+	@Test
+	@DisplayName("재시도 불가 실패는 non-retryable 결과를 반환한다")
+	void dispatch_returnsNonRetryableFailureWhenSendFailsNonRetryable() {
+		// given
+		Notification notification = createNotification();
+		when(notificationRepository.save(notification)).thenReturn(notification);
+		when(notificationSender.send(notification)).thenReturn(SendResult.failNonRetryable("수신자 주소 오류"));
+
+		// when
+		NotificationDispatchResult result = dispatchService.dispatch(notification);
+
+		// then
+		assertThat(result.isFailure()).isTrue();
+		assertThat(result.isNonRetryableFailure()).isTrue();
+		assertThat(result.failReason()).isEqualTo("수신자 주소 오류");
 		verify(notificationSender).send(notification);
 		verify(notificationRepository).save(notification);
 	}

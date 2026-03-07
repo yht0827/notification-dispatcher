@@ -5,6 +5,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /**
@@ -16,6 +17,7 @@ public class TestcontainersConfig {
 
     private static final MySQLContainer<?> MYSQL_CONTAINER;
     private static final RedisContainer REDIS_CONTAINER;
+    private static final RabbitMQContainer RABBITMQ_CONTAINER;
 
     static {
         MYSQL_CONTAINER = new MySQLContainer<>(DockerImageName.parse("mysql:8.0"))
@@ -28,6 +30,10 @@ public class TestcontainersConfig {
         REDIS_CONTAINER = new RedisContainer(DockerImageName.parse("redis:7-alpine"))
                 .withReuse(true);
         REDIS_CONTAINER.start();
+
+        RABBITMQ_CONTAINER = new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.13-management"))
+                .withReuse(true);
+        RABBITMQ_CONTAINER.start();
     }
 
     @Bean
@@ -40,5 +46,11 @@ public class TestcontainersConfig {
     @ServiceConnection
     RedisContainer redisContainer() {
         return REDIS_CONTAINER;
+    }
+
+    @Bean
+    @ServiceConnection
+    RabbitMQContainer rabbitMQContainer() {
+        return RABBITMQ_CONTAINER;
     }
 }

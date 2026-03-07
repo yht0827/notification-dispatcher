@@ -57,6 +57,13 @@ class NotificationControllerValidationTest {
 	}
 
 	@Test
+	@DisplayName("묶음 조회 cursorId가 숫자가 아니면 400을 반환한다")
+	void getNotificationBundles_returnsBadRequestWhenCursorIdIsNotNumber() throws Exception {
+		mockMvc.perform(get("/api/v1/notifications").param("cursorId", "abc"))
+			.andExpect(status().isBadRequest());
+	}
+
+	@Test
 	@DisplayName("요청자별 조회 cursorId가 0이면 400을 반환한다")
 	void getGroupsByClientId_returnsBadRequestWhenCursorIdIsZero() throws Exception {
 		mockMvc.perform(get("/api/v1/notifications/groups")

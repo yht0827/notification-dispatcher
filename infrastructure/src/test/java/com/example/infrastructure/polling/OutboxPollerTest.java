@@ -15,14 +15,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.example.application.port.out.OutboxRepository;
+import com.example.application.port.out.repository.OutboxRepository;
 import com.example.domain.outbox.Outbox;
 import com.example.domain.outbox.OutboxAggregateType;
 import com.example.domain.outbox.OutboxEventType;
 import com.example.domain.outbox.OutboxStatus;
-import com.example.infrastructure.config.stream.OutboxProperties;
-import com.example.infrastructure.polling.OutboxPoller;
-import com.example.infrastructure.stream.outbound.RedisStreamPublisher;
+import com.example.application.port.out.NotificationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class OutboxPollerTest {
@@ -34,13 +32,13 @@ class OutboxPollerTest {
 	private OutboxRepository outboxRepository;
 
 	@Mock
-	private RedisStreamPublisher streamPublisher;
+	private NotificationEventPublisher eventPublisher;
 
 	private OutboxPoller outboxPoller;
 
 	@BeforeEach
 	void setUp() {
-		outboxPoller = new OutboxPoller(outboxRepository, streamPublisher, new OutboxProperties(BATCH_SIZE));
+		outboxPoller = new OutboxPoller(outboxRepository, eventPublisher, new OutboxProperties(BATCH_SIZE));
 	}
 
 	@Test
@@ -54,12 +52,12 @@ class OutboxPollerTest {
 		outboxPoller.pollAndPublish();
 
 		// then
-		verify(streamPublisher, never()).publish(anyLong());
+		verify(eventPublisher, never()).publish(anyLong());
 		verify(outboxRepository, never()).deleteAll(any());
 	}
 
 	@Test
-	@DisplayName("PENDING Outbox를 Redis Stream에 발행하고 삭제한다")
+	@DisplayName("PENDING Outbox를 메시징으로 발행하고 삭제한다")
 	void pollAndPublish_publishesAndDeletesSuccessfully() {
 		// given
 		Outbox outbox1 = createOutbox(1L, 100L);
@@ -72,13 +70,13 @@ class OutboxPollerTest {
 		outboxPoller.pollAndPublish();
 
 		// then
-		verify(streamPublisher).publish(100L);
-		verify(streamPublisher).publish(200L);
+		verify(eventPublisher).publish(100L);
+		verify(eventPublisher).publish(200L);
 		verify(outboxRepository).deleteAll(List.of(outbox1, outbox2));
 	}
 
 	@Test
-	@DisplayName("Redis 발행 실패한 Outbox는 삭제하지 않는다")
+	@DisplayName("메시징 발행 실패한 Outbox는 삭제하지 않는다")
 	void pollAndPublish_doesNotDeleteFailedPublishes() {
 		// given
 		Outbox outbox1 = createOutbox(1L, 100L);
@@ -89,9 +87,9 @@ class OutboxPollerTest {
 			.thenReturn(List.of(outbox1, outbox2, outbox3));
 
 		// outbox2 발행 실패
-		doNothing().when(streamPublisher).publish(100L);
-		doThrow(new RuntimeException("Redis connection failed")).when(streamPublisher).publish(200L);
-		doNothing().when(streamPublisher).publish(300L);
+		doNothing().when(eventPublisher).publish(100L);
+		doThrow(new RuntimeException("messaging publish failed")).when(eventPublisher).publish(200L);
+		doNothing().when(eventPublisher).publish(300L);
 
 		// when
 		outboxPoller.pollAndPublish();
@@ -108,7 +106,7 @@ class OutboxPollerTest {
 
 		when(outboxRepository.findByStatus(OutboxStatus.PENDING, BATCH_SIZE))
 			.thenReturn(List.of(outbox));
-		doThrow(new RuntimeException("Redis connection failed")).when(streamPublisher).publish(100L);
+		doThrow(new RuntimeException("messaging publish failed")).when(eventPublisher).publish(100L);
 
 		// when
 		outboxPoller.pollAndPublish();
@@ -141,7 +139,7 @@ class OutboxPollerTest {
 
 		when(outboxRepository.findByStatus(OutboxStatus.PENDING, BATCH_SIZE))
 			.thenReturn(List.of(outbox));
-		doThrow(new RuntimeException("Redis connection failed")).when(streamPublisher).publish(100L);
+		doThrow(new RuntimeException("messaging publish failed")).when(eventPublisher).publish(100L);
 
 		// when
 		outboxPoller.pollAndPublish();

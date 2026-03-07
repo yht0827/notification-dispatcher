@@ -5,7 +5,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.example.infrastructure.TestApplication;
-import com.example.infrastructure.config.MockStreamConfig;
+import com.example.infrastructure.config.MockMessagingConfig;
 import com.example.infrastructure.config.TestcontainersConfig;
 
 /**
@@ -14,6 +14,6 @@ import com.example.infrastructure.config.TestcontainersConfig;
  */
 @SpringBootTest(classes = TestApplication.class)
 @ActiveProfiles("test")
-@Import({TestcontainersConfig.class, MockStreamConfig.class})
+@Import({TestcontainersConfig.class, MockMessagingConfig.class})
 public abstract class IntegrationTestSupportNoTx {
 }

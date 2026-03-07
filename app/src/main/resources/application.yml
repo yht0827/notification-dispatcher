@@ -3,33 +3,114 @@ spring:
     name: notification-dispatcher
   profiles:
     active: local
+  threads:
+    virtual:
+      enabled: true
+  cloud:
+    compatibility-verifier:
+      enabled: false
+    openfeign:
+      client:
+        config:
+          mockApi:
+            connect-timeout: 1000
+            read-timeout: 5000
 
+# ─────────────────────────────────────────
+# Notification Messaging (공통 기본값)
+# ─────────────────────────────────────────
 notification:
-  stream:
+  messaging:
     enabled: true
+  rabbitmq:
+    listener-virtual-threads: true
+  external:
+    mock:
+      name: mockApi
+      enabled: false
+      base-url: http://localhost:8081
+      send-path: /mock/send
 
+# ─────────────────────────────────────────
+# Resilience4j
+# ─────────────────────────────────────────
+resilience4j:
+  retry:
+    retry-aspect-order: 2
+    instances:
+      mockApi:
+        max-attempts: 2
+        wait-duration: 200ms
+        enable-exponential-backoff: false
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - com.example.infrastructure.sender.mock.exception.MockApiRetryableException
+        ignore-exceptions:
+          - com.example.infrastructure.sender.mock.exception.MockApiNonRetryableException
+  circuitbreaker:
+    circuit-breaker-aspect-order: 1
+    instances:
+      mockApi:
+        sliding-window-size: 20
+        minimum-number-of-calls: 20
+        failure-rate-threshold: 50 # 10건 중 5건 실패 시 OPEN
+        wait-duration-in-open-state: 10s
+        record-exceptions:
+          - com.example.infrastructure.sender.mock.exception.MockApiRetryableException
+        ignore-exceptions:
+          - com.example.infrastructure.sender.mock.exception.MockApiNonRetryableException
+# ─────────────────────────────────────────
+# Actuator / Metrics
+# ─────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+
+# ─────────────────────────────────────────
+# Outbox / Recovery
+# ─────────────────────────────────────────
 outbox:
-  poll-interval-millis: 1000
-  batch-size: 100
+  poll-interval-millis: 1000        # 1초마다 폴링
+  batch-size: 100                   # 1회당 100개씩 처리
 
 recovery:
-  batch-size: 100                 # 복구 배치 크기
-  threshold-minutes: 5            # PENDING 상태 유지 임계 시간(분)
-  claim-min-idle-minutes: 5       # PEL 메시지 최소 idle 시간(분)
-  poll-interval-millis: 300000    # PENDING 복구 폴링 간격(ms) - 5분
-  claim-interval-millis: 60000    # PEL 회수 폴링 간격(ms) - 1분
+  poll-interval-millis: 300000      # 5분마다 폴링
+  threshold-minutes: 5              # 5분 이상 PENDING이면 복구
+  batch-size: 100                   # 1회당 100개씩 처리
 
 ---
+# ─────────────────────────────────────────
 # Local 환경
+# ─────────────────────────────────────────
 spring:
   config:
     activate:
       on-profile: local
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: ${RABBITMQ_USER:application}
+    password: ${RABBITMQ_PASSWORD:application}
   datasource:
     url: jdbc:mysql://localhost:3306/notification?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
     username: application
     password: application
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 10
+      connection-timeout: 5000   # 5초 대기 후 TimeoutException (기본 30초)
   jpa:
     open-in-view: false
     hibernate:
@@ -48,21 +129,28 @@ spring:
       port: 6379
 
 notification:
-  stream:
-    key: notification-stream
-    consumer-group: notification-group
-    consumer-name: consumer-1
-    poll-interval: 1000                        # XREADGROUP 타임아웃(ms)
-    batch-size: 10                             # 한 번에 읽을 최대 개수
-    wait-batch-size: 100
-    dead-letter-key: notification-stream-dlq
-    wait-key: notification-stream-wait
-    max-retry-count: 3                         # 재시도 최대 횟수
-    retry-base-delay-millis: 5000              # WAIT 재시도 기본 지연(ms)
-    wait-poll-interval-millis: 1000            # WAIT 스케줄러 실행 주기
+  rabbitmq:
+    work-queue: notification.work              # Work 큐 이름
+    work-exchange: notification.work.exchange  # Work Exchange
+    wait-queue: notification.wait              # Wait 큐 이름
+    dlq-queue: notification.dlq                # DLQ 큐 이름
+    dlq-exchange: notification.dlq.exchange    # DLQ Exchange
+    max-retry-count: 3                         # 최대 재시도 횟수
+    retry-base-delay-millis: 5000              # 기본 재시도 지연 (ms)
+    concurrency: 2
+    max-concurrency: 2
+    prefetch: 100
+    batch-listener-enabled: false              # 배치 리스너 활성화
+    batch-size: 50                             # 배치 수집 크기
+    batch-receive-timeout-millis: 200          # 배치 수집 대기(ms)
+  external:
+    mock:
+      enabled: true
 
 ---
+# ─────────────────────────────────────────
 # Test 환경 (Testcontainers)
+# ─────────────────────────────────────────
 spring:
   config:
     activate:
@@ -76,7 +164,9 @@ spring:
     enabled: false
 
 ---
+# ─────────────────────────────────────────
 # Production 환경
+# ─────────────────────────────────────────
 spring:
   config:
     activate:

@@ -5,7 +5,7 @@ import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
-import com.example.application.port.out.OutboxRepository;
+import com.example.application.port.out.repository.OutboxRepository;
 import com.example.domain.outbox.Outbox;
 import com.example.domain.outbox.OutboxStatus;
 
@@ -29,7 +29,8 @@ public class OutboxRepositoryImpl implements OutboxRepository {
 
 	@Override
 	public List<Outbox> findByStatus(OutboxStatus status, int limit) {
-		return jpaRepository.findByStatusOrderByCreatedAtAsc(status, PageRequest.of(0, limit));
+		int normalizedLimit = normalizeLimit(limit);
+		return jpaRepository.findByStatusOrderByCreatedAtAsc(status, PageRequest.of(0, normalizedLimit));
 	}
 
 	@Override
@@ -45,5 +46,9 @@ public class OutboxRepositoryImpl implements OutboxRepository {
 	@Override
 	public void deleteByAggregateId(Long aggregateId) {
 		jpaRepository.deleteByAggregateId(aggregateId);
+	}
+
+	private int normalizeLimit(int limit) {
+		return Math.max(limit, 1);
 	}
 }

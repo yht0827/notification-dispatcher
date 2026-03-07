@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import com.example.domain.exception.UnsupportedChannelException;
 import com.example.domain.notification.ChannelType;
+import com.example.infrastructure.sender.exception.DuplicateChannelSenderRegistrationException;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +24,10 @@ public class ChannelSenderFactory {
 	void init() {
 		senderMap = new EnumMap<>(ChannelType.class);
 		for (ChannelSender sender : senders) {
-			senderMap.put(sender.getChannelType(), sender);
+			ChannelSender existing = senderMap.put(sender.getChannelType(), sender);
+			if (existing != null) {
+				throw new DuplicateChannelSenderRegistrationException(sender.getChannelType());
+			}
 		}
 	}
 

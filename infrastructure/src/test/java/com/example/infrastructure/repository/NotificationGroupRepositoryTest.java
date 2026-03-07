@@ -1,6 +1,6 @@
 package com.example.infrastructure.repository;
 
-import com.example.application.port.out.NotificationGroupRepository;
+import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.GroupType;
 import com.example.domain.notification.NotificationGroup;

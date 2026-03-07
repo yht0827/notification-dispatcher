@@ -11,7 +11,7 @@ public enum NotificationStatus {
 	public boolean canTransitionTo(NotificationStatus target) {
 		return switch (this) {
 			case PENDING -> target == SENDING || target == CANCELED;
-			case SENDING -> target == SENT || target == FAILED;
+			case SENDING -> target == SENDING || target == SENT || target == FAILED;
 			case SENT, FAILED, CANCELED -> false;
 		};
 	}

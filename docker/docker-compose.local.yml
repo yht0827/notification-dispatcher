@@ -2,11 +2,13 @@ services:
   mysql:
     image: mysql:8.0
     container_name: notification-mysql
+    env_file:
+      - .env
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: notification
-      MYSQL_USER: application
-      MYSQL_PASSWORD: application
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
       - "3306:3306"
     volumes:
@@ -30,6 +32,49 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  mysqld-exporter:
+    image: prom/mysqld-exporter:latest
+    container_name: notification-mysqld-exporter
+    ports:
+      - "9104:9104"
+    volumes:
+      - ./mysqld-exporter/my.cnf:/etc/mysqld-exporter/my.cnf:ro
+    command:
+      - "--config.my-cnf=/etc/mysqld-exporter/my.cnf"
+      - "--mysqld.address=notification-mysql:3306"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: notification-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+      - "15692:15692"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    command: >
+      sh -c "rabbitmq-plugins enable --offline rabbitmq_prometheus && exec rabbitmq-server"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: notification-redis-exporter
+    ports:
+      - "9121:9121"
+    environment:
+      - REDIS_ADDR=redis://notification-redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
 
 volumes:
   mysql-data:
