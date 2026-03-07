@@ -3,11 +3,13 @@ package com.example.application.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,9 +25,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 
 import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
-import com.example.application.port.in.result.NotificationGroupReadResult;
-import com.example.application.port.in.result.NotificationReadResult;
-import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationReadStatusRepository;
 import com.example.application.port.out.repository.NotificationRepository;
 import com.example.domain.notification.ChannelType;
@@ -37,9 +36,6 @@ class NotificationWriteServiceTest {
 
 	@Mock
 	private NotificationRepository notificationRepository;
-
-	@Mock
-	private NotificationGroupRepository notificationGroupRepository;
 
 	@Mock
 	private NotificationReadStatusRepository notificationReadStatusRepository;
@@ -55,7 +51,6 @@ class NotificationWriteServiceTest {
 	@BeforeEach
 	void setUp() {
 		commandService = new NotificationWriteService(
-			notificationGroupRepository,
 			notificationRepository,
 			notificationReadStatusRepository,
 			idempotencyLookupService,
@@ -74,8 +69,7 @@ class NotificationWriteServiceTest {
 			"주문이 완료되었습니다.",
 			ChannelType.EMAIL,
 			List.of("user1@example.com", "user2@example.com"),
-			" idem-order-1001 ",
-			null
+			" idem-order-1001 "
 		);
 		NotificationGroup existingGroup = NotificationGroup.create(
 			"order-service",
@@ -112,8 +106,7 @@ class NotificationWriteServiceTest {
 			"주문이 완료되었습니다.",
 			ChannelType.EMAIL,
 			List.of("user1@example.com", "user2@example.com"),
-			"idem-order-2001",
-			null
+			"idem-order-2001"
 		);
 
 		NotificationCommandResult created = new NotificationCommandResult(1L, 2);
@@ -142,8 +135,7 @@ class NotificationWriteServiceTest {
 			"주문이 완료되었습니다.",
 			ChannelType.EMAIL,
 			List.of("user1@example.com"),
-			"   ",
-			null
+			"   "
 		);
 		NotificationCommandResult created = new NotificationCommandResult(10L, 1);
 		when(notificationWriteExecutor.createAndPublish(command, null)).thenReturn(created);
@@ -169,8 +161,7 @@ class NotificationWriteServiceTest {
 			"주문이 완료되었습니다.",
 			ChannelType.EMAIL,
 			List.of("user1@example.com", "user2@example.com"),
-			"idem-order-3001",
-			null
+			"idem-order-3001"
 		);
 		NotificationGroup existingGroup = NotificationGroup.create(
 			"order-service",
@@ -210,8 +201,7 @@ class NotificationWriteServiceTest {
 			"주문이 완료되었습니다.",
 			ChannelType.EMAIL,
 			List.of("user1@example.com", "user2@example.com"),
-			"idem-order-4001",
-			null
+			"idem-order-4001"
 		);
 		DataIntegrityViolationException duplicate = new DataIntegrityViolationException("duplicate key");
 
@@ -231,20 +221,13 @@ class NotificationWriteServiceTest {
 	@Test
 	@DisplayName("7일 이내 알림은 읽음 처리한다")
 	void markAsRead_marksRecentNotification() {
-		NotificationGroup group = org.mockito.Mockito.mock(NotificationGroup.class);
-		when(group.getClientId()).thenReturn("clientId");
 		Notification notification = org.mockito.Mockito.mock(Notification.class);
 		when(notification.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(1));
-		when(notification.getGroup()).thenReturn(group);
 		when(notificationRepository.findById(1L)).thenReturn(Optional.of(notification));
-		when(notificationReadStatusRepository.findReadAtByNotificationId(1L))
-			.thenReturn(LocalDateTime.of(2026, 3, 8, 12, 0));
 
-		Optional<NotificationReadResult> result = commandService.markAsRead("clientId", 1L);
+		boolean result = commandService.markAsRead(1L);
 
-		assertThat(result).isPresent();
-		assertThat(result.orElseThrow().notificationId()).isEqualTo(1L);
-		assertThat(result.orElseThrow().readAt()).isEqualTo(LocalDateTime.of(2026, 3, 8, 12, 0));
+		assertThat(result).isTrue();
 		verify(notificationReadStatusRepository).markAsRead(eq(1L), any(LocalDateTime.class));
 	}
 
@@ -255,9 +238,9 @@ class NotificationWriteServiceTest {
 		when(notification.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(8));
 		when(notificationRepository.findById(1L)).thenReturn(Optional.of(notification));
 
-		Optional<NotificationReadResult> result = commandService.markAsRead("clientId", 1L);
+		boolean result = commandService.markAsRead(1L);
 
-		assertThat(result).isEmpty();
+		assertThat(result).isFalse();
 		verify(notificationReadStatusRepository, never()).markAsRead(any(Long.class), any(LocalDateTime.class));
 	}
 
@@ -266,77 +249,9 @@ class NotificationWriteServiceTest {
 	void markAsRead_returnsFalseWhenNotificationMissing() {
 		when(notificationRepository.findById(1L)).thenReturn(Optional.empty());
 
-		Optional<NotificationReadResult> result = commandService.markAsRead("clientId", 1L);
+		boolean result = commandService.markAsRead(1L);
 
-		assertThat(result).isEmpty();
+		assertThat(result).isFalse();
 		verify(notificationReadStatusRepository, never()).markAsRead(any(Long.class), any(LocalDateTime.class));
-	}
-
-	@Test
-	@DisplayName("그룹 읽음 처리는 최근 7일 그룹의 미읽음 알림만 한 번에 처리한다")
-	void markGroupAsRead_marksUnreadNotificationsInGroup() {
-		NotificationGroup group = org.mockito.Mockito.mock(NotificationGroup.class);
-		Notification first = org.mockito.Mockito.mock(Notification.class);
-		Notification second = org.mockito.Mockito.mock(Notification.class);
-		when(group.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(1));
-		when(group.getClientId()).thenReturn("clientId");
-		when(group.getNotifications()).thenReturn(List.of(first, second));
-		when(first.getId()).thenReturn(1L);
-		when(second.getId()).thenReturn(2L);
-		when(notificationGroupRepository.findByIdWithNotifications(10L)).thenReturn(Optional.of(group));
-		when(notificationReadStatusRepository.markAllAsRead(eq(List.of(1L, 2L)), any(LocalDateTime.class)))
-			.thenReturn(2);
-
-		Optional<NotificationGroupReadResult> result = commandService.markGroupAsRead("clientId", 10L);
-
-		assertThat(result).isPresent();
-		assertThat(result.orElseThrow().groupId()).isEqualTo(10L);
-		assertThat(result.orElseThrow().readCount()).isEqualTo(2);
-	}
-
-	@Test
-	@DisplayName("그룹의 모든 알림이 이미 읽힘 상태면 새로 읽음 처리된 건수는 0이다")
-	void markGroupAsRead_returnsZeroWhenAlreadyRead() {
-		NotificationGroup group = org.mockito.Mockito.mock(NotificationGroup.class);
-		Notification first = org.mockito.Mockito.mock(Notification.class);
-		Notification second = org.mockito.Mockito.mock(Notification.class);
-		when(group.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(1));
-		when(group.getClientId()).thenReturn("clientId");
-		when(group.getNotifications()).thenReturn(List.of(first, second));
-		when(first.getId()).thenReturn(1L);
-		when(second.getId()).thenReturn(2L);
-		when(notificationGroupRepository.findByIdWithNotifications(10L)).thenReturn(Optional.of(group));
-		when(notificationReadStatusRepository.markAllAsRead(eq(List.of(1L, 2L)), any(LocalDateTime.class)))
-			.thenReturn(0);
-
-		Optional<NotificationGroupReadResult> result = commandService.markGroupAsRead("clientId", 10L);
-
-		assertThat(result).isPresent();
-		assertThat(result.orElseThrow().groupId()).isEqualTo(10L);
-		assertThat(result.orElseThrow().readCount()).isZero();
-	}
-
-	@Test
-	@DisplayName("7일 지난 그룹은 전체 읽음 처리하지 않는다")
-	void markGroupAsRead_skipsExpiredGroup() {
-		NotificationGroup group = org.mockito.Mockito.mock(NotificationGroup.class);
-		when(group.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(8));
-		when(notificationGroupRepository.findByIdWithNotifications(10L)).thenReturn(Optional.of(group));
-
-		Optional<NotificationGroupReadResult> result = commandService.markGroupAsRead("clientId", 10L);
-
-		assertThat(result).isEmpty();
-		verify(notificationReadStatusRepository, never()).markAllAsRead(any(), any());
-	}
-
-	@Test
-	@DisplayName("그룹이 없으면 전체 읽음 처리하지 않는다")
-	void markGroupAsRead_returnsEmptyWhenGroupMissing() {
-		when(notificationGroupRepository.findByIdWithNotifications(10L)).thenReturn(Optional.empty());
-
-		Optional<NotificationGroupReadResult> result = commandService.markGroupAsRead("clientId", 10L);
-
-		assertThat(result).isEmpty();
-		verify(notificationReadStatusRepository, never()).markAllAsRead(any(), any());
 	}
 }

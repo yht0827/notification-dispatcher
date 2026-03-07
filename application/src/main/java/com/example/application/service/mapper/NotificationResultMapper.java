@@ -1,8 +1,6 @@
-package com.example.application.service.mapper;
+package com.example.application.mapper;
 
-import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.stereotype.Component;
@@ -10,6 +8,7 @@ import org.springframework.stereotype.Component;
 import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.application.port.in.result.NotificationItemResult;
+import com.example.application.port.in.result.NotificationListResult;
 import com.example.application.port.in.result.NotificationResult;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
@@ -35,16 +34,8 @@ public class NotificationResultMapper {
 	}
 
 	public NotificationGroupDetailResult toGroupDetailResult(NotificationGroup group) {
-		return toGroupDetailResult(group, Map.of());
-	}
-
-	public NotificationGroupDetailResult toGroupDetailResult(NotificationGroup group,
-		Map<Long, LocalDateTime> readAtByNotificationId) {
 		List<NotificationItemResult> notifications = group.getNotifications().stream()
-			.map(notification -> toGroupDetailNotificationItemResult(
-				notification,
-				readAtByNotificationId.get(notification.getId())
-			))
+			.map(this::toGroupDetailNotificationItemResult)
 			.toList();
 
 		return new NotificationGroupDetailResult(
@@ -66,27 +57,21 @@ public class NotificationResultMapper {
 	}
 
 	public NotificationItemResult toGroupDetailNotificationItemResult(Notification notification) {
-		return toGroupDetailNotificationItemResult(notification, null);
-	}
-
-	public NotificationItemResult toGroupDetailNotificationItemResult(Notification notification, LocalDateTime readAt) {
 		return new NotificationItemResult(
 			notification.getId(),
 			notification.getReceiver(),
 			notification.getStatus(),
 			notification.getSentAt(),
 			notification.getFailReason(),
-			notification.getCreatedAt(),
-			readAt != null,
-			readAt
+			notification.getCreatedAt()
 		);
 	}
 
 	public NotificationResult toNotificationResult(Notification notification) {
-		return toNotificationResult(notification, null);
+		return toNotificationResult(notification, false);
 	}
 
-	public NotificationResult toNotificationResult(Notification notification, LocalDateTime readAt) {
+	public NotificationResult toNotificationResult(Notification notification, boolean isRead) {
 		Optional<NotificationGroup> group = Optional.ofNullable(notification.getGroup());
 		return new NotificationResult(
 			notification.getId(),
@@ -99,8 +84,19 @@ public class NotificationResultMapper {
 			notification.getSentAt(),
 			notification.getFailReason(),
 			notification.getCreatedAt(),
-			readAt != null,
-			readAt
+			isRead
+		);
+	}
+
+	public NotificationListResult toListResult(NotificationGroup group) {
+		int moreCount = Math.max(group.getTotalCount() - 1, 0);
+		return new NotificationListResult(
+			group.getId(),
+			group.getTitle(),
+			group.getContent(),
+			group.getCreatedAt(),
+			group.getTotalCount(),
+			moreCount
 		);
 	}
 }

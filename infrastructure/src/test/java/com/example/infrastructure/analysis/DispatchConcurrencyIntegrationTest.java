@@ -19,9 +19,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.redisson.api.RedissonClient;
 
@@ -32,7 +32,7 @@ import com.example.application.port.out.NotificationSender;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationRepository;
 import com.example.application.port.out.result.SendResult;
-import com.example.application.service.NotificationCommandService;
+import com.example.application.service.NotificationWriteService;
 import com.example.application.service.NotificationDispatchService;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
@@ -46,7 +46,7 @@ import com.example.infrastructure.support.IntegrationTestSupportNoTx;
 class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 
 	@Autowired
-	private NotificationCommandService commandService;
+	private NotificationWriteService commandService;
 
 	@Autowired
 	private NotificationDispatchService dispatchService;
@@ -72,7 +72,7 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 	@Autowired
 	private RedissonClient redissonClient;
 
-	@MockBean
+	@MockitoBean
 	private NotificationSender notificationSender;
 
 	private RabbitMQRecordHandler recordHandler;

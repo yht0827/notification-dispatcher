@@ -13,10 +13,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import com.example.infrastructure.TestApplication;
 import com.example.infrastructure.config.MockMessagingConfig;
@@ -32,7 +32,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 /**
  * 서킷 브레이커 상태 전이(CLOSED → OPEN → HALF_OPEN → CLOSED) 검증 통합 테스트.
  *
- * <p>실제 외부 mock 서버를 별도로 띄우는 대신 @MockBean으로 MockApiClient(Feign 구현체)를 교체해
+ * <p>실제 외부 mock 서버를 별도로 띄우는 대신 @MockitoBean으로 MockApiClient(Feign 구현체)를 교체해
  * 서버 추가 없이 동일한 회로 전이를 검증한다.</p>
  *
  * <p>테스트 전용 설정으로 circuit breaker 파라미터를 단축해 실행 시간을 최소화한다:
@@ -52,7 +52,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 @Import({TestcontainersConfig.class, MockMessagingConfig.class})
 class CircuitBreakerIntegrationTest {
 
-	@MockBean
+	@MockitoBean
 	private MockApiClient mockApiClient;
 
 	@Autowired

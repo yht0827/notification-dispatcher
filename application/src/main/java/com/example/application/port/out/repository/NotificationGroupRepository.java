@@ -11,6 +11,8 @@ public interface NotificationGroupRepository {
 
     NotificationGroup save(NotificationGroup group);
 
+    NotificationGroup saveAndFlush(NotificationGroup group);
+
     Optional<NotificationGroup> findById(Long id);
 
     Optional<NotificationGroup> findByIdWithNotifications(Long id);

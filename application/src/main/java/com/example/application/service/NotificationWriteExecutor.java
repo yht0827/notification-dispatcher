@@ -1,13 +1,12 @@
 package com.example.application.service;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.application.service.mapper.NotificationCommandResultMapper;
+import com.example.application.mapper.NotificationCommandResultMapper;
 import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.out.event.OutboxSavedEvent;
@@ -36,26 +35,25 @@ public class NotificationWriteExecutor {
 		command.receivers().forEach(group::addNotification);
 
 		NotificationGroup savedGroup = groupRepository.saveAndFlush(group);
-		saveOutboxEvents(savedGroup, command.scheduledAt());
+		saveOutboxEvents(savedGroup);
 		return resultMapper.toResult(savedGroup);
 	}
 
-	private void saveOutboxEvents(NotificationGroup savedGroup, LocalDateTime scheduledAt) {
+	private void saveOutboxEvents(NotificationGroup savedGroup) {
 		List<Long> notificationIds = savedGroup.getNotifications().stream()
 			.map(Notification::getId)
 			.toList();
 
 		List<Outbox> outboxes = notificationIds.stream()
-			.map(id -> Outbox.createNotificationEvent(id, scheduledAt))
+			.map(Outbox::createNotificationEvent)
 			.toList();
 
 		outboxRepository.saveAll(outboxes);
 
-		// 즉시 발송만 OutboxSavedEvent 발행 (예약 발송은 OutboxPoller가 처리)
-		if (scheduledAt == null && !notificationIds.isEmpty()) {
+		if (!notificationIds.isEmpty()) {
 			eventPublisher.publishEvent(new OutboxSavedEvent(notificationIds));
 		}
-		log.debug("Outbox 저장 완료: total={}, scheduled={}", outboxes.size(), scheduledAt != null);
+		log.debug("Outbox 저장 완료: count={}", outboxes.size());
 	}
 
 	private NotificationGroup createGroup(SendCommand command, String idempotencyKey) {

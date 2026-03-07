@@ -25,12 +25,13 @@ import com.example.api.dto.response.ApiResponse;
 import com.example.api.dto.response.NotificationGroupDetailResponse;
 import com.example.api.dto.response.NotificationGroupSliceResponse;
 import com.example.api.dto.response.NotificationListSliceResponse;
+import com.example.api.dto.response.NotificationReadResponse;
 import com.example.api.dto.response.NotificationResponse;
 import com.example.api.dto.response.NotificationSendResponse;
 import com.example.api.exception.ErrorCode;
 import com.example.api.exception.NotificationException;
-import com.example.application.port.in.NotificationCommandUseCase;
 import com.example.application.port.in.NotificationQueryUseCase;
+import com.example.application.port.in.NotificationWriteUseCase;
 import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.CursorSlice;
 import com.example.application.port.in.result.NotificationCommandResult;
@@ -47,7 +48,7 @@ import com.example.domain.notification.NotificationStatus;
 class NotificationControllerTest {
 
 	@Mock
-	private NotificationCommandUseCase commandUseCase;
+	private NotificationWriteUseCase writeUseCase;
 
 	@Mock
 	private NotificationQueryUseCase queryUseCase;
@@ -67,7 +68,7 @@ class NotificationControllerTest {
 			List.of("user1@example.com", "user2@example.com"),
 			"idem-1"
 		);
-		when(commandUseCase.request(any(SendCommand.class)))
+		when(writeUseCase.request(any(SendCommand.class)))
 			.thenReturn(new NotificationCommandResult(1L, 2));
 
 		ApiResponse<NotificationSendResponse> response = controller.send(request);
@@ -76,7 +77,7 @@ class NotificationControllerTest {
 		assertThat(response.data().groupId()).isEqualTo(1L);
 		assertThat(response.data().totalCount()).isEqualTo(2);
 		assertThat(response.data().message()).isEqualTo("알림 발송이 요청되었습니다.");
-		verify(commandUseCase).request(any(SendCommand.class));
+		verify(writeUseCase).request(any(SendCommand.class));
 	}
 
 	@Test
@@ -195,7 +196,8 @@ class NotificationControllerTest {
 			NotificationStatus.SENT,
 			LocalDateTime.now(),
 			null,
-			LocalDateTime.now()
+			LocalDateTime.now(),
+			true
 		);
 		when(queryUseCase.getNotification(1L)).thenReturn(Optional.of(result));
 
@@ -204,6 +206,7 @@ class NotificationControllerTest {
 		assertThat(response.success()).isTrue();
 		assertThat(response.data().id()).isEqualTo(1L);
 		assertThat(response.data().groupId()).isEqualTo(10L);
+		assertThat(response.data().isRead()).isTrue();
 	}
 
 	@Test
@@ -212,6 +215,31 @@ class NotificationControllerTest {
 		when(queryUseCase.getNotification(1L)).thenReturn(Optional.empty());
 
 		assertThatThrownBy(() -> controller.getNotification(1L))
+			.isInstanceOf(NotificationException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.NOTIFICATION_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("읽음 처리 성공 시 success 응답을 반환한다")
+	void markAsRead_returnsSuccess() {
+		when(writeUseCase.markAsRead(1L)).thenReturn(true);
+
+		ApiResponse<NotificationReadResponse> response = controller.markAsRead(1L);
+
+		assertThat(response.success()).isTrue();
+		assertThat(response.data()).isNotNull();
+		assertThat(response.data().notificationId()).isEqualTo(1L);
+		assertThat(response.data().message()).isEqualTo("알림을 읽음 처리했습니다.");
+		verify(writeUseCase).markAsRead(1L);
+	}
+
+	@Test
+	@DisplayName("읽음 처리 대상이 없으면 NotificationException을 던진다")
+	void markAsRead_throwsWhenNotFound() {
+		when(writeUseCase.markAsRead(1L)).thenReturn(false);
+
+		assertThatThrownBy(() -> controller.markAsRead(1L))
 			.isInstanceOf(NotificationException.class)
 			.extracting("errorCode")
 			.isEqualTo(ErrorCode.NOTIFICATION_NOT_FOUND);
@@ -232,7 +260,8 @@ class NotificationControllerTest {
 				NotificationStatus.SENT,
 				LocalDateTime.now(),
 				null,
-				LocalDateTime.now()
+				LocalDateTime.now(),
+				false
 			)));
 
 		ApiResponse<List<NotificationResponse>> response = controller.getNotificationsByReceiver(request);

@@ -2,19 +2,19 @@ package com.example.application.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.application.service.mapper.NotificationResultMapper;
+import com.example.application.mapper.NotificationResultMapper;
 import com.example.application.port.in.NotificationQueryUseCase;
 import com.example.application.port.in.result.CursorSlice;
 import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationGroupResult;
+import com.example.application.port.in.result.NotificationListResult;
 import com.example.application.port.in.result.NotificationResult;
-import com.example.application.port.in.result.NotificationUnreadCountResult;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationReadStatusRepository;
 import com.example.application.port.out.repository.NotificationRepository;
@@ -41,16 +41,30 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 	public Optional<NotificationGroupDetailResult> getGroupDetail(Long groupId) {
 		LocalDateTime from = detailFrom();
 		return groupRepository.findByIdWithNotifications(groupId)
-			.filter(group -> isWithinRetention(group.getCreatedAt(), from))
-			.map(this::toGroupDetail);
+			.filter(group -> NotificationDetailRetentionPolicy.isWithinRetention(group.getCreatedAt(), from))
+			.map(mapper::toGroupDetailResult);
+	}
+
+	@Override
+	public CursorSlice<NotificationListResult> getRecentGroups(Long cursorId, int size) {
+		int limit = normalizeSize(size);
+		List<NotificationListResult> fetched = groupRepository.findRecentByCursor(cursorId, limit + 1)
+			.stream()
+			.map(mapper::toListResult)
+			.toList();
+		return CursorSlice.of(fetched, limit, NotificationListResult::groupId);
 	}
 
 	@Override
 	public CursorSlice<NotificationGroupResult> getGroupsByClientId(String clientId, Long cursorId,
 		int size) {
 		int limit = normalizeSize(size);
-		LocalDateTime from = detailFrom();
-		List<NotificationGroupResult> fetched = fetchGroupsByClient(clientId, from, cursorId, limit + 1);
+		LocalDateTime from = LocalDateTime.now().minusDays(7);
+		List<NotificationGroupResult> fetched = groupRepository.findByClientIdWithCursor(clientId, from, cursorId,
+				limit + 1)
+			.stream()
+			.map(mapper::toGroupResult)
+			.toList();
 		return CursorSlice.of(fetched, limit, NotificationGroupResult::id);
 	}
 
@@ -58,15 +72,29 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 	public Optional<NotificationResult> getNotification(Long notificationId) {
 		LocalDateTime from = detailFrom();
 		return notificationRepository.findById(notificationId)
-			.filter(notification -> isWithinRetention(notification.getCreatedAt(), from))
-			.map(this::toNotificationDetail);
+			.filter(
+				notification -> NotificationDetailRetentionPolicy.isWithinRetention(notification.getCreatedAt(), from))
+			.map(notification -> mapper.toNotificationResult(
+				notification,
+				notificationReadStatusRepository.existsByNotificationId(notification.getId())
+			));
 	}
 
 	@Override
-	public NotificationUnreadCountResult getUnreadCount(String clientId, String receiver) {
-		LocalDateTime from = detailFrom();
-		long unreadCount = notificationRepository.countUnreadByClientIdAndReceiver(clientId, receiver, from);
-		return new NotificationUnreadCountResult(receiver, unreadCount);
+	public List<NotificationResult> getNotificationsByReceiver(String receiver) {
+		List<Notification> notifications = notificationRepository.findByReceiver(receiver);
+		Set<Long> readNotificationIds = notificationReadStatusRepository.findReadNotificationIds(
+			notifications.stream()
+				.map(Notification::getId)
+				.toList()
+		);
+		return notifications
+			.stream()
+			.map(notification -> mapper.toNotificationResult(
+				notification,
+				readNotificationIds.contains(notification.getId())
+			))
+			.toList();
 	}
 
 	private int normalizeSize(int size) {
@@ -76,34 +104,4 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 	private LocalDateTime detailFrom() {
 		return NotificationDetailRetentionPolicy.detailFrom(LocalDateTime.now());
 	}
-
-	private NotificationGroupDetailResult toGroupDetail(com.example.domain.notification.NotificationGroup group) {
-		List<Long> notificationIds = group.getNotifications().stream()
-			.map(Notification::getId)
-			.toList();
-		Map<Long, LocalDateTime> readAtByNotificationId =
-			notificationReadStatusRepository.findReadAtByNotificationIds(notificationIds);
-		return mapper.toGroupDetailResult(group, readAtByNotificationId);
-	}
-
-	private List<NotificationGroupResult> fetchGroupsByClient(String clientId, LocalDateTime from, Long cursorId,
-		int limit) {
-		return groupRepository.findByClientIdWithCursor(clientId, from, cursorId, limit)
-			.stream()
-			.map(mapper::toGroupResult)
-			.toList();
-	}
-
-	private NotificationResult toNotificationDetail(com.example.domain.notification.Notification notification) {
-		return mapper.toNotificationResult(
-			notification,
-			notificationReadStatusRepository.findReadAtByNotificationId(notification.getId())
-		);
-	}
-
-	private boolean isWithinRetention(LocalDateTime createdAt, LocalDateTime from) {
-		return NotificationDetailRetentionPolicy.isWithinRetention(createdAt, from);
-	}
-
 }
-

@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.List;
 
@@ -23,6 +24,7 @@ import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.application.port.in.result.NotificationListResult;
 import com.example.application.port.in.result.NotificationResult;
 import com.example.application.port.out.repository.NotificationGroupRepository;
+import com.example.application.port.out.repository.NotificationReadStatusRepository;
 import com.example.application.port.out.repository.NotificationRepository;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.GroupType;
@@ -38,6 +40,9 @@ class NotificationQueryServiceTest {
 
 	@Mock
 	private NotificationRepository notificationRepository;
+
+	@Mock
+	private NotificationReadStatusRepository notificationReadStatusRepository;
 
 	@Spy
 	private NotificationResultMapper mapper;
@@ -177,6 +182,7 @@ class NotificationQueryServiceTest {
 		when(group.getFailedCount()).thenReturn(0);
 		when(group.getPendingCount()).thenReturn(1);
 		when(group.isCompleted()).thenReturn(false);
+		when(group.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(1));
 		when(group.getNotifications()).thenReturn(List.of(notification));
 		when(notification.getId()).thenReturn(101L);
 		when(notification.getReceiver()).thenReturn("user@example.com");
@@ -192,6 +198,19 @@ class NotificationQueryServiceTest {
 	}
 
 	@Test
+	@DisplayName("그룹 상세 조회 시 7일 이전 데이터는 반환하지 않는다")
+	void getGroupDetail_returnsEmptyWhenOlderThanSevenDays() {
+		NotificationGroup group = org.mockito.Mockito.mock(NotificationGroup.class);
+		when(group.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(8));
+		when(groupRepository.findByIdWithNotifications(10L)).thenReturn(Optional.of(group));
+
+		Optional<NotificationGroupDetailResult> result = queryService.getGroupDetail(10L);
+
+		assertThat(result).isEmpty();
+		verify(groupRepository).findByIdWithNotifications(10L);
+	}
+
+	@Test
 	@DisplayName("알림 단건 조회 시 결과를 매핑해 반환한다")
 	void getNotification_returnsMappedNotification() {
 		NotificationGroup group = org.mockito.Mockito.mock(NotificationGroup.class);
@@ -203,14 +222,30 @@ class NotificationQueryServiceTest {
 		when(notification.getId()).thenReturn(1L);
 		when(notification.getReceiver()).thenReturn("01012345678");
 		when(notification.getStatus()).thenReturn(NotificationStatus.SENT);
+		when(notification.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(1));
 		when(notification.getGroup()).thenReturn(group);
 		when(notificationRepository.findById(1L)).thenReturn(Optional.of(notification));
+		when(notificationReadStatusRepository.existsByNotificationId(1L)).thenReturn(true);
 
 		Optional<NotificationResult> result = queryService.getNotification(1L);
 
 		assertThat(result).isPresent();
 		assertThat(result.orElseThrow().groupId()).isEqualTo(20L);
 		assertThat(result.orElseThrow().receiver()).isEqualTo("01012345678");
+		assertThat(result.orElseThrow().isRead()).isTrue();
+		verify(notificationRepository).findById(1L);
+	}
+
+	@Test
+	@DisplayName("알림 단건 조회 시 7일 이전 데이터는 반환하지 않는다")
+	void getNotification_returnsEmptyWhenOlderThanSevenDays() {
+		Notification notification = org.mockito.Mockito.mock(Notification.class);
+		when(notification.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(8));
+		when(notificationRepository.findById(1L)).thenReturn(Optional.of(notification));
+
+		Optional<NotificationResult> result = queryService.getNotification(1L);
+
+		assertThat(result).isEmpty();
 		verify(notificationRepository).findById(1L);
 	}
 
@@ -228,11 +263,13 @@ class NotificationQueryServiceTest {
 		when(notification.getStatus()).thenReturn(NotificationStatus.SENT);
 		when(notification.getGroup()).thenReturn(group);
 		when(notificationRepository.findByReceiver("friend")).thenReturn(List.of(notification));
+		when(notificationReadStatusRepository.findReadNotificationIds(List.of(1L))).thenReturn(java.util.Set.of(1L));
 
 		List<NotificationResult> results = queryService.getNotificationsByReceiver("friend");
 
 		assertThat(results).hasSize(1);
 		assertThat(results.getFirst().channelType()).isEqualTo(ChannelType.KAKAO);
+		assertThat(results.getFirst().isRead()).isTrue();
 		verify(notificationRepository).findByReceiver("friend");
 	}
 }

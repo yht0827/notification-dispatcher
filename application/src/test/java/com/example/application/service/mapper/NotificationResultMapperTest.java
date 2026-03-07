@@ -1,4 +1,4 @@
-package com.example.application.service.mapper;
+package com.example.application.mapper;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationGroupResult;
+import com.example.application.port.in.result.NotificationListResult;
 import com.example.application.port.in.result.NotificationResult;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.GroupType;
@@ -50,6 +51,26 @@ class NotificationResultMapperTest {
 	}
 
 	@Test
+	@DisplayName("NotificationGroup을 NotificationListResult로 변환한다 - moreCount 계산 확인")
+	void toListResult() {
+		// given
+		NotificationGroup group = mock(NotificationGroup.class);
+		when(group.getId()).thenReturn(1L);
+		when(group.getTitle()).thenReturn("title");
+		when(group.getContent()).thenReturn("content");
+		when(group.getTotalCount()).thenReturn(5);
+		when(group.getCreatedAt()).thenReturn(LocalDateTime.now());
+
+		// when
+		NotificationListResult result = mapper.toListResult(group);
+
+		// then
+		assertThat(result.groupId()).isEqualTo(1L);
+		assertThat(result.totalCount()).isEqualTo(5);
+		assertThat(result.moreCount()).isEqualTo(4); // totalCount - 1
+	}
+
+	@Test
 	@DisplayName("Notification을 NotificationResult로 변환한다")
 	void toNotificationResult() {
 		// given
@@ -73,38 +94,6 @@ class NotificationResultMapperTest {
 		assertThat(result.receiver()).isEqualTo("receiver");
 		assertThat(result.channelType()).isEqualTo(ChannelType.EMAIL);
 		assertThat(result.isRead()).isFalse();
-		assertThat(result.readAt()).isNull();
-	}
-
-	@Test
-	@DisplayName("NotificationGroup을 NotificationGroupDetailResult로 변환한다")
-	void toGroupDetailResult() {
-		NotificationGroup group = mock(NotificationGroup.class);
-		Notification notification = mock(Notification.class);
-		when(group.getId()).thenReturn(1L);
-		when(group.getClientId()).thenReturn("client-1");
-		when(group.getSender()).thenReturn("sender");
-		when(group.getTitle()).thenReturn("title");
-		when(group.getContent()).thenReturn("content");
-		when(group.getGroupType()).thenReturn(GroupType.BULK);
-		when(group.getChannelType()).thenReturn(ChannelType.EMAIL);
-		when(group.getTotalCount()).thenReturn(1);
-		when(group.getSentCount()).thenReturn(0);
-		when(group.getFailedCount()).thenReturn(0);
-		when(group.getPendingCount()).thenReturn(1);
-		when(group.isCompleted()).thenReturn(false);
-		when(group.getNotifications()).thenReturn(Collections.singletonList(notification));
-		when(notification.getId()).thenReturn(101L);
-		when(notification.getReceiver()).thenReturn("user@example.com");
-		when(notification.getStatus()).thenReturn(NotificationStatus.PENDING);
-
-		NotificationGroupDetailResult result = mapper.toGroupDetailResult(group);
-
-		assertThat(result.groupId()).isEqualTo(1L);
-		assertThat(result.notifications()).hasSize(1);
-		assertThat(result.notifications().getFirst().notificationId()).isEqualTo(101L);
-		assertThat(result.notifications().getFirst().receiver()).isEqualTo("user@example.com");
-		assertThat(result.notifications().getFirst().isRead()).isFalse();
 	}
 
 	@Test

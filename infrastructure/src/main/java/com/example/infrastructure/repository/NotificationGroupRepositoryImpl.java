@@ -32,6 +32,11 @@ public class NotificationGroupRepositoryImpl implements NotificationGroupReposit
 	}
 
 	@Override
+	public NotificationGroup saveAndFlush(NotificationGroup group) {
+		return jpaRepository.saveAndFlush(group);
+	}
+
+	@Override
 	public Optional<NotificationGroup> findById(Long id) {
 		return jpaRepository.findById(id);
 	}
