@@ -23,6 +23,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.redisson.api.RedissonClient;
 
 import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
@@ -67,6 +68,9 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 
 	@Autowired
 	private TransactionTemplate transactionTemplate;
+
+	@Autowired
+	private RedissonClient redissonClient;
 
 	@MockBean
 	private NotificationSender notificationSender;
@@ -228,6 +232,181 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 		assertThat(results).allMatch(NotificationResultPredicates::isDispatchSuccess);
 		verify(notificationSender, times(notificationIds.size())).send(any());
 		assertNotificationsSent(notificationIds);
+	}
+
+	@Test
+	@DisplayName("분산락 + optimistic 조합은 same-key hot-key N=10/20/50에서도 외부 발송을 1회로 제한한다")
+	void hotKey_withDistributedLockAndOptimistic_scalesForSameNotificationAtHigherConcurrency() throws Exception {
+		for (int attemptCount : List.of(10, 20, 50)) {
+			truncateTables();
+			Long notificationId = createSingleNotification(
+				"distributed-hot-client-" + attemptCount,
+				"idem-distributed-hot-" + attemptCount
+			);
+
+			when(notificationSender.send(any())).thenAnswer(invocation -> {
+				Thread.sleep(150);
+				return SendResult.success();
+			});
+
+			List<Callable<Object>> tasks = new ArrayList<>();
+			for (int i = 0; i < attemptCount; i++) {
+				tasks.add(() -> {
+					try {
+						recordHandler.process(notificationId, 0);
+						return "ok";
+					} catch (Exception e) {
+						return e;
+					}
+				});
+			}
+
+			List<Object> results = executeConcurrently(tasks);
+
+			assertThat(results).allMatch(NotificationResultPredicates::isNonExceptional);
+			verify(notificationSender, times(1)).send(any());
+
+			Notification reloaded = notificationRepository.findById(notificationId).orElseThrow();
+			assertThat(reloaded.getStatus()).isEqualTo(NotificationStatus.SENT);
+			org.mockito.Mockito.reset(notificationSender);
+		}
+	}
+
+	@Test
+	@DisplayName("분리된 handler/lock manager 2개는 같은 Redis 락을 공유해 multi-instance 시뮬레이션에서도 1회만 발송한다")
+	void multiInstanceSimulation_withTwoHandlers_processesSameNotificationOnlyOnce() throws Exception {
+		Long notificationId = createSingleNotification("multi-instance-client", "idem-multi-instance");
+		CountDownLatch senderEntered = new CountDownLatch(1);
+
+		RabbitMQRecordHandler firstHandler = new RabbitMQRecordHandler(
+			notificationRepository,
+			dispatchService,
+			new NotificationRabbitProperties(
+				"notification.work",
+				"notification.work.exchange",
+				"notification.wait",
+				"notification.dlq",
+				"notification.dlq.exchange",
+				3,
+				5000,
+				1,
+				10,
+				1,
+				null,
+				false,
+				50,
+				200
+			),
+			new com.example.infrastructure.repository.DispatchLockManagerImpl(redissonClient)
+		);
+		RabbitMQRecordHandler secondHandler = new RabbitMQRecordHandler(
+			notificationRepository,
+			dispatchService,
+			new NotificationRabbitProperties(
+				"notification.work",
+				"notification.work.exchange",
+				"notification.wait",
+				"notification.dlq",
+				"notification.dlq.exchange",
+				3,
+				5000,
+				1,
+				10,
+				1,
+				null,
+				false,
+				50,
+				200
+			),
+			new com.example.infrastructure.repository.DispatchLockManagerImpl(redissonClient)
+		);
+
+		when(notificationSender.send(any())).thenAnswer(invocation -> {
+			senderEntered.countDown();
+			Thread.sleep(200);
+			return SendResult.success();
+		});
+
+		List<Object> results = executeConcurrently(
+			() -> {
+				try {
+					firstHandler.process(notificationId, 0);
+					return "instance-1";
+				} catch (Exception e) {
+					return e;
+				}
+			},
+			() -> {
+				try {
+					secondHandler.process(notificationId, 0);
+					return "instance-2";
+				} catch (Exception e) {
+					return e;
+				}
+			}
+		);
+
+		assertThat(senderEntered.await(3, TimeUnit.SECONDS)).isTrue();
+		assertThat(results).allMatch(NotificationResultPredicates::isNonExceptional);
+		verify(notificationSender, times(1)).send(any());
+
+		Notification reloaded = notificationRepository.findById(notificationId).orElseThrow();
+		assertThat(reloaded.getStatus()).isEqualTo(NotificationStatus.SENT);
+	}
+
+	@Test
+	@DisplayName("처리 중 같은 notificationId가 redelivery되면 분산락 때문에 중복 발송 없이 스킵된다")
+	void redeliveryWhileProcessing_withDistributedLock_skipsDuplicateSend() throws Exception {
+		Long notificationId = createSingleNotification("redelivery-inflight-client", "idem-redelivery-inflight");
+		CountDownLatch senderEntered = new CountDownLatch(1);
+		CountDownLatch releaseFirstSend = new CountDownLatch(1);
+
+		when(notificationSender.send(any())).thenAnswer(invocation -> {
+			senderEntered.countDown();
+			assertThat(releaseFirstSend.await(3, TimeUnit.SECONDS)).isTrue();
+			return SendResult.success();
+		});
+
+		ExecutorService executor = Executors.newSingleThreadExecutor();
+		try {
+			Future<Object> first = executor.submit(() -> {
+				try {
+					recordHandler.process(notificationId, 0);
+					return "first";
+				} catch (Exception e) {
+					return e;
+				}
+			});
+
+			assertThat(senderEntered.await(3, TimeUnit.SECONDS)).isTrue();
+
+			recordHandler.process(notificationId, 1);
+
+			releaseFirstSend.countDown();
+			assertThat(first.get(5, TimeUnit.SECONDS)).isEqualTo("first");
+		} finally {
+			executor.shutdownNow();
+			executor.awaitTermination(3, TimeUnit.SECONDS);
+		}
+
+		verify(notificationSender, times(1)).send(any());
+		Notification reloaded = notificationRepository.findById(notificationId).orElseThrow();
+		assertThat(reloaded.getStatus()).isEqualTo(NotificationStatus.SENT);
+	}
+
+	@Test
+	@DisplayName("성공 후 같은 notificationId가 redelivery되어도 terminal 상태라 재발송하지 않는다")
+	void redeliveryAfterSuccess_withTerminalStatus_doesNotResend() {
+		Long notificationId = createSingleNotification("redelivery-terminal-client", "idem-redelivery-terminal");
+
+		when(notificationSender.send(any())).thenReturn(SendResult.success());
+
+		recordHandler.process(notificationId, 0);
+		recordHandler.process(notificationId, 1);
+
+		verify(notificationSender, times(1)).send(any());
+		Notification reloaded = notificationRepository.findById(notificationId).orElseThrow();
+		assertThat(reloaded.getStatus()).isEqualTo(NotificationStatus.SENT);
 	}
 
 	private Long createSingleNotification(String clientId, String idempotencyKey) {

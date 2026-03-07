@@ -5,7 +5,7 @@ spring:
     active: local
   threads:
     virtual:
-      enabled: true
+      enabled: false
   cloud:
     compatibility-verifier:
       enabled: false
@@ -23,7 +23,7 @@ notification:
   messaging:
     enabled: true
   rabbitmq:
-    listener-virtual-threads: true
+    listener-virtual-threads: false
   external:
     mock:
       name: mockApi

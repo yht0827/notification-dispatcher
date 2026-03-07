@@ -1,7 +1,36 @@
+import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
+import org.gradle.testing.jacoco.tasks.JacocoReport
+
 plugins {
     id 'java'
+    id 'jacoco'
     id 'org.springframework.boot' version '3.5.12-SNAPSHOT' apply false
     id 'io.spring.dependency-management' version '1.1.7'
+}
+
+def coverageThresholds = [
+    domain        : 0.80,
+    application   : 0.80,
+    api           : 0.70,
+    infrastructure: 0.60
+]
+
+def coverageExcludesFor = { Project project ->
+    def excludes = [
+        '**/config/**',
+        '**/*Application*',
+        '**/*Properties*'
+    ]
+
+    if (project.name == 'infrastructure') {
+        excludes += [
+            'com/example/infrastructure/config/**',
+            'com/example/infrastructure/*/config/**'
+        ]
+    }
+
+    excludes
 }
 
 allprojects {
@@ -17,6 +46,7 @@ allprojects {
 subprojects {
     apply plugin: 'java'
     apply plugin: 'io.spring.dependency-management'
+    apply plugin: 'jacoco'
 
     java {
         toolchain {
@@ -51,5 +81,274 @@ subprojects {
 
     tasks.named('test') {
         useJUnitPlatform()
+    }
+
+    jacoco {
+        toolVersion = '0.8.12'
+    }
+
+    tasks.named('jacocoTestReport', JacocoReport) {
+        dependsOn tasks.named('test')
+
+        def projectSourceSets = project.extensions.getByType(SourceSetContainer)
+
+        reports {
+            xml.required = true
+            csv.required = false
+            html.required = true
+        }
+
+        sourceDirectories.setFrom(files(projectSourceSets.main.allSource.srcDirs))
+        classDirectories.setFrom(
+            files(projectSourceSets.main.output).asFileTree.matching {
+                exclude coverageExcludesFor(project)
+            }
+        )
+        executionData.setFrom(
+            fileTree(project.layout.buildDirectory.asFile).include(
+                'jacoco/test.exec',
+                'jacoco/test*.exec'
+            )
+        )
+
+        onlyIf {
+            executionData.files.any { it.exists() }
+        }
+    }
+
+    if (coverageThresholds.containsKey(project.name)) {
+        tasks.named('jacocoTestCoverageVerification', JacocoCoverageVerification) {
+            dependsOn tasks.named('test')
+
+            def projectSourceSets = project.extensions.getByType(SourceSetContainer)
+
+            sourceDirectories.setFrom(files(projectSourceSets.main.allSource.srcDirs))
+            classDirectories.setFrom(
+                files(projectSourceSets.main.output).asFileTree.matching {
+                    exclude coverageExcludesFor(project)
+                }
+            )
+            executionData.setFrom(
+                fileTree(project.layout.buildDirectory.asFile).include(
+                    'jacoco/test.exec',
+                    'jacoco/test*.exec'
+                )
+            )
+
+            violationRules {
+                rule {
+                    limit {
+                        counter = 'LINE'
+                        value = 'COVEREDRATIO'
+                        minimum = BigDecimal.valueOf(coverageThresholds[project.name])
+                    }
+                }
+            }
+
+            onlyIf {
+                executionData.files.any { it.exists() }
+            }
+        }
+
+        tasks.named('check') {
+            dependsOn tasks.named('jacocoTestCoverageVerification')
+        }
+    }
+}
+
+def coverageProjects = [
+    project(':domain'),
+    project(':application'),
+    project(':api'),
+    project(':infrastructure')
+]
+
+def readCoverageCounters = { File xmlFile ->
+    if (!xmlFile.exists()) {
+        return null
+    }
+
+    def sanitizedXml = xmlFile.getText('UTF-8')
+        .replaceFirst(/<!DOCTYPE report PUBLIC .*?>/, '')
+    def report = new groovy.xml.XmlSlurper().parseText(sanitizedXml)
+    def metrics = [:]
+
+    ['LINE', 'BRANCH', 'INSTRUCTION'].each { counterType ->
+        def counter = report.counter.find { it.@type.text() == counterType }
+        def missed = counter ? counter.@missed.text().toBigDecimal() : 0G
+        def covered = counter ? counter.@covered.text().toBigDecimal() : 0G
+        def total = covered + missed
+        def ratio = total > 0 ? (covered / total) : 0G
+
+        metrics[counterType] = [
+            covered: covered,
+            missed : missed,
+            ratio  : ratio
+        ]
+    }
+
+    metrics
+}
+
+def formatPercent = { BigDecimal ratio ->
+    "${ratio.multiply(100G).setScale(2, BigDecimal.ROUND_HALF_UP)}%"
+}
+
+tasks.register('jacocoAggregateReport', JacocoReport) {
+    group = 'verification'
+    description = 'Generate an aggregate JaCoCo coverage report for core modules.'
+
+    dependsOn coverageProjects.collect { it.tasks.named('test') }
+
+    additionalSourceDirs.setFrom(files(coverageProjects.collect {
+        it.extensions.getByType(SourceSetContainer).main.allSource.srcDirs
+    }))
+    sourceDirectories.setFrom(files(coverageProjects.collect {
+        it.extensions.getByType(SourceSetContainer).main.allSource.srcDirs
+    }))
+    classDirectories.setFrom(files(coverageProjects.collect { proj ->
+        files(proj.extensions.getByType(SourceSetContainer).main.output).asFileTree.matching {
+            exclude coverageExcludesFor(proj)
+        }
+    }))
+    executionData.setFrom(files(coverageProjects.collect { proj ->
+        fileTree(proj.layout.buildDirectory.asFile).include(
+            'jacoco/test.exec',
+            'jacoco/test*.exec'
+        )
+    }))
+
+    reports {
+        xml.required = true
+        csv.required = false
+        html.required = true
+        html.outputLocation = layout.buildDirectory.dir('reports/jacoco/aggregate/html')
+        xml.outputLocation = layout.buildDirectory.file('reports/jacoco/aggregate/jacoco.xml')
+    }
+
+    onlyIf {
+        executionData.files.any { it.exists() }
+    }
+}
+
+tasks.register('coveragePage') {
+    group = 'verification'
+    description = 'Generate coverage reports and a single-page HTML summary for aggregate and module JaCoCo reports.'
+
+    dependsOn tasks.named('jacocoAggregateReport')
+    dependsOn coverageProjects.collect { it.tasks.named('jacocoTestReport') }
+
+    doLast {
+        def outputDir = layout.buildDirectory.dir('reports/coverage').get().asFile
+        outputDir.mkdirs()
+        def indexFile = new File(outputDir, 'index.html')
+
+        def aggregateXml = layout.buildDirectory.file('reports/jacoco/aggregate/jacoco.xml').get().asFile
+        def aggregateMetrics = readCoverageCounters(aggregateXml)
+
+        def aggregateCards = aggregateMetrics.collect { type, values ->
+            """
+            <div class="card">
+              <div class="label">${type}</div>
+              <div class="value">${formatPercent(values.ratio)}</div>
+              <div class="sub">covered ${values.covered} / missed ${values.missed}</div>
+            </div>
+            """
+        }.join('\n')
+
+        def moduleRows = coverageProjects.collect { proj ->
+            def threshold = coverageThresholds[proj.name]
+            def link = "../../../${proj.name}/build/reports/jacoco/test/html/index.html"
+            def xml = proj.layout.buildDirectory.file('reports/jacoco/test/jacocoTestReport.xml').get().asFile
+            def metrics = readCoverageCounters(xml)
+            def lineRatio = metrics?.LINE?.ratio ?: 0G
+            def branchRatio = metrics?.BRANCH?.ratio ?: 0G
+            def instructionRatio = metrics?.INSTRUCTION?.ratio ?: 0G
+            def status = threshold != null && lineRatio >= BigDecimal.valueOf(threshold) ? 'PASS' : 'FAIL'
+            def statusClass = status == 'PASS' ? 'pass' : 'fail'
+            """
+            <tr>
+              <td>${proj.name}</td>
+              <td>${threshold != null ? "${(int) (threshold * 100)}%" : "-"}</td>
+              <td>${formatPercent(lineRatio)}</td>
+              <td>${formatPercent(branchRatio)}</td>
+              <td>${formatPercent(instructionRatio)}</td>
+              <td><span class="badge ${statusClass}">${status}</span></td>
+              <td><a href="${link}">module report</a></td>
+            </tr>
+            """
+        }.join('\n')
+
+        indexFile.text = """
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>JaCoCo Coverage Summary</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 32px; color: #111827; background: #ffffff; }
+    h1, h2 { margin-bottom: 12px; }
+    p, li { line-height: 1.6; }
+    .meta { color: #4b5563; margin-bottom: 24px; }
+    .cards { display: grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap: 16px; max-width: 960px; margin: 16px 0 28px; }
+    .card { border: 1px solid #d1d5db; border-radius: 12px; padding: 16px; background: #f9fafb; }
+    .label { font-size: 12px; font-weight: 700; color: #6b7280; letter-spacing: 0.08em; }
+    .value { font-size: 28px; font-weight: 700; margin-top: 6px; }
+    .sub { margin-top: 6px; color: #6b7280; font-size: 13px; }
+    .section { margin-top: 28px; }
+    table { border-collapse: collapse; width: 100%; max-width: 1080px; margin-top: 16px; }
+    th, td { border: 1px solid #d1d5db; padding: 10px 12px; text-align: left; }
+    th { background: #f3f4f6; }
+    code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    .badge.pass { background: #dcfce7; color: #166534; }
+    .badge.fail { background: #fee2e2; color: #991b1b; }
+  </style>
+</head>
+<body>
+  <h1>JaCoCo Coverage Summary</h1>
+  <p class="meta">aggregate와 모듈별 커버리지를 한 페이지에 모은 요약 화면이다. 상세 drill-down은 module report 링크에서 확인한다.</p>
+
+  <div class="section">
+    <h2>Aggregate</h2>
+    <div class="cards">
+      ${aggregateCards}
+    </div>
+    <ul>
+      <li><a href="../jacoco/aggregate/html/index.html">aggregate report</a></li>
+    </ul>
+  </div>
+
+  <div class="section">
+  <h2>Modules</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Module</th>
+        <th>Line Threshold</th>
+        <th>Line</th>
+        <th>Branch</th>
+        <th>Instruction</th>
+        <th>Status</th>
+        <th>Report</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${moduleRows}
+    </tbody>
+  </table>
+  </div>
+
+  <div class="section">
+  <h2>Commands</h2>
+  <ul>
+    <li><code>./gradlew coveragePage</code></li>
+    <li><code>./gradlew jacocoAggregateReport</code></li>
+    <li><code>./gradlew check</code></li>
+  </ul>
+  </div>
+</body>
+</html>
+""".stripIndent()
     }
 }

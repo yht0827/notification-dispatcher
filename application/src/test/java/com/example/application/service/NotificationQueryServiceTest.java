@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Optional;
 import java.util.List;
 
 import org.junit.jupiter.api.DisplayName;
@@ -17,11 +18,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.example.application.mapper.NotificationResultMapper;
 import com.example.application.port.in.result.CursorSlice;
+import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.application.port.in.result.NotificationListResult;
+import com.example.application.port.in.result.NotificationResult;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationRepository;
+import com.example.domain.notification.ChannelType;
+import com.example.domain.notification.GroupType;
+import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
+import com.example.domain.notification.NotificationStatus;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationQueryServiceTest {
@@ -127,5 +134,105 @@ class NotificationQueryServiceTest {
 		assertThat(slice.items()).hasSize(1);
 		assertThat(slice.hasNext()).isFalse();
 		assertThat(slice.nextCursorId()).isNull();
+	}
+
+	@Test
+	@DisplayName("그룹 단건 조회 시 결과를 매핑해 반환한다")
+	void getGroup_returnsMappedGroup() {
+		NotificationGroup group = org.mockito.Mockito.mock(NotificationGroup.class);
+		when(group.getId()).thenReturn(10L);
+		when(group.getClientId()).thenReturn("client-1");
+		when(group.getSender()).thenReturn("sender");
+		when(group.getTitle()).thenReturn("title");
+		when(group.getGroupType()).thenReturn(GroupType.BULK);
+		when(group.getChannelType()).thenReturn(ChannelType.EMAIL);
+		when(group.getTotalCount()).thenReturn(3);
+		when(group.getSentCount()).thenReturn(2);
+		when(group.getFailedCount()).thenReturn(0);
+		when(group.getPendingCount()).thenReturn(1);
+		when(group.isCompleted()).thenReturn(false);
+		when(groupRepository.findById(10L)).thenReturn(Optional.of(group));
+
+		Optional<NotificationGroupResult> result = queryService.getGroup(10L);
+
+		assertThat(result).isPresent();
+		assertThat(result.orElseThrow().id()).isEqualTo(10L);
+		verify(groupRepository).findById(10L);
+	}
+
+	@Test
+	@DisplayName("그룹 상세 조회 시 하위 알림까지 매핑해 반환한다")
+	void getGroupDetail_returnsMappedDetail() {
+		NotificationGroup group = org.mockito.Mockito.mock(NotificationGroup.class);
+		Notification notification = org.mockito.Mockito.mock(Notification.class);
+		when(group.getId()).thenReturn(10L);
+		when(group.getClientId()).thenReturn("client-1");
+		when(group.getSender()).thenReturn("sender");
+		when(group.getTitle()).thenReturn("title");
+		when(group.getContent()).thenReturn("content");
+		when(group.getGroupType()).thenReturn(GroupType.BULK);
+		when(group.getChannelType()).thenReturn(ChannelType.EMAIL);
+		when(group.getTotalCount()).thenReturn(1);
+		when(group.getSentCount()).thenReturn(0);
+		when(group.getFailedCount()).thenReturn(0);
+		when(group.getPendingCount()).thenReturn(1);
+		when(group.isCompleted()).thenReturn(false);
+		when(group.getNotifications()).thenReturn(List.of(notification));
+		when(notification.getId()).thenReturn(101L);
+		when(notification.getReceiver()).thenReturn("user@example.com");
+		when(notification.getStatus()).thenReturn(NotificationStatus.PENDING);
+		when(groupRepository.findByIdWithNotifications(10L)).thenReturn(Optional.of(group));
+
+		Optional<NotificationGroupDetailResult> result = queryService.getGroupDetail(10L);
+
+		assertThat(result).isPresent();
+		assertThat(result.orElseThrow().notifications()).hasSize(1);
+		assertThat(result.orElseThrow().notifications().getFirst().notificationId()).isEqualTo(101L);
+		verify(groupRepository).findByIdWithNotifications(10L);
+	}
+
+	@Test
+	@DisplayName("알림 단건 조회 시 결과를 매핑해 반환한다")
+	void getNotification_returnsMappedNotification() {
+		NotificationGroup group = org.mockito.Mockito.mock(NotificationGroup.class);
+		Notification notification = org.mockito.Mockito.mock(Notification.class);
+		when(group.getId()).thenReturn(20L);
+		when(group.getSender()).thenReturn("sender");
+		when(group.getTitle()).thenReturn("title");
+		when(group.getChannelType()).thenReturn(ChannelType.SMS);
+		when(notification.getId()).thenReturn(1L);
+		when(notification.getReceiver()).thenReturn("01012345678");
+		when(notification.getStatus()).thenReturn(NotificationStatus.SENT);
+		when(notification.getGroup()).thenReturn(group);
+		when(notificationRepository.findById(1L)).thenReturn(Optional.of(notification));
+
+		Optional<NotificationResult> result = queryService.getNotification(1L);
+
+		assertThat(result).isPresent();
+		assertThat(result.orElseThrow().groupId()).isEqualTo(20L);
+		assertThat(result.orElseThrow().receiver()).isEqualTo("01012345678");
+		verify(notificationRepository).findById(1L);
+	}
+
+	@Test
+	@DisplayName("수신자별 조회 시 전체 목록을 매핑해 반환한다")
+	void getNotificationsByReceiver_returnsMappedNotifications() {
+		NotificationGroup group = org.mockito.Mockito.mock(NotificationGroup.class);
+		Notification notification = org.mockito.Mockito.mock(Notification.class);
+		when(group.getId()).thenReturn(20L);
+		when(group.getSender()).thenReturn("sender");
+		when(group.getTitle()).thenReturn("title");
+		when(group.getChannelType()).thenReturn(ChannelType.KAKAO);
+		when(notification.getId()).thenReturn(1L);
+		when(notification.getReceiver()).thenReturn("friend");
+		when(notification.getStatus()).thenReturn(NotificationStatus.SENT);
+		when(notification.getGroup()).thenReturn(group);
+		when(notificationRepository.findByReceiver("friend")).thenReturn(List.of(notification));
+
+		List<NotificationResult> results = queryService.getNotificationsByReceiver("friend");
+
+		assertThat(results).hasSize(1);
+		assertThat(results.getFirst().channelType()).isEqualTo(ChannelType.KAKAO);
+		verify(notificationRepository).findByReceiver("friend");
 	}
 }

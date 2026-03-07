@@ -94,4 +94,34 @@ class NotificationResultMapperTest {
 		assertThat(result.receiver()).isEqualTo("receiver");
 		assertThat(result.channelType()).isEqualTo(ChannelType.EMAIL);
 	}
+
+	@Test
+	@DisplayName("NotificationGroup을 NotificationGroupDetailResult로 변환한다")
+	void toGroupDetailResult() {
+		NotificationGroup group = mock(NotificationGroup.class);
+		Notification notification = mock(Notification.class);
+		when(group.getId()).thenReturn(1L);
+		when(group.getClientId()).thenReturn("client-1");
+		when(group.getSender()).thenReturn("sender");
+		when(group.getTitle()).thenReturn("title");
+		when(group.getContent()).thenReturn("content");
+		when(group.getGroupType()).thenReturn(GroupType.BULK);
+		when(group.getChannelType()).thenReturn(ChannelType.EMAIL);
+		when(group.getTotalCount()).thenReturn(1);
+		when(group.getSentCount()).thenReturn(0);
+		when(group.getFailedCount()).thenReturn(0);
+		when(group.getPendingCount()).thenReturn(1);
+		when(group.isCompleted()).thenReturn(false);
+		when(group.getNotifications()).thenReturn(Collections.singletonList(notification));
+		when(notification.getId()).thenReturn(101L);
+		when(notification.getReceiver()).thenReturn("user@example.com");
+		when(notification.getStatus()).thenReturn(NotificationStatus.PENDING);
+
+		NotificationGroupDetailResult result = mapper.toGroupDetailResult(group);
+
+		assertThat(result.groupId()).isEqualTo(1L);
+		assertThat(result.notifications()).hasSize(1);
+		assertThat(result.notifications().getFirst().notificationId()).isEqualTo(101L);
+		assertThat(result.notifications().getFirst().receiver()).isEqualTo("user@example.com");
+	}
 }
