@@ -1,7 +1,5 @@
 package com.example.api.controller;
 
-import java.util.List;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,13 +13,10 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.api.dto.request.NotificationGroupQueryRequest;
-import com.example.api.dto.request.NotificationListQueryRequest;
-import com.example.api.dto.request.NotificationReceiverQueryRequest;
 import com.example.api.dto.request.NotificationSendRequest;
 import com.example.api.dto.response.ApiResponse;
 import com.example.api.dto.response.NotificationGroupDetailResponse;
 import com.example.api.dto.response.NotificationGroupSliceResponse;
-import com.example.api.dto.response.NotificationListSliceResponse;
 import com.example.api.dto.response.NotificationReadResponse;
 import com.example.api.dto.response.NotificationResponse;
 import com.example.api.dto.response.NotificationSendResponse;
@@ -85,17 +80,6 @@ public class NotificationController {
 		);
 	}
 
-	@Operation(summary = "알림 묶음 목록 조회")
-	@GetMapping
-	public ApiResponse<NotificationListSliceResponse> getNotificationBundles(
-		@Valid @ModelAttribute NotificationListQueryRequest request) {
-		return ApiResponse.ok(
-			NotificationListSliceResponse.from(
-				queryUseCase.getRecentGroups(request.cursorId(), request.resolveSize())
-			)
-		);
-	}
-
 	@Operation(summary = "개별 알림 조회")
 	@GetMapping("/{notificationId}")
 	public ApiResponse<NotificationResponse> getNotification(@PathVariable Long notificationId) {
@@ -112,16 +96,5 @@ public class NotificationController {
 			throw new NotificationException(ErrorCode.NOTIFICATION_NOT_FOUND);
 		}
 		return ApiResponse.ok(NotificationReadResponse.of(notificationId));
-	}
-
-	@Operation(summary = "수신자별 알림 목록 조회")
-	@GetMapping(params = "receiver")
-	public ApiResponse<List<NotificationResponse>> getNotificationsByReceiver(
-		@Valid @ModelAttribute NotificationReceiverQueryRequest request) {
-		List<NotificationResponse> responses = queryUseCase.getNotificationsByReceiver(request.receiver())
-			.stream()
-			.map(NotificationResponse::from)
-			.toList();
-		return ApiResponse.ok(responses);
 	}
 }

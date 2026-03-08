@@ -21,7 +21,6 @@ import com.example.application.mapper.NotificationResultMapper;
 import com.example.application.port.in.result.CursorSlice;
 import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationGroupResult;
-import com.example.application.port.in.result.NotificationListResult;
 import com.example.application.port.in.result.NotificationResult;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationReadStatusRepository;
@@ -49,47 +48,6 @@ class NotificationQueryServiceTest {
 
 	@InjectMocks
 	private NotificationQueryService queryService;
-
-	@Test
-	@DisplayName("알림 묶음 조회 시 요청 크기보다 하나 더 조회해 hasNext와 nextCursorId를 계산한다")
-	void getRecentGroups_returnsSliceWithCursor() {
-		// given
-		NotificationGroup first = org.mockito.Mockito.mock(NotificationGroup.class);
-		NotificationGroup second = org.mockito.Mockito.mock(NotificationGroup.class);
-		NotificationGroup third = org.mockito.Mockito.mock(NotificationGroup.class);
-		when(first.getId()).thenReturn(300L);
-		when(second.getId()).thenReturn(200L);
-
-		when(groupRepository.findRecentByCursor(null, 3)).thenReturn(List.of(first, second, third));
-
-		// when
-		CursorSlice<NotificationListResult> slice = queryService.getRecentGroups(null, 2);
-
-		// then
-		assertThat(slice.items()).hasSize(2);
-		assertThat(slice.items().get(0).groupId()).isEqualTo(300L);
-		assertThat(slice.items().get(1).groupId()).isEqualTo(200L);
-		assertThat(slice.hasNext()).isTrue();
-		assertThat(slice.nextCursorId()).isEqualTo(200L);
-		verify(groupRepository).findRecentByCursor(null, 3);
-	}
-
-	@Test
-	@DisplayName("추가 데이터가 없으면 hasNext는 false이고 nextCursorId는 null이다")
-	void getRecentGroups_returnsSliceWithoutNextCursor() {
-		// given
-		NotificationGroup only = org.mockito.Mockito.mock(NotificationGroup.class);
-		when(groupRepository.findRecentByCursor(50L, 3)).thenReturn(List.of(only));
-
-		// when
-		CursorSlice<NotificationListResult> slice = queryService.getRecentGroups(50L, 2);
-
-		// then
-		assertThat(slice.items()).hasSize(1);
-		assertThat(slice.hasNext()).isFalse();
-		assertThat(slice.nextCursorId()).isNull();
-		verify(groupRepository).findRecentByCursor(50L, 3);
-	}
 
 	@Test
 	@DisplayName("요청자별 조회 시 hasNext가 true이면 nextCursorId가 설정된다")
@@ -249,27 +207,4 @@ class NotificationQueryServiceTest {
 		verify(notificationRepository).findById(1L);
 	}
 
-	@Test
-	@DisplayName("수신자별 조회 시 전체 목록을 매핑해 반환한다")
-	void getNotificationsByReceiver_returnsMappedNotifications() {
-		NotificationGroup group = org.mockito.Mockito.mock(NotificationGroup.class);
-		Notification notification = org.mockito.Mockito.mock(Notification.class);
-		when(group.getId()).thenReturn(20L);
-		when(group.getSender()).thenReturn("sender");
-		when(group.getTitle()).thenReturn("title");
-		when(group.getChannelType()).thenReturn(ChannelType.KAKAO);
-		when(notification.getId()).thenReturn(1L);
-		when(notification.getReceiver()).thenReturn("friend");
-		when(notification.getStatus()).thenReturn(NotificationStatus.SENT);
-		when(notification.getGroup()).thenReturn(group);
-		when(notificationRepository.findByReceiver("friend")).thenReturn(List.of(notification));
-		when(notificationReadStatusRepository.findReadNotificationIds(List.of(1L))).thenReturn(java.util.Set.of(1L));
-
-		List<NotificationResult> results = queryService.getNotificationsByReceiver("friend");
-
-		assertThat(results).hasSize(1);
-		assertThat(results.getFirst().channelType()).isEqualTo(ChannelType.KAKAO);
-		assertThat(results.getFirst().isRead()).isTrue();
-		verify(notificationRepository).findByReceiver("friend");
-	}
 }

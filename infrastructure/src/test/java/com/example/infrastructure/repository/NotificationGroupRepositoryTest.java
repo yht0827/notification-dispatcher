@@ -130,49 +130,6 @@ class NotificationGroupRepositoryTest extends IntegrationTestSupport {
         assertThat(found.getNotifications()).hasSize(2);
     }
 
-	@Test
-	@DisplayName("커서 없이 최근 그룹을 최신순으로 조회한다")
-	void findRecentByCursor_withoutCursor() throws InterruptedException {
-		// given
-		NotificationGroup first = groupRepository.save(createSingleGroup("recent-a"));
-		Thread.sleep(5);
-		NotificationGroup second = groupRepository.save(createSingleGroup("recent-b"));
-		Thread.sleep(5);
-		NotificationGroup third = groupRepository.save(createSingleGroup("recent-c"));
-
-		// when
-		List<NotificationGroup> groups = groupRepository.findRecentByCursor(null, 2);
-
-		// then
-		assertThat(groups).hasSize(2);
-		assertThat(groups.get(0).getId()).isEqualTo(third.getId());
-		assertThat(groups.get(1).getId()).isEqualTo(second.getId());
-		assertThat(groups.get(0).getId()).isNotEqualTo(first.getId());
-		assertThat(groups.get(1).getId()).isNotEqualTo(first.getId());
-	}
-
-	@Test
-	@DisplayName("커서를 전달하면 다음 그룹 목록을 조회한다")
-	void findRecentByCursor_withCursor() throws InterruptedException {
-		// given
-		NotificationGroup first = groupRepository.save(createSingleGroup("cursor-a"));
-		Thread.sleep(5);
-		NotificationGroup second = groupRepository.save(createSingleGroup("cursor-b"));
-		Thread.sleep(5);
-		groupRepository.save(createSingleGroup("cursor-c"));
-
-		// when
-		List<NotificationGroup> firstSlice = groupRepository.findRecentByCursor(null, 2);
-		Long cursorId = firstSlice.get(1).getId();
-		List<NotificationGroup> secondSlice = groupRepository.findRecentByCursor(cursorId, 2);
-
-		// then
-		assertThat(firstSlice).hasSize(2);
-		assertThat(secondSlice).hasSize(1);
-		assertThat(secondSlice.getFirst().getId()).isEqualTo(first.getId());
-		assertThat(secondSlice.getFirst().getId()).isNotEqualTo(second.getId());
-	}
-
     @Test
     @DisplayName("7일 이전에 생성된 그룹은 조회되지 않는다")
     void findByClientIdWithCursor_excludesOldGroups() {

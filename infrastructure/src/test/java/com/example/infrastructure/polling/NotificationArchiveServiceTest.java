@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationArchiveServiceTest {
@@ -34,7 +35,7 @@ class NotificationArchiveServiceTest {
 			jdbcTemplate,
 			namedParameterJdbcTemplate,
 			new ArchiveProperties(true, false, 1000, 7, null, null),
-			transactionManager
+			new TransactionTemplate(transactionManager)
 		);
 	}
 

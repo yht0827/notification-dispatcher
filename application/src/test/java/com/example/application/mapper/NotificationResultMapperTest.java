@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Test;
 
 import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationGroupResult;
-import com.example.application.port.in.result.NotificationListResult;
 import com.example.application.port.in.result.NotificationResult;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.GroupType;
@@ -48,26 +47,6 @@ class NotificationResultMapperTest {
 		assertThat(result.id()).isEqualTo(1L);
 		assertThat(result.clientId()).isEqualTo("client-1");
 		assertThat(result.totalCount()).isEqualTo(10);
-	}
-
-	@Test
-	@DisplayName("NotificationGroup을 NotificationListResult로 변환한다 - moreCount 계산 확인")
-	void toListResult() {
-		// given
-		NotificationGroup group = mock(NotificationGroup.class);
-		when(group.getId()).thenReturn(1L);
-		when(group.getTitle()).thenReturn("title");
-		when(group.getContent()).thenReturn("content");
-		when(group.getTotalCount()).thenReturn(5);
-		when(group.getCreatedAt()).thenReturn(LocalDateTime.now());
-
-		// when
-		NotificationListResult result = mapper.toListResult(group);
-
-		// then
-		assertThat(result.groupId()).isEqualTo(1L);
-		assertThat(result.totalCount()).isEqualTo(5);
-		assertThat(result.moreCount()).isEqualTo(4); // totalCount - 1
 	}
 
 	@Test

@@ -83,9 +83,7 @@ Client
 | 도메인 | 기능 | METHOD | URI | 인증 |
 |--------|------|--------|-----|------|
 | 알림 | 알림 발송 | POST | `/api/v1/notifications` | X |
-| 알림 | 알림 묶음 목록 조회(커서) | GET | `/api/v1/notifications` | X |
 | 알림 | 개별 알림 조회 | GET | `/api/v1/notifications/{notificationId}` | X |
-| 알림 | 수신자별 알림 조회 | GET | `/api/v1/notifications?receiver={receiver}` | X |
 | 그룹 | 그룹 상세 조회 | GET | `/api/v1/notifications/groups/{groupId}` | X |
 | 그룹 | 클라이언트별 그룹 조회 | GET | `/api/v1/notifications/groups?clientId={clientId}` | X |
 
@@ -172,45 +170,26 @@ Client
 
 ## 알림 조회
 
-### 알림 묶음 목록 조회
+### 클라이언트별 그룹 조회
 
 | METHOD | URI | 설명 |
 |--------|-----|------|
-| GET | `/api/v1/notifications` | 알림 그룹 최신순 커서 조회 |
+| GET | `/api/v1/notifications/groups?clientId={clientId}` | 특정 클라이언트 그룹 목록 조회 |
 
 #### 쿼리 파라미터
 
 | 파라미터 | 타입 | 필수 | 기본값 | 설명 |
 |----------|------|------|--------|------|
+| `clientId` | String | O | - | 그룹 생성 주체 식별자 |
 | `cursorId` | Long | X | - | 이전 페이지 마지막 그룹 ID |
 | `size` | Integer | X | 20 | 조회 크기 (`1~100`) |
 
 #### 응답 규칙
 
+- 최근 7일 이내 그룹만 조회한다.
 - 내부적으로 `size + 1`건 조회 후 `hasNext`를 계산한다.
-- `nextCursorId`는 현재 응답 마지막 아이템의 `groupId`를 사용한다.
-
-#### Response Body
-
-```json
-{
-  "success": true,
-  "data": {
-    "items": [
-      {
-        "groupId": 10,
-        "title": "신규 프로모션",
-        "content": "지금 가입 시 20% 할인",
-        "createdAt": "2026-02-24T13:00:00",
-        "totalCount": 3,
-        "moreCount": 2
-      }
-    ],
-    "hasNext": true,
-    "nextCursorId": 10
-  }
-}
-```
+- `nextCursorId`는 현재 응답 마지막 그룹의 `id`를 사용한다.
+- 자식 알림 목록은 포함하지 않는다. 상세는 `/groups/{groupId}`에서 조회한다.
 
 ### 알림 그룹 상세 조회
 
@@ -218,25 +197,27 @@ Client
 |--------|-----|------|
 | GET | `/api/v1/notifications/groups/{groupId}` | 그룹 및 하위 알림 상세 조회 |
 
+#### 응답 규칙
+
+- 최근 7일 이내 그룹만 조회한다.
+- 그룹 메타데이터와 자식 알림 목록을 함께 반환한다.
+
 #### Response Body
 
 ```json
 {
   "success": true,
   "data": {
-    "groupId": 1,
+    "groupId": 10,
     "clientId": "order-service",
     "sender": "MyShop",
     "title": "주문 완료",
     "content": "주문이 완료되었습니다.",
-    "groupType": "SINGLE",
-    "channelType": "EMAIL",
-    "totalCount": 1,
+    "totalCount": 2,
     "sentCount": 1,
     "failedCount": 0,
-    "pendingCount": 0,
-    "completed": true,
-    "createdAt": "2026-02-24T13:00:00",
+    "pendingCount": 1,
+    "completed": false,
     "notifications": [
       {
         "notificationId": 101,
@@ -251,23 +232,11 @@ Client
 }
 ```
 
-### 클라이언트별 그룹 조회
-
-| METHOD | URI | 설명 |
-|--------|-----|------|
-| GET | `/api/v1/notifications/groups?clientId={clientId}` | 특정 클라이언트 그룹 목록 조회 |
-
 ### 개별 알림 조회
 
 | METHOD | URI | 설명 |
 |--------|-----|------|
 | GET | `/api/v1/notifications/{notificationId}` | 알림 단건 조회 |
-
-### 수신자별 알림 조회
-
-| METHOD | URI | 설명 |
-|--------|-----|------|
-| GET | `/api/v1/notifications?receiver={receiver}` | 수신자 기준 목록 조회 |
 
 #### 조회 API Fail Cases
 
@@ -275,12 +244,9 @@ Client
 |--------|------|---------------|
 | `size` 범위 오류 | `size < 1` 또는 `size > 100` | `400 BAD REQUEST` |
 | `cursorId` 범위 오류 | `cursorId <= 0` | `400 BAD REQUEST` |
-| `receiver` 공백 | receiver 파라미터 빈 값 | `400 BAD REQUEST` |
 | `clientId` 공백 | clientId 파라미터 빈 값 | `400 BAD REQUEST` |
 | 그룹 미존재 | 존재하지 않는 `groupId` | `404 NOT FOUND` |
 | 알림 미존재 | 존재하지 않는 `notificationId` | `404 NOT FOUND` |
-
----
 
 ## 비동기 처리 규칙
 

@@ -36,7 +36,6 @@ erDiagram
       int failed_count
       datetime created_at
       datetime updated_at
-      datetime deleted_at
     }
 
     notification {
@@ -50,7 +49,6 @@ erDiagram
       bigint version
       datetime created_at
       datetime updated_at
-      datetime deleted_at
     }
 
     outbox {
@@ -63,7 +61,6 @@ erDiagram
       datetime processed_at
       datetime created_at
       datetime updated_at
-      datetime deleted_at
     }
 ```
 
@@ -74,7 +71,7 @@ erDiagram
 - `notification_group` 1건은 `notification` N건을 가진다. (`group_id` FK)
 - `outbox.aggregate_id`는 물리 FK가 아니라 논리 참조로 `notification.id`를 가리킨다.
 - `notification_group(client_id, idempotency_key)` 유니크 인덱스로 멱등 요청을 제어한다.
-- 모든 도메인 테이블은 `deleted_at` 기반 소프트 삭제를 사용한다.
+- 메인 도메인 테이블은 physical delete 모델을 사용하고, 장기 보관은 archive 테이블이 담당한다.
 
 ---
 
@@ -97,14 +94,12 @@ erDiagram
 | failed_count | INT | NOT NULL DEFAULT 0 | 실패 수 |
 | created_at | DATETIME(6) | NOT NULL | 생성 시각 |
 | updated_at | DATETIME(6) | NOT NULL | 수정 시각 |
-| deleted_at | DATETIME(6) | NULL | 소프트 삭제 |
 
 인덱스
 
 - `idx_notification_group_client_idempotency_key` (UNIQUE): `(client_id, idempotency_key)`
 - `idx_notification_group_client_id`: `(client_id)`
 - `idx_notification_group_group_type`: `(group_type)`
-- `idx_notification_group_deleted_at`: `(deleted_at)`
 - `idx_notification_group_client_created`: `(client_id, created_at)`
 
 ### notification
@@ -121,13 +116,11 @@ erDiagram
 | version | BIGINT | NOT NULL DEFAULT 0 | 낙관적 락 버전 |
 | created_at | DATETIME(6) | NOT NULL | 생성 시각 |
 | updated_at | DATETIME(6) | NOT NULL | 수정 시각 |
-| deleted_at | DATETIME(6) | NULL | 소프트 삭제 |
 
 인덱스
 
 - `idx_notification_group_id`: `(group_id)`
 - `idx_notification_receiver`: `(receiver)`
-- `idx_notification_deleted_at`: `(deleted_at)`
 - `idx_notification_receiver_status`: `(receiver, status)`
 - `idx_notification_status_created`: `(status, created_at)`
 - `idx_notification_group_status`: `(group_id, status)`
@@ -145,7 +138,6 @@ erDiagram
 | processed_at | DATETIME(6) | NULL | 처리 시각 |
 | created_at | DATETIME(6) | NOT NULL | 생성 시각 |
 | updated_at | DATETIME(6) | NOT NULL | 수정 시각 |
-| deleted_at | DATETIME(6) | NULL | 소프트 삭제 |
 
 인덱스
 
@@ -161,4 +153,4 @@ erDiagram
 - 중복 처리 제어: Redis 분산 락 `dispatch-lock:{notificationId}`
 - 낙관적 락: `notification.version` 컬럼으로 동시 수정 충돌 감지
 - 커서 조회 최적화: 그룹 조회는 `id DESC` 및 `cursorId` 조건으로 동작
-- 소프트 삭제 적용: `deleted_at` 조건이 JPA 조회에 기본 반영됨
+- 메인 데이터 삭제는 archive 배치의 physical delete로 정리됨

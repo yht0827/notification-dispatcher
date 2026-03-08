@@ -3,9 +3,6 @@ package com.example.domain.notification;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.SQLRestriction;
-
 import com.example.domain.common.BaseEntity;
 
 import jakarta.persistence.CascadeType;
@@ -26,8 +23,6 @@ import lombok.NoArgsConstructor;
 @Table(name = "notification_group")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@SQLDelete(sql = "UPDATE notification_group SET deleted_at = NOW() WHERE id = ?")
-@SQLRestriction("deleted_at IS NULL")
 public class NotificationGroup extends BaseEntity {
 
 	@Id

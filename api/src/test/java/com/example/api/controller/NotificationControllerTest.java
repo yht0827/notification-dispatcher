@@ -18,13 +18,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.example.api.dto.request.NotificationGroupQueryRequest;
-import com.example.api.dto.request.NotificationListQueryRequest;
-import com.example.api.dto.request.NotificationReceiverQueryRequest;
 import com.example.api.dto.request.NotificationSendRequest;
 import com.example.api.dto.response.ApiResponse;
 import com.example.api.dto.response.NotificationGroupDetailResponse;
 import com.example.api.dto.response.NotificationGroupSliceResponse;
-import com.example.api.dto.response.NotificationListSliceResponse;
 import com.example.api.dto.response.NotificationReadResponse;
 import com.example.api.dto.response.NotificationResponse;
 import com.example.api.dto.response.NotificationSendResponse;
@@ -38,7 +35,6 @@ import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.application.port.in.result.NotificationItemResult;
-import com.example.application.port.in.result.NotificationListResult;
 import com.example.application.port.in.result.NotificationResult;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.GroupType;
@@ -158,32 +154,6 @@ class NotificationControllerTest {
 	}
 
 	@Test
-	@DisplayName("알림 묶음 목록 조회는 요청 size를 사용한다")
-	void getNotificationBundles_returnsSliceResponse() {
-		NotificationListQueryRequest request = new NotificationListQueryRequest(50L, 10);
-		CursorSlice<NotificationListResult> slice = new CursorSlice<>(
-			List.of(new NotificationListResult(
-				1L,
-				"속보",
-				"브리핑",
-				LocalDateTime.now(),
-				3,
-				2
-			)),
-			true,
-			1L
-		);
-		when(queryUseCase.getRecentGroups(50L, 10)).thenReturn(slice);
-
-		ApiResponse<NotificationListSliceResponse> response = controller.getNotificationBundles(request);
-
-		assertThat(response.success()).isTrue();
-		assertThat(response.data().items()).hasSize(1);
-		assertThat(response.data().hasNext()).isTrue();
-		verify(queryUseCase).getRecentGroups(50L, 10);
-	}
-
-	@Test
 	@DisplayName("개별 알림 조회 성공 시 NotificationResponse를 반환한다")
 	void getNotification_returnsResponse() {
 		NotificationResult result = new NotificationResult(
@@ -245,30 +215,4 @@ class NotificationControllerTest {
 			.isEqualTo(ErrorCode.NOTIFICATION_NOT_FOUND);
 	}
 
-	@Test
-	@DisplayName("수신자별 조회는 NotificationResponse 목록을 반환한다")
-	void getNotificationsByReceiver_returnsResponseList() {
-		NotificationReceiverQueryRequest request = new NotificationReceiverQueryRequest("user@example.com");
-		when(queryUseCase.getNotificationsByReceiver("user@example.com"))
-			.thenReturn(List.of(new NotificationResult(
-				1L,
-				10L,
-				"user@example.com",
-				"MyShop",
-				"주문 완료",
-				ChannelType.SMS,
-				NotificationStatus.SENT,
-				LocalDateTime.now(),
-				null,
-				LocalDateTime.now(),
-				false
-			)));
-
-		ApiResponse<List<NotificationResponse>> response = controller.getNotificationsByReceiver(request);
-
-		assertThat(response.success()).isTrue();
-		assertThat(response.data()).hasSize(1);
-		assertThat(response.data().getFirst().receiver()).isEqualTo("user@example.com");
-		verify(queryUseCase).getNotificationsByReceiver("user@example.com");
-	}
 }

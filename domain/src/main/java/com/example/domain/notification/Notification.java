@@ -2,9 +2,6 @@ package com.example.domain.notification;
 
 import java.time.LocalDateTime;
 
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.SQLRestriction;
-
 import com.example.domain.common.BaseEntity;
 import com.example.domain.exception.InvalidStatusTransitionException;
 
@@ -28,8 +25,6 @@ import lombok.NoArgsConstructor;
 @Table(name = "notification")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@SQLDelete(sql = "UPDATE notification SET deleted_at = NOW() WHERE id = ?")
-@SQLRestriction("deleted_at IS NULL")
 public class Notification extends BaseEntity {
 
 	@Id
