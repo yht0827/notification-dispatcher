@@ -18,12 +18,16 @@ public class RabbitMQWaitPublisher implements WaitPublisher {
 
 	@Override
 	public void publish(Long notificationId, int retryCount, String lastError) {
+		publish(notificationId, retryCount, lastError, null);
+	}
+
+	@Override
+	public void publish(Long notificationId, int retryCount, String lastError, Long retryDelayMillis) {
 		// NotificationWaitPayload 생성
 		NotificationWaitPayload payload = NotificationWaitPayload.from(
 			notificationId,
 			retryCount,
-			// Delay(ms) = base_delay * 2^retryCount
-			properties.calculateRetryDelayMillis(retryCount),
+			properties.calculateRetryDelayMillis(retryCount, retryDelayMillis),
 			lastError
 		);
 

@@ -46,6 +46,8 @@ public class MockProperties {
 		private boolean enabled = true;
 		private double probability = 0.10d;
 		private List<Integer> types = new ArrayList<>(List.of(500, 503, 429));
+		@Min(1)
+		private int retryAfterSeconds = 15;
 	}
 
 	@Getter

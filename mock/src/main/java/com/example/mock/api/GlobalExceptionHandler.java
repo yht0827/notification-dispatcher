@@ -70,7 +70,11 @@ public class GlobalExceptionHandler {
                 )
         );
 
-        return ResponseEntity.status(ex.getStatus()).body(body);
+        ResponseEntity.BodyBuilder responseBuilder = ResponseEntity.status(ex.getStatus());
+        if (ex.getStatus() == HttpStatus.TOO_MANY_REQUESTS && ex.getRetryAfterSeconds() != null) {
+            responseBuilder.header("Retry-After", String.valueOf(ex.getRetryAfterSeconds()));
+        }
+        return responseBuilder.body(body);
     }
 
     @ExceptionHandler(Exception.class)

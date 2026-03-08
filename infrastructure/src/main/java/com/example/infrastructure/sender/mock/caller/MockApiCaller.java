@@ -7,6 +7,7 @@ import com.example.application.port.out.result.SendResult;
 import com.example.infrastructure.sender.mock.dto.MockApiSendRequest;
 import com.example.infrastructure.sender.mock.dto.MockApiSendSuccessResponse;
 import com.example.infrastructure.sender.mock.exception.MockApiNonRetryableException;
+import com.example.infrastructure.sender.mock.exception.MockApiRateLimitException;
 import com.example.infrastructure.sender.mock.exception.MockApiRetryableException;
 
 import feign.RetryableException;
@@ -41,7 +42,7 @@ public class MockApiCaller {
 
 			log.debug("mock API 응답 수신: requestId={}, status={}", request.requestId(), response.getStatusCode().value());
 			return SendResult.success();
-		} catch (MockApiNonRetryableException | MockApiRetryableException e) {
+		} catch (MockApiNonRetryableException | MockApiRetryableException | MockApiRateLimitException e) {
 			throw e;
 		} catch (RetryableException e) {
 			throw new MockApiRetryableException("외부 API 네트워크/타임아웃 오류: " + e.getMessage(), e);

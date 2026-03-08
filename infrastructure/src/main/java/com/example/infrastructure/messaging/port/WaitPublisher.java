@@ -13,5 +13,9 @@ public interface WaitPublisher {
 	 * @param retryCount 현재까지 재시도 횟수
 	 * @param lastError 마지막 오류 메시지
 	 */
-	void publish(Long notificationId, int retryCount, String lastError);
+	default void publish(Long notificationId, int retryCount, String lastError) {
+		publish(notificationId, retryCount, lastError, null);
+	}
+
+	void publish(Long notificationId, int retryCount, String lastError, Long retryDelayMillis);
 }

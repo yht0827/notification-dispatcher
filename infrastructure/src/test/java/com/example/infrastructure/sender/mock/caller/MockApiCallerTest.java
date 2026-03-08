@@ -18,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import com.example.application.port.out.result.SendResult;
 import com.example.infrastructure.sender.mock.dto.MockApiSendRequest;
 import com.example.infrastructure.sender.mock.dto.MockApiSendSuccessResponse;
+import com.example.infrastructure.sender.mock.exception.MockApiRateLimitException;
 import com.example.infrastructure.sender.mock.exception.MockApiRetryableException;
 
 import feign.Request;
@@ -66,6 +67,17 @@ class MockApiCallerTest {
 		assertThatThrownBy(() -> mockApiCaller.call(request))
 			.isInstanceOf(MockApiRetryableException.class)
 			.hasMessageContaining("성공 응답 상태 코드가 아닙니다");
+	}
+
+	@Test
+	@DisplayName("429 rate limit 예외는 그대로 전파한다")
+	void call_propagatesRateLimitException() {
+		MockApiSendRequest request = new MockApiSendRequest("req-rate-limit", "EMAIL", "user@example.com", "hello", null);
+		when(mockApiClient.send(request)).thenThrow(new MockApiRateLimitException("too many requests", 15_000L));
+
+		assertThatThrownBy(() -> mockApiCaller.call(request))
+			.isInstanceOf(MockApiRateLimitException.class)
+			.hasMessageContaining("too many requests");
 	}
 
 	@Test

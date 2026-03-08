@@ -1,18 +1,25 @@
 package com.example.application.port.out.result;
 
-public record SendResult(boolean succeeded, String failReason, FailureType failureType) {
+public record SendResult(boolean succeeded, String failReason, FailureType failureType, Long retryDelayMillis) {
 
 	public SendResult {
 		if (succeeded) {
 			failReason = null;
 			failureType = null;
+			retryDelayMillis = null;
 		} else if (failureType == null) {
 			failureType = FailureType.RETRYABLE;
+		}
+		if (retryDelayMillis != null && retryDelayMillis <= 0) {
+			retryDelayMillis = null;
+		}
+		if (failureType == FailureType.NON_RETRYABLE) {
+			retryDelayMillis = null;
 		}
 	}
 
 	public static SendResult success() {
-		return new SendResult(true, null, null);
+		return new SendResult(true, null, null, null);
 	}
 
 	public static SendResult fail(String reason) {
@@ -20,11 +27,15 @@ public record SendResult(boolean succeeded, String failReason, FailureType failu
 	}
 
 	public static SendResult failRetryable(String reason) {
-		return new SendResult(false, reason, FailureType.RETRYABLE);
+		return new SendResult(false, reason, FailureType.RETRYABLE, null);
+	}
+
+	public static SendResult failRetryable(String reason, Long retryDelayMillis) {
+		return new SendResult(false, reason, FailureType.RETRYABLE, retryDelayMillis);
 	}
 
 	public static SendResult failNonRetryable(String reason) {
-		return new SendResult(false, reason, FailureType.NON_RETRYABLE);
+		return new SendResult(false, reason, FailureType.NON_RETRYABLE, null);
 	}
 
 	public boolean isSuccess() {

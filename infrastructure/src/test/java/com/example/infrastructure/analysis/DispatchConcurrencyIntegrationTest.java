@@ -97,7 +97,8 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 				null,
 				false,
 				50,
-				200
+				200,
+				0.0d
 			),
 			dispatchLockManager
 		);
@@ -295,7 +296,8 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 				null,
 				false,
 				50,
-				200
+				200,
+				0.0d
 			),
 			new com.example.infrastructure.repository.DispatchLockManagerImpl(redissonClient)
 		);
@@ -316,7 +318,8 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 				null,
 				false,
 				50,
-				200
+				200,
+				0.0d
 			),
 			new com.example.infrastructure.repository.DispatchLockManagerImpl(redissonClient)
 		);

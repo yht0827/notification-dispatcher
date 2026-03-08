@@ -89,6 +89,22 @@ class RabbitMQRecordHandlerTest {
 	}
 
 	@Test
+	@DisplayName("429 실패에 전달된 retry delay는 WAIT 경로까지 유지한다")
+	void process_preservesRetryDelayForRateLimitFailure() {
+		Notification notification = createNotification();
+		when(notificationRepository.findById(12L)).thenReturn(Optional.of(notification));
+		when(properties.resolveMaxRetryCount()).thenReturn(3);
+		when(dispatchService.dispatch(notification))
+			.thenReturn(NotificationDispatchResult.failRetryable("rate limit", 15_000L));
+
+		assertThatThrownBy(() -> recordHandler.process(12L, 0))
+			.isInstanceOfSatisfying(RetryableMessageException.class,
+				exception -> assertThat(exception.retryDelayMillis()).isEqualTo(15_000L));
+
+		verify(lockManager).release(12L);
+	}
+
+	@Test
 	@DisplayName("재시도 불가 발송 실패는 즉시 NonRetryable로 처리한다")
 	void process_throwsNonRetryableWhenDispatchFailureIsNonRetryable() {
 		// given

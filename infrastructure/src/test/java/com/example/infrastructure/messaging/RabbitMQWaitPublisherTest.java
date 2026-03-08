@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,7 +46,8 @@ class RabbitMQWaitPublisherTest {
 			null,
 			false,
 			50,
-			200
+			200,
+			0.0d
 		);
 		waitPublisher = new RabbitMQWaitPublisher(rabbitTemplate, properties);
 	}
@@ -88,5 +91,62 @@ class RabbitMQWaitPublisherTest {
 
 		NotificationMessagePayload streamPayload = payloadCaptor.getValue();
 		assertThat(streamPayload.getRetryCount()).isEqualTo(1);
+	}
+
+	@Test
+	@DisplayName("retryAfterMillis가 있으면 계산된 백오프 대신 그대로 사용한다")
+	void publish_usesRetryAfterDelayWhenProvided() {
+		waitPublisher.publish(9L, 1, "429 too many requests", 30_000L);
+
+		ArgumentCaptor<MessagePostProcessor> postProcessorCaptor = ArgumentCaptor.forClass(MessagePostProcessor.class);
+		verify(rabbitTemplate).convertAndSend(
+			eq("notification.wait.exchange"),
+			eq("notification.wait"),
+			org.mockito.ArgumentMatchers.any(NotificationMessagePayload.class),
+			postProcessorCaptor.capture()
+		);
+
+		Message message = new Message(new byte[0], new MessageProperties());
+		postProcessorCaptor.getValue().postProcessMessage(message);
+		assertThat(message.getMessageProperties().getExpiration()).isEqualTo("30000");
+	}
+
+	@Test
+	@DisplayName("지터가 설정되면 재시도 TTL이 범위 내에서 랜덤화된다")
+	void publish_appliesJitterWhenConfigured() {
+		NotificationRabbitProperties jitterProperties = new NotificationRabbitProperties(
+			"notification.work",
+			"notification.work.exchange",
+			"notification.wait",
+			"notification.dlq",
+			"notification.dlq.exchange",
+			3,
+			5000,
+			1,
+			10,
+			1,
+			null,
+			false,
+			50,
+			200,
+			0.2d
+		);
+		RabbitMQWaitPublisher jitterPublisher = new RabbitMQWaitPublisher(rabbitTemplate, jitterProperties);
+
+		AtomicLong expiration = new AtomicLong();
+		jitterPublisher.publish(11L, 1, "temporary error");
+
+		ArgumentCaptor<MessagePostProcessor> postProcessorCaptor = ArgumentCaptor.forClass(MessagePostProcessor.class);
+		verify(rabbitTemplate).convertAndSend(
+			eq("notification.wait.exchange"),
+			eq("notification.wait"),
+			org.mockito.ArgumentMatchers.any(NotificationMessagePayload.class),
+			postProcessorCaptor.capture()
+		);
+		Message message = new Message(new byte[0], new MessageProperties());
+		postProcessorCaptor.getValue().postProcessMessage(message);
+		expiration.set(Long.parseLong(message.getMessageProperties().getExpiration()));
+
+		assertThat(expiration.get()).isBetween(8_000L, 12_000L);
 	}
 }

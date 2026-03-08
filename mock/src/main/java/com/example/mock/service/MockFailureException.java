@@ -14,6 +14,7 @@ public class MockFailureException extends RuntimeException {
 	private final String receiver;
 	private final int messageLength;
 	private final long startedAtMillis;
+	private final Integer retryAfterSeconds;
 
 	public MockFailureException(
 		HttpStatus status,
@@ -23,7 +24,8 @@ public class MockFailureException extends RuntimeException {
 		String channelType,
 		String receiver,
 		int messageLength,
-		long startedAtMillis
+		long startedAtMillis,
+		Integer retryAfterSeconds
 	) {
 		super(message);
 		this.status = status;
@@ -33,5 +35,6 @@ public class MockFailureException extends RuntimeException {
 		this.receiver = receiver;
 		this.messageLength = messageLength;
 		this.startedAtMillis = startedAtMillis;
+		this.retryAfterSeconds = retryAfterSeconds;
 	}
 }

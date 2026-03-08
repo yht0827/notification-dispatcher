@@ -64,7 +64,8 @@ public class MockBehaviorDecider {
 			context.channelType(),
 			context.receiver(),
 			context.messageLength(),
-			context.startedAtMillis()
+			context.startedAtMillis(),
+			resolveRetryAfterSeconds(failureSpec.status())
 		);
 	}
 
@@ -81,7 +82,8 @@ public class MockBehaviorDecider {
 			context.channelType(),
 			context.receiver(),
 			context.messageLength(),
-			context.startedAtMillis()
+			context.startedAtMillis(),
+			null
 		);
 	}
 
@@ -105,5 +107,13 @@ public class MockBehaviorDecider {
 			case 429 -> ERROR_CODE_RATE_LIMIT;
 			default -> ERROR_CODE_INTERNAL;
 		};
+	}
+
+	private Integer resolveRetryAfterSeconds(HttpStatus status) {
+		if (status != HttpStatus.TOO_MANY_REQUESTS) {
+			return null;
+		}
+		int retryAfterSeconds = properties.getFailure().getRetryAfterSeconds();
+		return retryAfterSeconds > 0 ? retryAfterSeconds : null;
 	}
 }

@@ -6,10 +6,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -21,7 +21,10 @@ import com.example.infrastructure.sender.mock.caller.MockApiCaller;
 import com.example.infrastructure.sender.mock.config.MockApiProperties;
 import com.example.infrastructure.sender.mock.dto.MockApiSendRequest;
 import com.example.infrastructure.sender.mock.exception.MockApiNonRetryableException;
+import com.example.infrastructure.sender.mock.exception.MockApiRateLimitException;
 import com.example.infrastructure.sender.mock.exception.MockApiRetryableException;
+
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 @ExtendWith(MockitoExtension.class)
 class MockApiSenderTest {
@@ -32,8 +35,14 @@ class MockApiSenderTest {
 	@Mock
 	private MockApiProperties properties;
 
-	@InjectMocks
+	private SimpleMeterRegistry meterRegistry;
 	private MockApiSender mockApiSender;
+
+	@BeforeEach
+	void setUp() {
+		meterRegistry = new SimpleMeterRegistry();
+		mockApiSender = new MockApiSender(mockApiCaller, properties, meterRegistry);
+	}
 
 	@Test
 	@DisplayName("mock API가 비활성화이면 성공으로 처리하고 외부 호출하지 않는다")
@@ -44,6 +53,22 @@ class MockApiSenderTest {
 
 		assertThat(result.isSuccess()).isTrue();
 		verify(mockApiCaller, never()).call(any(MockApiSendRequest.class));
+	}
+
+	@Test
+	@DisplayName("429 rate limit 예외는 retry delay와 전용 메트릭을 남긴다")
+	void send_returnsRetryableFailureWithRetryAfterWhenRateLimited() {
+		when(properties.isEnabled()).thenReturn(true);
+		when(mockApiCaller.call(any(MockApiSendRequest.class)))
+			.thenThrow(new MockApiRateLimitException("rate limit", 15_000L));
+
+		SendResult result = mockApiSender.send(createNotification(), ChannelType.SMS);
+
+		assertThat(result.isFailure()).isTrue();
+		assertThat(result.isRetryableFailure()).isTrue();
+		assertThat(result.retryDelayMillis()).isEqualTo(15_000L);
+		assertThat(meterRegistry.get("notification.mockapi.failures").tag("type", "rate_limit").counter().count())
+			.isEqualTo(1.0d);
 	}
 
 	@Test
@@ -58,6 +83,8 @@ class MockApiSenderTest {
 		assertThat(result.isFailure()).isTrue();
 		assertThat(result.isRetryableFailure()).isTrue();
 		assertThat(result.failReason()).contains("temporary failure");
+		assertThat(meterRegistry.get("notification.mockapi.failures").tag("type", "retryable").counter().count())
+			.isEqualTo(1.0d);
 	}
 
 	@Test
@@ -72,6 +99,8 @@ class MockApiSenderTest {
 		assertThat(result.isFailure()).isTrue();
 		assertThat(result.isNonRetryableFailure()).isTrue();
 		assertThat(result.failReason()).contains("invalid receiver");
+		assertThat(meterRegistry.get("notification.mockapi.failures").tag("type", "non_retryable").counter().count())
+			.isEqualTo(1.0d);
 	}
 
 	@Test

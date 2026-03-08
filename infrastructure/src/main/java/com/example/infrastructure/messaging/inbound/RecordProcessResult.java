@@ -5,24 +5,32 @@ public record RecordProcessResult(
 	Long notificationId,
 	int retryCount,
 	Status status,
-	String reason
+	String reason,
+	Long retryDelayMillis
 ) {
 
 	public static RecordProcessResult success(long contextId, Long notificationId, int retryCount) {
-		return new RecordProcessResult(contextId, notificationId, retryCount, Status.SUCCESS, null);
+		return new RecordProcessResult(contextId, notificationId, retryCount, Status.SUCCESS, null, null);
 	}
 
 	public static RecordProcessResult skipped(long contextId, Long notificationId, int retryCount, String reason) {
-		return new RecordProcessResult(contextId, notificationId, retryCount, Status.SKIPPED, reason);
+		return new RecordProcessResult(contextId, notificationId, retryCount, Status.SKIPPED, reason, null);
 	}
 
 	public static RecordProcessResult retryableFailure(long contextId, Long notificationId, int retryCount, String reason) {
-		return new RecordProcessResult(contextId, notificationId, retryCount, Status.RETRYABLE_FAILURE, reason);
+		return new RecordProcessResult(contextId, notificationId, retryCount, Status.RETRYABLE_FAILURE, reason, null);
+	}
+
+	public static RecordProcessResult retryableFailure(long contextId, Long notificationId, int retryCount, String reason,
+		Long retryDelayMillis) {
+		return new RecordProcessResult(contextId, notificationId, retryCount, Status.RETRYABLE_FAILURE, reason,
+			retryDelayMillis);
 	}
 
 	public static RecordProcessResult nonRetryableFailure(long contextId, Long notificationId, int retryCount,
 		String reason) {
-		return new RecordProcessResult(contextId, notificationId, retryCount, Status.NON_RETRYABLE_FAILURE, reason);
+		return new RecordProcessResult(contextId, notificationId, retryCount, Status.NON_RETRYABLE_FAILURE, reason,
+			null);
 	}
 
 	public boolean isSuccess() {

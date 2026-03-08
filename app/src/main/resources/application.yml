@@ -55,6 +55,7 @@ resilience4j:
           - com.example.infrastructure.sender.mock.exception.MockApiRetryableException
         ignore-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiNonRetryableException
+          - com.example.infrastructure.sender.mock.exception.MockApiRateLimitException
   circuitbreaker:
     circuit-breaker-aspect-order: 1
     instances:
@@ -65,6 +66,7 @@ resilience4j:
         wait-duration-in-open-state: 10s
         record-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiRetryableException
+          - com.example.infrastructure.sender.mock.exception.MockApiRateLimitException
         ignore-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiNonRetryableException
 # ─────────────────────────────────────────
@@ -155,6 +157,7 @@ notification:
     dlq-exchange: notification.dlq.exchange    # DLQ Exchange
     max-retry-count: 3                         # 최대 재시도 횟수
     retry-base-delay-millis: 5000              # 기본 재시도 지연 (ms)
+    retry-jitter-factor: 0.20                  # 재시도 대기 지터 비율 (20%)
     concurrency: 2
     max-concurrency: 2
     prefetch: 100
