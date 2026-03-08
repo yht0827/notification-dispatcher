@@ -2,6 +2,7 @@ package com.example.application.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
@@ -39,7 +40,14 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 		LocalDateTime from = detailFrom();
 		return groupRepository.findByIdWithNotifications(groupId)
 			.filter(group -> NotificationDetailRetentionPolicy.isWithinRetention(group.getCreatedAt(), from))
-			.map(mapper::toGroupDetailResult);
+			.map(group -> {
+				List<Long> notificationIds = group.getNotifications().stream()
+					.map(com.example.domain.notification.Notification::getId)
+					.toList();
+				Map<Long, LocalDateTime> readAtByNotificationId =
+					notificationReadStatusRepository.findReadAtByNotificationIds(notificationIds);
+				return mapper.toGroupDetailResult(group, readAtByNotificationId);
+			});
 	}
 
 	@Override
@@ -63,7 +71,7 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 				notification -> NotificationDetailRetentionPolicy.isWithinRetention(notification.getCreatedAt(), from))
 			.map(notification -> mapper.toNotificationResult(
 				notification,
-				notificationReadStatusRepository.existsByNotificationId(notification.getId())
+				notificationReadStatusRepository.findReadAtByNotificationId(notification.getId())
 			));
 	}
 

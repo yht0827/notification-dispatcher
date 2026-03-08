@@ -73,6 +73,7 @@ class NotificationResultMapperTest {
 		assertThat(result.receiver()).isEqualTo("receiver");
 		assertThat(result.channelType()).isEqualTo(ChannelType.EMAIL);
 		assertThat(result.isRead()).isFalse();
+		assertThat(result.readAt()).isNull();
 	}
 
 	@Test
@@ -103,5 +104,6 @@ class NotificationResultMapperTest {
 		assertThat(result.notifications()).hasSize(1);
 		assertThat(result.notifications().getFirst().notificationId()).isEqualTo(101L);
 		assertThat(result.notifications().getFirst().receiver()).isEqualTo("user@example.com");
+		assertThat(result.notifications().getFirst().isRead()).isFalse();
 	}
 }

@@ -1,6 +1,8 @@
 package com.example.application.mapper;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.stereotype.Component;
@@ -33,8 +35,16 @@ public class NotificationResultMapper {
 	}
 
 	public NotificationGroupDetailResult toGroupDetailResult(NotificationGroup group) {
+		return toGroupDetailResult(group, Map.of());
+	}
+
+	public NotificationGroupDetailResult toGroupDetailResult(NotificationGroup group,
+		Map<Long, LocalDateTime> readAtByNotificationId) {
 		List<NotificationItemResult> notifications = group.getNotifications().stream()
-			.map(this::toGroupDetailNotificationItemResult)
+			.map(notification -> toGroupDetailNotificationItemResult(
+				notification,
+				readAtByNotificationId.get(notification.getId())
+			))
 			.toList();
 
 		return new NotificationGroupDetailResult(
@@ -56,21 +66,27 @@ public class NotificationResultMapper {
 	}
 
 	public NotificationItemResult toGroupDetailNotificationItemResult(Notification notification) {
+		return toGroupDetailNotificationItemResult(notification, null);
+	}
+
+	public NotificationItemResult toGroupDetailNotificationItemResult(Notification notification, LocalDateTime readAt) {
 		return new NotificationItemResult(
 			notification.getId(),
 			notification.getReceiver(),
 			notification.getStatus(),
 			notification.getSentAt(),
 			notification.getFailReason(),
-			notification.getCreatedAt()
+			notification.getCreatedAt(),
+			readAt != null,
+			readAt
 		);
 	}
 
 	public NotificationResult toNotificationResult(Notification notification) {
-		return toNotificationResult(notification, false);
+		return toNotificationResult(notification, null);
 	}
 
-	public NotificationResult toNotificationResult(Notification notification, boolean isRead) {
+	public NotificationResult toNotificationResult(Notification notification, LocalDateTime readAt) {
 		Optional<NotificationGroup> group = Optional.ofNullable(notification.getGroup());
 		return new NotificationResult(
 			notification.getId(),
@@ -83,7 +99,8 @@ public class NotificationResultMapper {
 			notification.getSentAt(),
 			notification.getFailReason(),
 			notification.getCreatedAt(),
-			isRead
+			readAt != null,
+			readAt
 		);
 	}
 }

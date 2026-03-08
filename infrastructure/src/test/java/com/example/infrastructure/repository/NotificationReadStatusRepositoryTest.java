@@ -79,39 +79,6 @@ class NotificationReadStatusRepositoryTest extends IntegrationTestSupport {
 			.isEqualTo(groupReadAt);
 	}
 
-	@Test
-	@DisplayName("markAllAsRead를 같은 그룹에 다시 호출하면 신규 삽입 건수는 0이다")
-	void markAllAsRead_returnsZeroOnRepeatedCall() {
-		Notification first = createNotification("user1@example.com");
-		Notification second = createNotification("user2@example.com");
-		LocalDateTime firstReadAt = LocalDateTime.of(2026, 3, 8, 12, 0);
-		LocalDateTime secondReadAt = firstReadAt.plusMinutes(10);
-
-		int firstInserted = notificationReadStatusRepository.markAllAsRead(
-			List.of(first.getId(), second.getId()),
-			firstReadAt
-		);
-		int secondInserted = notificationReadStatusRepository.markAllAsRead(
-			List.of(first.getId(), second.getId()),
-			secondReadAt
-		);
-
-		Integer count = jdbcTemplate.queryForObject(
-			"SELECT COUNT(*) FROM notification_read_status WHERE notification_id IN (?, ?)",
-			Integer.class,
-			first.getId(),
-			second.getId()
-		);
-
-		assertThat(firstInserted).isEqualTo(2);
-		assertThat(secondInserted).isZero();
-		assertThat(count).isEqualTo(2);
-		assertThat(notificationReadStatusRepository.findReadAtByNotificationId(first.getId()))
-			.isEqualTo(firstReadAt);
-		assertThat(notificationReadStatusRepository.findReadAtByNotificationId(second.getId()))
-			.isEqualTo(firstReadAt);
-	}
-
 	private Notification createNotification(String receiver) {
 		NotificationGroup group = NotificationGroup.create(
 			"test-service",

@@ -21,6 +21,7 @@ import com.example.api.dto.request.NotificationGroupQueryRequest;
 import com.example.api.dto.request.NotificationSendRequest;
 import com.example.api.dto.response.ApiResponse;
 import com.example.api.dto.response.NotificationGroupDetailResponse;
+import com.example.api.dto.response.NotificationGroupReadResponse;
 import com.example.api.dto.response.NotificationGroupSliceResponse;
 import com.example.api.dto.response.NotificationReadResponse;
 import com.example.api.dto.response.NotificationResponse;
@@ -33,8 +34,10 @@ import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.CursorSlice;
 import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.in.result.NotificationGroupDetailResult;
+import com.example.application.port.in.result.NotificationGroupReadResult;
 import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.application.port.in.result.NotificationItemResult;
+import com.example.application.port.in.result.NotificationReadResult;
 import com.example.application.port.in.result.NotificationResult;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.GroupType;
@@ -99,7 +102,9 @@ class NotificationControllerTest {
 				NotificationStatus.PENDING,
 				null,
 				null,
-				LocalDateTime.now()
+				LocalDateTime.now(),
+				true,
+				LocalDateTime.of(2026, 3, 8, 12, 0)
 			))
 		);
 		when(queryUseCase.getGroupDetail(1L)).thenReturn(Optional.of(result));
@@ -109,6 +114,7 @@ class NotificationControllerTest {
 		assertThat(response.success()).isTrue();
 		assertThat(response.data().groupId()).isEqualTo(1L);
 		assertThat(response.data().notifications()).hasSize(1);
+		assertThat(response.data().notifications().getFirst().isRead()).isTrue();
 	}
 
 	@Test
@@ -167,7 +173,8 @@ class NotificationControllerTest {
 			LocalDateTime.now(),
 			null,
 			LocalDateTime.now(),
-			true
+			true,
+			LocalDateTime.of(2026, 3, 8, 12, 0)
 		);
 		when(queryUseCase.getNotification(1L)).thenReturn(Optional.of(result));
 
@@ -177,6 +184,7 @@ class NotificationControllerTest {
 		assertThat(response.data().id()).isEqualTo(1L);
 		assertThat(response.data().groupId()).isEqualTo(10L);
 		assertThat(response.data().isRead()).isTrue();
+		assertThat(response.data().readAt()).isEqualTo(LocalDateTime.of(2026, 3, 8, 12, 0));
 	}
 
 	@Test
@@ -193,13 +201,15 @@ class NotificationControllerTest {
 	@Test
 	@DisplayName("읽음 처리 성공 시 success 응답을 반환한다")
 	void markAsRead_returnsSuccess() {
-		when(writeUseCase.markAsRead(1L)).thenReturn(true);
+		when(writeUseCase.markAsRead(1L))
+			.thenReturn(Optional.of(new NotificationReadResult(1L, LocalDateTime.of(2026, 3, 8, 12, 0))));
 
 		ApiResponse<NotificationReadResponse> response = controller.markAsRead(1L);
 
 		assertThat(response.success()).isTrue();
 		assertThat(response.data()).isNotNull();
 		assertThat(response.data().notificationId()).isEqualTo(1L);
+		assertThat(response.data().readAt()).isEqualTo(LocalDateTime.of(2026, 3, 8, 12, 0));
 		assertThat(response.data().message()).isEqualTo("알림을 읽음 처리했습니다.");
 		verify(writeUseCase).markAsRead(1L);
 	}
@@ -207,12 +217,38 @@ class NotificationControllerTest {
 	@Test
 	@DisplayName("읽음 처리 대상이 없으면 NotificationException을 던진다")
 	void markAsRead_throwsWhenNotFound() {
-		when(writeUseCase.markAsRead(1L)).thenReturn(false);
+		when(writeUseCase.markAsRead(1L)).thenReturn(Optional.empty());
 
 		assertThatThrownBy(() -> controller.markAsRead(1L))
 			.isInstanceOf(NotificationException.class)
 			.extracting("errorCode")
 			.isEqualTo(ErrorCode.NOTIFICATION_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("그룹 읽음 처리 성공 시 success 응답을 반환한다")
+	void markGroupAsRead_returnsSuccess() {
+		when(writeUseCase.markGroupAsRead(10L))
+			.thenReturn(Optional.of(new NotificationGroupReadResult(10L, 2, LocalDateTime.of(2026, 3, 8, 12, 0))));
+
+		ApiResponse<NotificationGroupReadResponse> response = controller.markGroupAsRead(10L);
+
+		assertThat(response.success()).isTrue();
+		assertThat(response.data()).isNotNull();
+		assertThat(response.data().groupId()).isEqualTo(10L);
+		assertThat(response.data().readCount()).isEqualTo(2);
+		assertThat(response.data().readAt()).isEqualTo(LocalDateTime.of(2026, 3, 8, 12, 0));
+	}
+
+	@Test
+	@DisplayName("그룹 읽음 처리 대상이 없으면 NotificationException을 던진다")
+	void markGroupAsRead_throwsWhenNotFound() {
+		when(writeUseCase.markGroupAsRead(10L)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> controller.markGroupAsRead(10L))
+			.isInstanceOf(NotificationException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.NOTIFICATION_GROUP_NOT_FOUND);
 	}
 
 }

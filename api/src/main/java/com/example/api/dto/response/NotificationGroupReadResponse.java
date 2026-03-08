@@ -12,7 +12,7 @@ public record NotificationGroupReadResponse(
 	@Schema(description = "이번 요청에서 새로 읽음 처리된 알림 수", example = "3")
 	int readCount,
 
-	@Schema(description = "이번 그룹 읽음 요청 처리 시각")
+	@Schema(description = "읽음 시각")
 	LocalDateTime readAt,
 
 	@Schema(description = "메시지", example = "알림 그룹을 읽음 처리했습니다.")

@@ -62,7 +62,7 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 			if (sendResult.isNonRetryableFailure()) {
 				return NotificationDispatchResult.failNonRetryable(sendResult.failReason());
 			}
-			return NotificationDispatchResult.failRetryable(sendResult.failReason());
+			return NotificationDispatchResult.failRetryable(sendResult.failReason(), sendResult.retryDelayMillis());
 		}
 	}
 
@@ -165,7 +165,8 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 					accumulateGroupCount(groupCountUpdates, notification, 0, 1);
 					results.put(notificationId, BatchDispatchResult.failNonRetryable(notificationId, sendResult.failReason()));
 				} else {
-					results.put(notificationId, BatchDispatchResult.failRetryable(notificationId, sendResult.failReason()));
+					results.put(notificationId,
+						BatchDispatchResult.failRetryable(notificationId, sendResult.failReason(), sendResult.retryDelayMillis()));
 				}
 			}
 
