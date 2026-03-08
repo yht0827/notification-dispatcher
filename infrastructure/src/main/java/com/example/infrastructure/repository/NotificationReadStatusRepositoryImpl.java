@@ -1,8 +1,10 @@
 package com.example.infrastructure.repository;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.springframework.stereotype.Repository;
@@ -20,15 +22,31 @@ public class NotificationReadStatusRepositoryImpl implements NotificationReadSta
 
 	@Override
 	public void markAsRead(Long notificationId, LocalDateTime readAt) {
-		if (jpaRepository.existsById(notificationId)) {
-			return;
+		jpaRepository.insertIgnore(notificationId, readAt);
+	}
+
+	@Override
+	public int markAllAsRead(List<Long> notificationIds, LocalDateTime readAt) {
+		if (notificationIds == null || notificationIds.isEmpty()) {
+			return 0;
 		}
-		jpaRepository.save(NotificationReadStatus.create(notificationId, readAt));
+
+		return notificationIds.stream()
+			.distinct()
+			.mapToInt(notificationId -> jpaRepository.insertIgnore(notificationId, readAt))
+			.sum();
 	}
 
 	@Override
 	public boolean existsByNotificationId(Long notificationId) {
 		return jpaRepository.existsById(notificationId);
+	}
+
+	@Override
+	public LocalDateTime findReadAtByNotificationId(Long notificationId) {
+		return jpaRepository.findByNotificationId(notificationId)
+			.map(NotificationReadStatus::getReadAt)
+			.orElse(null);
 	}
 
 	@Override
@@ -40,5 +58,19 @@ public class NotificationReadStatusRepositoryImpl implements NotificationReadSta
 			.stream()
 			.map(NotificationReadStatus::getNotificationId)
 			.collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+	}
+
+	@Override
+	public Map<Long, LocalDateTime> findReadAtByNotificationIds(List<Long> notificationIds) {
+		if (notificationIds == null || notificationIds.isEmpty()) {
+			return Map.of();
+		}
+		return jpaRepository.findAllByNotificationIdIn(notificationIds).stream()
+			.collect(java.util.stream.Collectors.toMap(
+				NotificationReadStatus::getNotificationId,
+				NotificationReadStatus::getReadAt,
+				(left, right) -> left,
+				LinkedHashMap::new
+			));
 	}
 }

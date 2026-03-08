@@ -16,6 +16,7 @@ import com.example.api.dto.request.NotificationGroupQueryRequest;
 import com.example.api.dto.request.NotificationSendRequest;
 import com.example.api.dto.response.ApiResponse;
 import com.example.api.dto.response.NotificationGroupDetailResponse;
+import com.example.api.dto.response.NotificationGroupReadResponse;
 import com.example.api.dto.response.NotificationGroupSliceResponse;
 import com.example.api.dto.response.NotificationReadResponse;
 import com.example.api.dto.response.NotificationResponse;
@@ -42,22 +43,13 @@ public class NotificationController {
 	private final NotificationWriteUseCase writeUseCase;
 	private final NotificationQueryUseCase queryUseCase;
 
-	@Operation(summary = "알림 발송", description = "단일 또는 대량 알림을 발송합니다.")
-	@PostMapping
-	@ResponseStatus(HttpStatus.CREATED)
-	public ApiResponse<NotificationSendResponse> send(@Valid @RequestBody NotificationSendRequest request) {
-		SendCommand command = new SendCommand(
-			request.clientId(),
-			request.sender(),
-			request.title(),
-			request.content(),
-			request.channelType(),
-			request.receivers(),
-			request.idempotencyKey()
-		);
-
-		NotificationCommandResult result = writeUseCase.request(command);
-		return ApiResponse.ok(NotificationSendResponse.of(result.groupId(), result.totalCount()));
+	@Operation(summary = "개별 알림 조회")
+	@GetMapping("/{notificationId}")
+	public ApiResponse<NotificationResponse> getNotification(@PathVariable Long notificationId) {
+		return queryUseCase.getNotification(notificationId)
+			.map(NotificationResponse::from)
+			.map(ApiResponse::ok)
+			.orElseThrow(() -> new NotificationException(ErrorCode.NOTIFICATION_NOT_FOUND));
 	}
 
 	@Operation(summary = "알림 그룹 조회")
@@ -80,21 +72,38 @@ public class NotificationController {
 		);
 	}
 
-	@Operation(summary = "개별 알림 조회")
-	@GetMapping("/{notificationId}")
-	public ApiResponse<NotificationResponse> getNotification(@PathVariable Long notificationId) {
-		return queryUseCase.getNotification(notificationId)
-			.map(NotificationResponse::from)
-			.map(ApiResponse::ok)
-			.orElseThrow(() -> new NotificationException(ErrorCode.NOTIFICATION_NOT_FOUND));
+	@Operation(summary = "알림 발송", description = "단일 또는 대량 알림을 발송합니다.")
+	@PostMapping
+	@ResponseStatus(HttpStatus.CREATED)
+	public ApiResponse<NotificationSendResponse> send(@Valid @RequestBody NotificationSendRequest request) {
+		SendCommand command = new SendCommand(
+			request.clientId(),
+			request.sender(),
+			request.title(),
+			request.content(),
+			request.channelType(),
+			request.receivers(),
+			request.idempotencyKey()
+		);
+
+		NotificationCommandResult result = writeUseCase.request(command);
+		return ApiResponse.ok(NotificationSendResponse.of(result.groupId(), result.totalCount()));
 	}
 
 	@Operation(summary = "알림 읽음 처리")
 	@PatchMapping("/{notificationId}/read")
 	public ApiResponse<NotificationReadResponse> markAsRead(@PathVariable Long notificationId) {
-		if (!writeUseCase.markAsRead(notificationId)) {
-			throw new NotificationException(ErrorCode.NOTIFICATION_NOT_FOUND);
-		}
-		return ApiResponse.ok(NotificationReadResponse.of(notificationId));
+		return writeUseCase.markAsRead(notificationId)
+			.map(result -> ApiResponse.ok(NotificationReadResponse.of(result.notificationId(), result.readAt())))
+			.orElseThrow(() -> new NotificationException(ErrorCode.NOTIFICATION_NOT_FOUND));
+	}
+
+	@Operation(summary = "알림 그룹 전체 읽음 처리")
+	@PatchMapping("/groups/{groupId}/read")
+	public ApiResponse<NotificationGroupReadResponse> markGroupAsRead(@PathVariable Long groupId) {
+		return writeUseCase.markGroupAsRead(groupId)
+			.map(result -> ApiResponse.ok(
+				NotificationGroupReadResponse.of(result.groupId(), result.readCount(), result.readAt())))
+			.orElseThrow(() -> new NotificationException(ErrorCode.NOTIFICATION_GROUP_NOT_FOUND));
 	}
 }

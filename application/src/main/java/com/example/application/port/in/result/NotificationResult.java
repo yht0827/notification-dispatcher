@@ -16,6 +16,7 @@ public record NotificationResult(
 	LocalDateTime sentAt,
 	String failReason,
 	LocalDateTime createdAt,
-	boolean isRead
+	boolean isRead,
+	LocalDateTime readAt
 ) {
 }

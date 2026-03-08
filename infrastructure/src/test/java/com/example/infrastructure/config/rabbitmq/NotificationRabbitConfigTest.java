@@ -80,7 +80,8 @@ class NotificationRabbitConfigTest {
 			listenerVirtualThreads,
 			false,
 			50,
-			200
+			200,
+			0.0d
 		);
 	}
 

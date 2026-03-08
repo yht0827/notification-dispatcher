@@ -96,7 +96,13 @@ public record NotificationGroupDetailResponse(
 		String failReason,
 
 		@Schema(description = "생성일시")
-		LocalDateTime createdAt
+		LocalDateTime createdAt,
+
+		@Schema(description = "읽음 여부", example = "false")
+		boolean isRead,
+
+		@Schema(description = "읽음 시각")
+		LocalDateTime readAt
 	) {
 		public static NotificationItemResponse from(NotificationItemResult notification) {
 			return new NotificationItemResponse(
@@ -105,7 +111,9 @@ public record NotificationGroupDetailResponse(
 				notification.status(),
 				notification.sentAt(),
 				notification.failReason(),
-				notification.createdAt()
+				notification.createdAt(),
+				notification.isRead(),
+				notification.readAt()
 			);
 		}
 	}

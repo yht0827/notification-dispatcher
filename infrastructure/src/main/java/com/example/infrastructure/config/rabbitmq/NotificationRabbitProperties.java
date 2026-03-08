@@ -17,7 +17,8 @@ public record NotificationRabbitProperties(
 	Boolean listenerVirtualThreads,// null이면 spring.threads.virtual.enabled 상속
 	boolean batchListenerEnabled,  // 배치 리스너 ON/OFF
 	int batchSize,                 // 배치 리스너 크기
-	int batchReceiveTimeoutMillis  // 배치 수집 대기 시간(ms)
+	int batchReceiveTimeoutMillis, // 배치 수집 대기 시간(ms)
+	double retryJitterFactor       // 재시도 지연 랜덤화 비율
 ) {
 
 	private static final int DEFAULT_MAX_RETRY_COUNT = 3;
@@ -27,6 +28,7 @@ public record NotificationRabbitProperties(
 	private static final int DEFAULT_PREFETCH_COUNT = 1;
 	private static final int DEFAULT_BATCH_SIZE = 50;
 	private static final int DEFAULT_BATCH_RECEIVE_TIMEOUT_MILLIS = 200;
+	private static final double DEFAULT_RETRY_JITTER_FACTOR = 0.0d;
 	private static final int MAX_RETRY_BACKOFF_SHIFT = 10;
 	private static final String WAIT_EXCHANGE_SUFFIX = ".exchange";
 
@@ -40,9 +42,18 @@ public record NotificationRabbitProperties(
 
 	// 지수 백오프 계산
 	public long calculateRetryDelayMillis(int retryCount) {
+		return calculateRetryDelayMillis(retryCount, null);
+	}
+
+	public long calculateRetryDelayMillis(int retryCount, Long retryDelayMillis) {
+		if (retryDelayMillis != null && retryDelayMillis > 0) {
+			return retryDelayMillis;
+		}
+
 		int normalizedRetryCount = Math.max(retryCount, 0);
 		int cappedShift = Math.min(normalizedRetryCount, MAX_RETRY_BACKOFF_SHIFT);
-		return (long)resolveRetryBaseDelayMillis() * (1L << cappedShift);  // = 5000 * 2^retryCount
+		long baseDelayMillis = (long)resolveRetryBaseDelayMillis() * (1L << cappedShift);
+		return applyJitter(baseDelayMillis);
 	}
 
 	public int resolveConcurrency() {
@@ -80,6 +91,13 @@ public record NotificationRabbitProperties(
 			: DEFAULT_BATCH_RECEIVE_TIMEOUT_MILLIS;
 	}
 
+	public double resolveRetryJitterFactor() {
+		if (retryJitterFactor <= 0) {
+			return DEFAULT_RETRY_JITTER_FACTOR;
+		}
+		return Math.min(retryJitterFactor, 1.0d);
+	}
+
 	public String workRoutingKey() {
 		return workQueue;
 	}
@@ -90,5 +108,17 @@ public record NotificationRabbitProperties(
 
 	public String waitExchange() {
 		return waitQueue + WAIT_EXCHANGE_SUFFIX;
+	}
+
+	private long applyJitter(long delayMillis) {
+		double jitterFactor = resolveRetryJitterFactor();
+		if (jitterFactor <= 0.0d) {
+			return delayMillis;
+		}
+
+		double minMultiplier = Math.max(0.0d, 1.0d - jitterFactor);
+		double maxMultiplier = 1.0d + jitterFactor;
+		double multiplier = java.util.concurrent.ThreadLocalRandom.current().nextDouble(minMultiplier, maxMultiplier);
+		return Math.max(1L, Math.round(delayMillis * multiplier));
 	}
 }

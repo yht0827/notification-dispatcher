@@ -34,8 +34,8 @@ class NotificationBundleResponseTest {
 			false,
 			null,
 			List.of(
-				new NotificationItemResult(101L, "user1@example.com", NotificationStatus.PENDING, null, null, null),
-				new NotificationItemResult(102L, "user2@example.com", NotificationStatus.PENDING, null, null, null)
+				new NotificationItemResult(101L, "user1@example.com", NotificationStatus.PENDING, null, null, null, true, java.time.LocalDateTime.of(2026, 3, 8, 12, 0)),
+				new NotificationItemResult(102L, "user2@example.com", NotificationStatus.PENDING, null, null, null, false, null)
 			)
 		);
 
@@ -48,5 +48,7 @@ class NotificationBundleResponseTest {
 		assertThat(response.notifications()).hasSize(2);
 		assertThat(response.notifications().get(0).receiver()).isEqualTo("user1@example.com");
 		assertThat(response.notifications().get(1).receiver()).isEqualTo("user2@example.com");
+		assertThat(response.notifications().get(0).isRead()).isTrue();
+		assertThat(response.notifications().get(0).readAt()).isEqualTo(java.time.LocalDateTime.of(2026, 3, 8, 12, 0));
 	}
 }

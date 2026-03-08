@@ -146,12 +146,17 @@ class NotificationQueryServiceTest {
 		when(notification.getReceiver()).thenReturn("user@example.com");
 		when(notification.getStatus()).thenReturn(NotificationStatus.PENDING);
 		when(groupRepository.findByIdWithNotifications(10L)).thenReturn(Optional.of(group));
+		when(notificationReadStatusRepository.findReadAtByNotificationIds(List.of(101L)))
+			.thenReturn(java.util.Map.of(101L, LocalDateTime.of(2026, 3, 8, 12, 0)));
 
 		Optional<NotificationGroupDetailResult> result = queryService.getGroupDetail(10L);
 
 		assertThat(result).isPresent();
 		assertThat(result.orElseThrow().notifications()).hasSize(1);
 		assertThat(result.orElseThrow().notifications().getFirst().notificationId()).isEqualTo(101L);
+		assertThat(result.orElseThrow().notifications().getFirst().isRead()).isTrue();
+		assertThat(result.orElseThrow().notifications().getFirst().readAt())
+			.isEqualTo(LocalDateTime.of(2026, 3, 8, 12, 0));
 		verify(groupRepository).findByIdWithNotifications(10L);
 	}
 
@@ -183,7 +188,8 @@ class NotificationQueryServiceTest {
 		when(notification.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(1));
 		when(notification.getGroup()).thenReturn(group);
 		when(notificationRepository.findById(1L)).thenReturn(Optional.of(notification));
-		when(notificationReadStatusRepository.existsByNotificationId(1L)).thenReturn(true);
+		when(notificationReadStatusRepository.findReadAtByNotificationId(1L))
+			.thenReturn(LocalDateTime.of(2026, 3, 8, 12, 0));
 
 		Optional<NotificationResult> result = queryService.getNotification(1L);
 
@@ -191,6 +197,7 @@ class NotificationQueryServiceTest {
 		assertThat(result.orElseThrow().groupId()).isEqualTo(20L);
 		assertThat(result.orElseThrow().receiver()).isEqualTo("01012345678");
 		assertThat(result.orElseThrow().isRead()).isTrue();
+		assertThat(result.orElseThrow().readAt()).isEqualTo(LocalDateTime.of(2026, 3, 8, 12, 0));
 		verify(notificationRepository).findById(1L);
 	}
 
