@@ -288,11 +288,43 @@ class NotificationWriteServiceTest {
 	}
 
 	@Test
+	@DisplayName("그룹의 모든 알림이 이미 읽힘 상태면 새로 읽음 처리된 건수는 0이다")
+	void markGroupAsRead_returnsZeroWhenAlreadyRead() {
+		NotificationGroup group = org.mockito.Mockito.mock(NotificationGroup.class);
+		Notification first = org.mockito.Mockito.mock(Notification.class);
+		Notification second = org.mockito.Mockito.mock(Notification.class);
+		when(group.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(1));
+		when(group.getNotifications()).thenReturn(List.of(first, second));
+		when(first.getId()).thenReturn(1L);
+		when(second.getId()).thenReturn(2L);
+		when(notificationGroupRepository.findByIdWithNotifications(10L)).thenReturn(Optional.of(group));
+		when(notificationReadStatusRepository.markAllAsRead(eq(List.of(1L, 2L)), any(LocalDateTime.class)))
+			.thenReturn(0);
+
+		Optional<NotificationGroupReadResult> result = commandService.markGroupAsRead(10L);
+
+		assertThat(result).isPresent();
+		assertThat(result.orElseThrow().groupId()).isEqualTo(10L);
+		assertThat(result.orElseThrow().readCount()).isZero();
+	}
+
+	@Test
 	@DisplayName("7일 지난 그룹은 전체 읽음 처리하지 않는다")
 	void markGroupAsRead_skipsExpiredGroup() {
 		NotificationGroup group = org.mockito.Mockito.mock(NotificationGroup.class);
 		when(group.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(8));
 		when(notificationGroupRepository.findByIdWithNotifications(10L)).thenReturn(Optional.of(group));
+
+		Optional<NotificationGroupReadResult> result = commandService.markGroupAsRead(10L);
+
+		assertThat(result).isEmpty();
+		verify(notificationReadStatusRepository, never()).markAllAsRead(any(), any());
+	}
+
+	@Test
+	@DisplayName("그룹이 없으면 전체 읽음 처리하지 않는다")
+	void markGroupAsRead_returnsEmptyWhenGroupMissing() {
+		when(notificationGroupRepository.findByIdWithNotifications(10L)).thenReturn(Optional.empty());
 
 		Optional<NotificationGroupReadResult> result = commandService.markGroupAsRead(10L);
 

@@ -169,7 +169,13 @@ GET {{host}}/api/v1/notifications/{{notificationId}}
 ### 개별 알림 읽음 처리
 PATCH {{host}}/api/v1/notifications/{{notificationId}}/read
 
+### 개별 알림 읽음 처리 반복 호출 (예상: 성공, 기존 readAt 유지)
+PATCH {{host}}/api/v1/notifications/{{notificationId}}/read
+
 ### 그룹 전체 읽음 처리
+PATCH {{host}}/api/v1/notifications/groups/{{groupId}}/read
+
+### 그룹 전체 읽음 처리 반복 호출 (예상: 성공, readCount=0)
 PATCH {{host}}/api/v1/notifications/groups/{{groupId}}/read
 
 ### ==================================================

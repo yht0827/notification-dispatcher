@@ -8,6 +8,8 @@
 - [Outbox 발행 (DB -> RabbitMQ)](#outbox-발행-db---rabbitmq)
 - [WORK 소비 및 발송 성공](#work-소비-및-발송-성공)
 - [발송 실패 재시도 (WAIT) 및 최종 실패 (DLQ)](#발송-실패-재시도-wait-및-최종-실패-dlq)
+- [알림 읽음 처리](#알림-읽음-처리)
+- [아카이브 배치](#아카이브-배치)
 - [애플리케이션 시작 시 Pending 복구](#애플리케이션-시작-시-pending-복구)
 
 ---
@@ -69,7 +71,7 @@ sequenceDiagram
 
     S->>OP: pollAndPublish() every 1s
     OP->>OR: findByStatus(PENDING, 100)
-    OR->>DB: SELECT outbox WHERE status=PENDING
+    OR->>DB: SELECT outbox WHERE status=PENDING ORDER BY created_at ASC
     DB-->>OR: pendingOutboxes
     OR-->>OP: pendingOutboxes
 
@@ -96,49 +98,60 @@ sequenceDiagram
 
 ## WORK 소비 및 발송 성공
 
+`batch-listener-enabled=false` (기본) 기준. 배치 모드(`RabbitMQBatchConsumer`)도 동일한 `MessageProcessOrchestrator`를 통해 처리한다.
+
 ```mermaid
 sequenceDiagram
     participant RS as RabbitMQ WORK Queue
     participant C as RabbitMQConsumer
+    participant O as MessageProcessOrchestrator
     participant H as RabbitMQRecordHandler
     participant L as DispatchLockManager
     participant NR as NotificationRepository
     participant DS as NotificationDispatchService
     participant SA as NotificationSenderImpl
-    participant SF as ChannelSenderFactory
     participant CS as ChannelSender
     participant DB as MySQL
 
     RS-->>C: message(notificationId, retryCount)
-    C->>H: process(notificationId, retryCount)
-    H->>L: tryAcquire(notificationId)
+    C->>O: process(MessageProcessContext)
+    O->>O: validate payload
 
-    alt 락 획득 실패
-        H-->>C: return (중복 처리 방지)
-        C->>RS: basicAck
-    else 락 획득 성공
-        H->>NR: findById(notificationId)
-        NR->>DB: SELECT notification
-        DB-->>NR: notification
-        NR-->>H: notification
+    alt 유효하지 않은 메시지
+        O->>O: publishToDeadLetter
+        O-->>C: ack
+    else 유효한 메시지
+        O->>H: process(notificationId, retryCount)
+        H->>L: tryAcquire(notificationId)
 
-        H->>DS: dispatch(notification)
-        DS->>DB: UPDATE notification status=SENDING
-        DS->>SA: send(notification)
-        SA->>SF: getSender(channelType)
-        SF->>CS: resolve sender
-        CS-->>SA: SendResult.success
-        SA-->>DS: success
-        DS->>DB: UPDATE notification status=SENT, sent_at
-        DS-->>H: DispatchResult.success
+        alt 락 획득 실패
+            H-->>O: return (중복 처리 방지)
+            O-->>C: ack
+        else 락 획득 성공
+            H->>NR: findById(notificationId)
+            NR->>DB: SELECT notification
+            DB-->>NR: notification
+            NR-->>H: notification
 
-        H-->>C: success
-        C->>RS: basicAck
+            H->>DS: dispatch(notification)
+            DS->>DB: UPDATE status=SENDING
+            DS->>SA: send(notification)
+            SA->>CS: channelType 기반 Sender 선택 및 호출
+            CS-->>SA: SendResult.success
+            SA-->>DS: success
+            DS->>DB: UPDATE status=SENT, sent_at
+            DS-->>H: DispatchResult.success
+
+            H-->>O: success
+            O-->>C: ack
+            C->>RS: basicAck
+        end
     end
 ```
 
 핵심 포인트
 
+- `MessageProcessOrchestrator`가 유효성 검사, 분기, DLQ 전송을 담당한다.
 - `notificationId` 단위 분산 락으로 다중 컨슈머 중복 발송을 방지한다.
 - 성공 시 `SENT` 상태로 저장 후 WORK 메시지를 ACK한다.
 
@@ -150,6 +163,7 @@ sequenceDiagram
 sequenceDiagram
     participant RS as RabbitMQ WORK Queue
     participant C as RabbitMQConsumer
+    participant O as MessageProcessOrchestrator
     participant H as RabbitMQRecordHandler
     participant DS as NotificationDispatchService
     participant W as RabbitMQWaitPublisher
@@ -159,23 +173,26 @@ sequenceDiagram
     participant DLQ as RabbitMQ DLQ Queue
 
     RS-->>C: message(notificationId, retryCount)
-    C->>H: process(notificationId, retryCount)
+    C->>O: process(MessageProcessContext)
+    O->>H: process(notificationId, retryCount)
     H->>DS: dispatch(notification)
     DS-->>H: DispatchResult.fail(reason)
 
     alt retryCount < maxRetryCount
-        H-->>C: throw RetryableMessageException
-        C->>W: publish(notificationId, retryCount, reason)
-        W->>WS: WAIT 큐 발행 {expiration, retryCount}
+        H-->>O: throw RetryableMessageException
+        O->>W: publish(notificationId, retryCount, reason)
+        W->>WS: WAIT 큐 발행 {expiration=delay, retryCount}
+        O-->>C: ack
         C->>RS: basicAck
 
         WS->>B: TTL 만료
-        B->>RS: DLX 라우팅으로 WORK 재진입 {retryCount + 1}
+        B->>RS: DLX 라우팅으로 WORK 재진입 {retryCount+1}
     else retryCount >= maxRetryCount
         H->>DS: markAsFailed(notificationId, reason)
-        H-->>C: throw NonRetryableMessageException
-        C->>D: publish(sourceRecordId, payload, reason)
+        H-->>O: throw NonRetryableMessageException
+        O->>D: publish(sourceRecordId, payload, reason)
         D->>DLQ: DLQ 큐 발행
+        O-->>C: ack
         C->>RS: basicAck
     end
 ```
@@ -183,7 +200,89 @@ sequenceDiagram
 핵심 포인트
 
 - 재시도 가능 오류는 WAIT 큐(TTL + DLX)로 이동 후 WORK 큐로 자동 재진입한다.
+- 429 Rate Limit 응답 시 `Retry-After` 헤더 값을 WAIT TTL로 사용한다.
 - 재시도 불가/한도 초과 오류는 DLQ로 이동해 운영자가 별도 대응한다.
+
+---
+
+## 알림 읽음 처리
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant API as NotificationController
+    participant WS as NotificationWriteService
+    participant NR as NotificationRepository
+    participant RSR as NotificationReadStatusRepository
+    participant DB as MySQL
+
+    C->>API: PATCH /api/v1/notifications/{notificationId}/read
+    API->>WS: markAsRead(notificationId)
+    WS->>NR: findById(notificationId)
+    NR->>DB: SELECT notification
+    DB-->>NR: notification or empty
+
+    alt 알림 미존재
+        WS-->>API: Optional.empty
+        API-->>C: 404 NOT FOUND
+    else 알림 존재
+        WS->>RSR: findById(notificationId)
+        RSR->>DB: SELECT notification_read_status
+
+        alt 이미 읽음
+            RSR-->>WS: existing readStatus
+            WS-->>API: NotificationReadResult(existing readAt)
+        else 미읽음
+            WS->>RSR: save(notificationId, now)
+            RSR->>DB: INSERT notification_read_status
+            WS-->>API: NotificationReadResult(readAt)
+        end
+
+        API-->>C: 200 OK {notificationId, readAt}
+    end
+```
+
+핵심 포인트
+
+- 읽음 상태는 `Notification` 엔티티가 아닌 별도 테이블 `notification_read_status`에서 관리한다.
+- 이미 읽은 알림을 다시 읽음 처리해도 기존 `readAt`을 반환한다 (멱등).
+- 그룹 읽음 처리(`PATCH /groups/{groupId}/read`)도 동일 패턴으로 그룹 내 알림을 일괄 처리한다.
+
+---
+
+## 아카이브 배치
+
+```mermaid
+sequenceDiagram
+    participant S as Scheduler
+    participant AS as NotificationArchiveService
+    participant DB as MySQL
+
+    S->>AS: archiveExpiredData() (매일)
+    AS->>AS: cutoff = now() - retentionDays(7)
+
+    loop notification 배치 (0건 될 때까지)
+        AS->>DB: SELECT id FROM notification WHERE created_at < cutoff AND status IN (SENT,FAILED,CANCELED) LIMIT batchSize
+        AS->>DB: INSERT INTO notification_read_status_archive SELECT ... (FK 먼저)
+        AS->>DB: DELETE FROM notification_read_status WHERE notification_id IN (...)
+        AS->>DB: INSERT INTO notification_archive SELECT ...
+        AS->>DB: DELETE FROM notification WHERE id IN (...)
+    end
+
+    loop group 배치 (0건 될 때까지)
+        AS->>DB: SELECT group_id FROM notification_group WHERE 연결된 notification 없음 AND created_at < cutoff
+        AS->>DB: INSERT INTO notification_group_archive SELECT ...
+        AS->>DB: DELETE FROM notification_group WHERE id IN (...)
+    end
+
+    AS-->>S: ArchiveRunResult(cutoff, archivedNotifications, archivedGroups)
+```
+
+핵심 포인트
+
+- notification 먼저, group은 그 다음 (notification이 모두 없어진 그룹만 이관 가능).
+- `notification_read_status` → `notification` 순서로 삭제 (FK 제약 준수).
+- 각 단계는 `TransactionTemplate`으로 배치 단위 트랜잭션 처리.
 
 ---
 

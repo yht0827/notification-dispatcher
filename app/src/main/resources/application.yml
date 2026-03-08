@@ -62,7 +62,7 @@ resilience4j:
       mockApi:
         sliding-window-size: 20
         minimum-number-of-calls: 20
-        failure-rate-threshold: 50 # 10건 중 5건 실패 시 OPEN
+        failure-rate-threshold: 30 # mixed-latency VU15 재검증(r1~r3) 기준
         wait-duration-in-open-state: 10s
         record-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiRetryableException
@@ -160,7 +160,7 @@ notification:
     retry-jitter-factor: 0.20                  # 재시도 대기 지터 비율 (20%)
     concurrency: 2
     max-concurrency: 2
-    prefetch: 100
+    prefetch: 5
     batch-listener-enabled: true               # 배치 리스너 활성화
     batch-size: 50                             # 배치 수집 크기
     batch-receive-timeout-millis: 200          # 배치 수집 대기(ms)
