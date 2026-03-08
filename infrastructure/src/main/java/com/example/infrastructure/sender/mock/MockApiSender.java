@@ -50,4 +50,8 @@ public class MockApiSender {
 	private void recordFailureMetric(String type) {
 		meterRegistry.counter("notification.mockapi.failures", "type", type).increment();
 	}
+
+	private void recordFailureMetric(String type) {
+		meterRegistry.counter("notification.mockapi.failures", "type", type).increment();
+	}
 }

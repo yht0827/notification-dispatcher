@@ -43,7 +43,7 @@ public class MessageProcessOrchestrator {
 			log.warn("재시도 불필요 메시지 DLQ 전송: notificationId={}, reason={}", notificationId, exception.getMessage());
 			return MessageProcessDecision.ack(context.deliveryTag());
 		} catch (RetryableMessageException exception) {
-			publishToWait(notificationId, retryCount, exception.getMessage());
+			publishToWait(notificationId, retryCount, exception.getMessage(), exception.retryDelayMillis());
 			log.info("WAIT 큐 이동: notificationId={}, retryCount={}, reason={}",
 				notificationId, retryCount, exception.getMessage());
 			return MessageProcessDecision.ack(context.deliveryTag());
@@ -116,7 +116,7 @@ public class MessageProcessOrchestrator {
 			return MessageProcessDecision.ack(context.deliveryTag());
 		}
 		if (result.isRetryableFailure()) {
-			publishToWait(result.notificationId(), result.retryCount(), result.reason());
+			publishToWait(result.notificationId(), result.retryCount(), result.reason(), result.retryDelayMillis());
 			return MessageProcessDecision.ack(context.deliveryTag());
 		}
 		return MessageProcessDecision.nack(context.deliveryTag());
@@ -134,7 +134,7 @@ public class MessageProcessOrchestrator {
 		dlqPublisher.publish(sourceRecordId, payload, notificationId, reason);
 	}
 
-	private void publishToWait(Long notificationId, int retryCount, String reason) {
-		waitPublisher.publish(notificationId, retryCount, reason);
+	private void publishToWait(Long notificationId, int retryCount, String reason, Long retryDelayMillis) {
+		waitPublisher.publish(notificationId, retryCount, reason, retryDelayMillis);
 	}
 }

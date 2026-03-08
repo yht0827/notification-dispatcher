@@ -11,28 +11,17 @@ spring:
       read-unknown-enum-values-using-default-value: true
 
 mock:
-  mode: RANDOM  # 채널 설정이 없을 때 사용하는 전역 기본값 (RANDOM | ALWAYS_SUCCESS | ALWAYS_FAIL | ALWAYS_DELAY)
-  channels:
-    email:
-      mode: RANDOM    # 채널별 독립 모드. 미설정 시 전역 mode 사용
-    sms:
-      mode: RANDOM
-    kakao:
-      mode: RANDOM
+  mode: RANDOM  # RANDOM | ALWAYS_SUCCESS | ALWAYS_FAIL | ALWAYS_DELAY
   latency:
     enabled: true
-    probability: 0.25
-    min-ms: 800
-    max-ms: 4000
+    probability: 0.15
+    min-ms: 300
+    max-ms: 2500
   failure:
     enabled: true
     probability: 0.10
-    types: [ 500, 503, 429 ]
+    types: [500, 503, 429]
     retry-after-seconds: 15
-  rate-limit:
-    enabled: false
-    default-per-second: 0
-    retry-after-seconds: 1
   log:
     include-masked-message-preview: false
     message-preview-length: 20

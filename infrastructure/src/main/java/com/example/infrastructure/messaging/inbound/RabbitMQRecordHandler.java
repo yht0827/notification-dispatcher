@@ -239,7 +239,7 @@ public class RabbitMQRecordHandler {
 				null);
 		}
 		// Wait 큐로 이동
-		return new RetryableMessageException("알림 발송 실패: " + failureReason);
+		return new RetryableMessageException("알림 발송 실패: " + failureReason, dispatchResult.retryDelayMillis());
 	}
 
 	private NonRetryableMessageException toNonRetryableAfterMarkFailed(Long notificationId, String reason,
@@ -288,7 +288,8 @@ public class RabbitMQRecordHandler {
 			request.contextId(),
 			request.notificationId(),
 			request.retryCount(),
-			normalizeReason(dispatchResult.failReason())
+			normalizeReason(dispatchResult.failReason()),
+			dispatchResult.retryDelayMillis()
 		);
 	}
 

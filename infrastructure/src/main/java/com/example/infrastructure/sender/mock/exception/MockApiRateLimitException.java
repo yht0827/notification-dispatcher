@@ -9,6 +9,11 @@ public class MockApiRateLimitException extends RuntimeException {
 		this.retryAfterMillis = normalizeRetryAfterMillis(retryAfterMillis);
 	}
 
+	public MockApiRateLimitException(String message, Throwable cause, Long retryAfterMillis) {
+		super(message, cause);
+		this.retryAfterMillis = normalizeRetryAfterMillis(retryAfterMillis);
+	}
+
 	public Long retryAfterMillis() {
 		return retryAfterMillis;
 	}
