@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -54,6 +57,20 @@ class MockApiErrorDecoderTest {
 		assertThat(exception).isInstanceOf(MockApiRateLimitException.class);
 		assertThat(((MockApiRateLimitException)exception).retryAfterMillis()).isEqualTo(15_000L);
 		assertThat(exception).hasMessageContaining("Rate Limit(429)");
+	}
+
+	@Test
+	@DisplayName("429 Retry-After RFC1123 날짜 형식도 파싱한다")
+	void decode_parsesRetryAfterDateHeaderFor429() {
+		String retryAfter = OffsetDateTime.now(ZoneOffset.UTC)
+			.plusSeconds(30)
+			.format(DateTimeFormatter.RFC_1123_DATE_TIME);
+		Response response = responseWithStatus(429, null, Map.of("Retry-After", List.of(retryAfter)));
+
+		Exception exception = decoder.decode("mockApi#send", response);
+
+		assertThat(exception).isInstanceOf(MockApiRateLimitException.class);
+		assertThat(((MockApiRateLimitException)exception).retryAfterMillis()).isBetween(1_000L, 30_000L);
 	}
 
 	@Test

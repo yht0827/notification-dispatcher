@@ -98,34 +98,35 @@ sequenceDiagram
 
 ## WORK 소비 및 발송 성공
 
-`RabbitMQBatchConsumer`가 배치 단위로 WORK 큐를 소비한다.
+`batch-listener-enabled=false` (기본) 기준. 배치 모드(`RabbitMQBatchConsumer`)도 동일한 `MessageProcessOrchestrator`를 통해 처리한다.
 
 ```mermaid
 sequenceDiagram
     participant RS as RabbitMQ WORK Queue
-    participant C as RabbitMQBatchConsumer
+    participant C as RabbitMQConsumer
+    participant O as MessageProcessOrchestrator
     participant H as RabbitMQRecordHandler
     participant L as DispatchLockManager
     participant NR as NotificationRepository
     participant DS as NotificationDispatchService
     participant SA as NotificationSenderImpl
     participant CS as ChannelSender
-    participant DLQ as DeadLetterPublisher
     participant DB as MySQL
 
-    RS-->>C: messages(List~Message~)
-    C->>C: MessageProcessContext 생성 및 유효성 검사
+    RS-->>C: message(notificationId, retryCount)
+    C->>O: process(MessageProcessContext)
+    O->>O: validate payload
 
     alt 유효하지 않은 메시지
-        C->>DLQ: publish(sourceRecordId, payload, reason)
-        C->>RS: basicAck
+        O->>O: publishToDeadLetter
+        O-->>C: ack
     else 유효한 메시지
-        C->>H: processBatch(requests)
+        O->>H: process(notificationId, retryCount)
         H->>L: tryAcquire(notificationId)
 
         alt 락 획득 실패
-            H-->>C: skipped
-            C->>RS: basicAck
+            H-->>O: return (중복 처리 방지)
+            O-->>C: ack
         else 락 획득 성공
             H->>NR: findById(notificationId)
             NR->>DB: SELECT notification
@@ -139,9 +140,10 @@ sequenceDiagram
             CS-->>SA: SendResult.success
             SA-->>DS: success
             DS->>DB: UPDATE status=SENT, sent_at
-            DS-->>H: success
+            DS-->>H: DispatchResult.success
 
-            H-->>C: RecordProcessResult(success)
+            H-->>O: success
+            O-->>C: ack
             C->>RS: basicAck
         end
     end
@@ -149,7 +151,7 @@ sequenceDiagram
 
 핵심 포인트
 
-- `RabbitMQBatchConsumer`가 유효성 검사, 분기, DLQ/WAIT 발행을 모두 직접 처리한다.
+- `MessageProcessOrchestrator`가 유효성 검사, 분기, DLQ 전송을 담당한다.
 - `notificationId` 단위 분산 락으로 다중 컨슈머 중복 발송을 방지한다.
 - 성공 시 `SENT` 상태로 저장 후 WORK 메시지를 ACK한다.
 
@@ -160,33 +162,37 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant RS as RabbitMQ WORK Queue
-    participant C as RabbitMQBatchConsumer
+    participant C as RabbitMQConsumer
+    participant O as MessageProcessOrchestrator
     participant H as RabbitMQRecordHandler
     participant DS as NotificationDispatchService
-    participant W as WaitPublisher
+    participant W as RabbitMQWaitPublisher
     participant WS as RabbitMQ WAIT Queue
     participant B as RabbitMQ Broker (TTL + DLX)
-    participant D as DeadLetterPublisher
+    participant D as RabbitMQDlqPublisher
     participant DLQ as RabbitMQ DLQ Queue
 
-    RS-->>C: messages(List~Message~)
-    C->>H: processBatch(requests)
+    RS-->>C: message(notificationId, retryCount)
+    C->>O: process(MessageProcessContext)
+    O->>H: process(notificationId, retryCount)
     H->>DS: dispatch(notification)
     DS-->>H: DispatchResult.fail(reason)
 
-    alt retryableFailure (retryCount < maxRetryCount)
-        H-->>C: RecordProcessResult(retryableFailure)
-        C->>W: publish(notificationId, retryCount, reason, retryDelayMillis)
-        W->>WS: WAIT 큐 발행 {expiration=delay, nextRetryCount}
+    alt retryCount < maxRetryCount
+        H-->>O: throw RetryableMessageException
+        O->>W: publish(notificationId, retryCount, reason)
+        W->>WS: WAIT 큐 발행 {expiration=delay, retryCount}
+        O-->>C: ack
         C->>RS: basicAck
 
         WS->>B: TTL 만료
         B->>RS: DLX 라우팅으로 WORK 재진입 {retryCount+1}
-    else nonRetryableFailure (retryCount >= maxRetryCount)
+    else retryCount >= maxRetryCount
         H->>DS: markAsFailed(notificationId, reason)
-        H-->>C: RecordProcessResult(nonRetryableFailure)
-        C->>D: publish(sourceRecordId, payload, notificationId, reason)
+        H-->>O: throw NonRetryableMessageException
+        O->>D: publish(sourceRecordId, payload, reason)
         D->>DLQ: DLQ 큐 발행
+        O-->>C: ack
         C->>RS: basicAck
     end
 ```

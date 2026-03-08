@@ -115,6 +115,8 @@ class NotificationControllerTest {
 		assertThat(response.data().groupId()).isEqualTo(1L);
 		assertThat(response.data().notifications()).hasSize(1);
 		assertThat(response.data().notifications().getFirst().isRead()).isTrue();
+		assertThat(response.data().notifications().getFirst().readAt())
+			.isEqualTo(LocalDateTime.of(2026, 3, 8, 12, 0));
 	}
 
 	@Test
@@ -238,6 +240,7 @@ class NotificationControllerTest {
 		assertThat(response.data().groupId()).isEqualTo(10L);
 		assertThat(response.data().readCount()).isEqualTo(2);
 		assertThat(response.data().readAt()).isEqualTo(LocalDateTime.of(2026, 3, 8, 12, 0));
+		assertThat(response.data().message()).isEqualTo("알림 그룹을 읽음 처리했습니다.");
 	}
 
 	@Test
