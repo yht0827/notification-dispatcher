@@ -19,11 +19,9 @@ classDiagram
     class NotificationController {
       +send(request)
       +markAsRead(notificationId)
-      +getNotificationBundles(cursorId, size)
       +getGroup(groupId)
       +getGroupsByClientId(clientId)
       +getNotification(notificationId)
-      +getNotificationsByReceiver(receiver)
     }
 
     class NotificationWriteUseCase {
@@ -34,7 +32,6 @@ classDiagram
 
     class NotificationQueryUseCase {
       <<interface>>
-      +getRecentGroups(cursorId, size) CursorSlice
       +getGroupDetail(groupId) Optional~NotificationGroup~
       +getNotification(notificationId) Optional~Notification~
     }
@@ -96,9 +93,6 @@ classDiagram
     class BaseEntity {
       +createdAt
       +updatedAt
-      +deletedAt
-      +delete()
-      +isDeleted()
     }
 
     class NotificationGroup {

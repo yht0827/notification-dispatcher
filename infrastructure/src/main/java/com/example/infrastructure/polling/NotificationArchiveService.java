@@ -92,8 +92,7 @@ public class NotificationArchiveService {
 		return jdbcTemplate.queryForList("""
 				SELECT id
 				FROM notification
-				WHERE deleted_at IS NULL
-				  AND created_at < ?
+				WHERE created_at < ?
 				  AND status IN (?, ?, ?)
 				ORDER BY id
 				LIMIT ?
@@ -111,14 +110,12 @@ public class NotificationArchiveService {
 		return jdbcTemplate.queryForList("""
 				SELECT g.id
 				FROM notification_group g
-				WHERE g.deleted_at IS NULL
-				  AND g.created_at < ?
+				WHERE g.created_at < ?
 				  AND g.total_count = g.sent_count + g.failed_count
 				  AND NOT EXISTS (
 				      SELECT 1
 				      FROM notification n
 				      WHERE n.group_id = g.id
-				        AND n.deleted_at IS NULL
 				  )
 				ORDER BY g.id
 				LIMIT ?

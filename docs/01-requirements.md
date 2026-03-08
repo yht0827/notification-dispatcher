@@ -9,11 +9,10 @@
 - [API 전체 요약](#api-전체-요약)
 - [알림 발송](#알림-발송)
 - [알림 조회](#알림-조회)
-- [알림 읽음 처리](#알림-읽음-처리)
 - [비동기 처리 규칙](#비동기-처리-규칙)
 - [상태 전이 규칙](#상태-전이-규칙)
-- [데이터 보관 및 아카이빙](#데이터-보관-및-아카이빙)
 - [비기능적 요구사항](#비기능적-요구사항)
+- [운영 체크포인트](#운영-체크포인트)
 
 ---
 
@@ -34,8 +33,6 @@
 | WAIT 큐 | WAIT Queue | 재시도 대기 메시지 큐 |
 | DLQ | Dead Letter Queue | 재시도 불가 메시지 보관 큐 |
 | 분산 락 | Distributed Lock | 중복 발송 방지를 위한 Redis 락 |
-| 읽음 상태 | Read Status | 알림 읽음 여부 (`notification_read_status` 별도 테이블) |
-| 아카이브 | Archive | 만료 + 종결 알림을 별도 테이블로 이관하는 작업 |
 
 ---
 
@@ -50,17 +47,12 @@ Client
   -> DB 저장 (notification_group, notification, outbox)
   -> OutboxPoller
   -> RabbitMQ WORK Queue
-  -> RabbitMQBatchConsumer
-  -> RabbitMQRecordHandler
+  -> RabbitMQConsumer
   -> NotificationDispatchService
   -> ChannelSender(EMAIL/SMS/KAKAO)
 
 실패 시: WORK -> WAIT(지수 백오프) -> WORK 재발행
 최종 실패: WORK -> DLQ
-
-아카이빙: NotificationArchiveScheduler
-  -> 매일 실행: retentionDays 경과 + terminal 알림을 archive 테이블로 이관 후 삭제
-  -> 매월 1일: NotificationPartitionManager로 다음 달 파티션 생성 및 오래된 파티션 DROP
 ```
 
 ### 핵심 패턴
@@ -73,8 +65,6 @@ Client
 | Retry with WAIT Queue | WAIT TTL + DLX 라우팅 기반 재처리 |
 | Distributed Lock | notificationId 단위 중복 처리 방지 |
 | Idempotency Key | `clientId + idempotencyKey` 기반 중복 요청 방지 |
-| Monthly Archive | 만료 알림을 월별 RANGE 파티션 테이블로 이관 |
-| Separate Read Status | `notification_read_status` 별도 테이블로 읽음 상태 관리 |
 
 ### 모듈 구성
 
@@ -82,26 +72,20 @@ Client
 |------|------|
 | `domain` | 엔티티/도메인 규칙 (`Notification`, `NotificationGroup`, `Outbox`) |
 | `application` | 유스케이스/서비스/포트 정의 |
-| `infrastructure` | JPA, RabbitMQ, Lock, Sender, Archive 구현 |
+| `infrastructure` | JPA, RabbitMQ, Lock, Sender 구현 |
 | `api` | HTTP Controller, DTO, 예외 응답 |
-| `mock` | 외부 채널 API Mock 서버 (`MockApiController`, `MockApiScenarioProperties`) |
 | `app` | Spring Boot 실행 진입점 (`@EnableScheduling`) |
 
 ---
 
 ## API 전체 요약
 
-모든 엔드포인트는 `X-Api-Key` 헤더로 인증한다. 헤더가 없거나 유효하지 않으면 `401 UNAUTHORIZED`를 반환한다. `clientId`는 이 헤더 값에서 추출되므로 Request Body나 쿼리 파라미터에 포함하지 않는다.
-
 | 도메인 | 기능 | METHOD | URI | 인증 |
 |--------|------|--------|-----|------|
-| 알림 | 알림 발송 | POST | `/api/v1/notifications` | O |
-| 알림 | 개별 알림 조회 | GET | `/api/v1/notifications/{notificationId}` | O |
-| 알림 | 알림 읽음 처리 | PATCH | `/api/v1/notifications/{notificationId}/read` | O |
-| 알림 | 읽지 않은 알림 개수 조회 | GET | `/api/v1/notifications/unread-count` | O |
-| 그룹 | 그룹 상세 조회 | GET | `/api/v1/notifications/groups/{groupId}` | O |
-| 그룹 | 클라이언트별 그룹 목록 조회 | GET | `/api/v1/notifications/groups` | O |
-| 그룹 | 그룹 전체 읽음 처리 | PATCH | `/api/v1/notifications/groups/{groupId}/read` | O |
+| 알림 | 알림 발송 | POST | `/api/v1/notifications` | X |
+| 알림 | 개별 알림 조회 | GET | `/api/v1/notifications/{notificationId}` | X |
+| 그룹 | 그룹 상세 조회 | GET | `/api/v1/notifications/groups/{groupId}` | X |
+| 그룹 | 클라이언트별 그룹 조회 | GET | `/api/v1/notifications/groups?clientId={clientId}` | X |
 
 ---
 
@@ -111,7 +95,7 @@ Client
 
 | METHOD | URI | 설명 | 인증 |
 |--------|-----|------|------|
-| POST | `/api/v1/notifications` | 단일/대량 알림 발송 요청 | 필요 (`X-Api-Key`) |
+| POST | `/api/v1/notifications` | 단일/대량 알림 발송 요청 | 불필요 |
 
 #### 기능적 요구사항
 
@@ -122,16 +106,15 @@ Client
 
 #### 입력 제약
 
-| 위치 | 필드 | 제약 |
-|------|------|------|
-| 헤더 | `X-Api-Key` | 필수, 등록된 API 키 (= `clientId`) |
-| Body | `sender` | 필수, 공백 불가 |
-| Body | `title` | 필수, 공백 불가 |
-| Body | `content` | 필수, 공백 불가 |
-| Body | `channelType` | 필수, `EMAIL` / `SMS` / `KAKAO` |
-| Body | `receivers` | 필수, 최소 1개 이상 |
-| Body | `idempotencyKey` | 선택, 공백이면 `null` 처리 |
-| Body | `scheduledAt` | 선택, 미래 시각만 허용 (없으면 즉시 발송) |
+| 필드 | 제약 |
+|------|------|
+| `clientId` | 필수, 공백 불가 |
+| `sender` | 필수, 공백 불가 |
+| `title` | 필수, 공백 불가 |
+| `content` | 필수, 공백 불가 |
+| `channelType` | 필수, `EMAIL` / `SMS` / `KAKAO` |
+| `receivers` | 필수, 최소 1개 이상 |
+| `idempotencyKey` | 선택, 공백이면 `null` 처리 |
 
 #### Happy Path
 
@@ -144,24 +127,20 @@ Client
 6. Notification별 Outbox 이벤트 N건 저장
 7. 201 Created 응답 (groupId, totalCount)
 8. OutboxPoller가 Outbox를 WORK 큐로 발행
-9. RabbitMQBatchConsumer가 WORK를 읽어 RabbitMQRecordHandler로 채널 발송 수행
+9. RabbitMQConsumer가 WORK를 읽어 채널 발송 수행
 ```
 
-#### Request
-
-```http
-X-Api-Key: order-service
-```
+#### Request Body
 
 ```json
 {
+  "clientId": "order-service",
   "sender": "MyShop",
   "title": "주문 완료",
   "content": "주문이 완료되었습니다. 주문번호: #12345",
   "channelType": "EMAIL",
   "receivers": ["user@example.com"],
-  "idempotencyKey": "order-12345",
-  "scheduledAt": null
+  "idempotencyKey": "order-12345"
 }
 ```
 
@@ -182,12 +161,9 @@ X-Api-Key: order-service
 
 | 케이스 | 설명 | HTTP 상태코드 |
 |--------|------|---------------|
-| API 키 누락 | `X-Api-Key` 헤더 없음 | `401 UNAUTHORIZED` |
-| API 키 무효 | 등록되지 않은 키 | `401 UNAUTHORIZED` |
-| 필수값 누락 | `sender`, `title`, `content` 등 누락/공백 | `400 BAD REQUEST` |
+| 필수값 누락 | `clientId`, `sender`, `title` 등 누락/공백 | `400 BAD REQUEST` |
 | 수신자 없음 | `receivers`가 빈 배열 | `400 BAD REQUEST` |
 | 잘못된 채널 | 역직렬화 불가 채널 값 | `400 BAD REQUEST` |
-| 과거 예약 시각 | `scheduledAt`이 현재 시각 이전 | `400 BAD REQUEST` |
 | 서버 오류 | 예기치 않은 예외 | `500 INTERNAL SERVER ERROR` |
 
 ---
@@ -198,14 +174,13 @@ X-Api-Key: order-service
 
 | METHOD | URI | 설명 |
 |--------|-----|------|
-| GET | `/api/v1/notifications/groups` | 특정 클라이언트 그룹 목록 조회 |
-
-`clientId`는 `X-Api-Key` 헤더에서 추출한다.
+| GET | `/api/v1/notifications/groups?clientId={clientId}` | 특정 클라이언트 그룹 목록 조회 |
 
 #### 쿼리 파라미터
 
 | 파라미터 | 타입 | 필수 | 기본값 | 설명 |
 |----------|------|------|--------|------|
+| `clientId` | String | O | - | 그룹 생성 주체 식별자 |
 | `cursorId` | Long | X | - | 이전 페이지 마지막 그룹 ID |
 | `size` | Integer | X | 20 | 조회 크기 (`1~100`) |
 
@@ -263,72 +238,15 @@ X-Api-Key: order-service
 |--------|-----|------|
 | GET | `/api/v1/notifications/{notificationId}` | 알림 단건 조회 |
 
-### 조회 API Fail Cases
+#### 조회 API Fail Cases
 
 | 케이스 | 설명 | HTTP 상태코드 |
 |--------|------|---------------|
-| API 키 누락/무효 | `X-Api-Key` 헤더 없음 또는 등록되지 않은 키 | `401 UNAUTHORIZED` |
 | `size` 범위 오류 | `size < 1` 또는 `size > 100` | `400 BAD REQUEST` |
 | `cursorId` 범위 오류 | `cursorId <= 0` | `400 BAD REQUEST` |
+| `clientId` 공백 | clientId 파라미터 빈 값 | `400 BAD REQUEST` |
 | 그룹 미존재 | 존재하지 않는 `groupId` | `404 NOT FOUND` |
 | 알림 미존재 | 존재하지 않는 `notificationId` | `404 NOT FOUND` |
-
----
-
-## 알림 읽음 처리
-
-읽음 상태는 `Notification` 엔티티가 아닌 별도 테이블 `notification_read_status`에서 관리한다.
-
-### 개별 알림 읽음 처리
-
-| METHOD | URI | 설명 |
-|--------|-----|------|
-| PATCH | `/api/v1/notifications/{notificationId}/read` | 알림 단건 읽음 처리 |
-
-#### 기능적 요구사항
-
-- 알림이 존재하지 않으면 `404 NOT FOUND`
-- 이미 읽은 알림에 대해 재요청하면 기존 `readAt`을 그대로 반환 (멱등 처리)
-- `notification_read_status`에 `(notification_id, read_at)` INSERT
-
-#### Response Body
-
-```json
-{
-  "success": true,
-  "data": {
-    "notificationId": 101,
-    "readAt": "2026-03-08T10:00:00"
-  }
-}
-```
-
-### 그룹 전체 읽음 처리
-
-| METHOD | URI | 설명 |
-|--------|-----|------|
-| PATCH | `/api/v1/notifications/groups/{groupId}/read` | 그룹 내 모든 알림 읽음 처리 |
-
-#### 기능적 요구사항
-
-- 그룹이 존재하지 않으면 `404 NOT FOUND`
-- 그룹 내 읽지 않은 알림에 대해서만 `notification_read_status` INSERT
-- 이미 읽은 알림은 건너뜀 (멱등 처리)
-
-#### Response Body
-
-```json
-{
-  "success": true,
-  "data": {
-    "groupId": 10,
-    "readCount": 2,
-    "readAt": "2026-03-08T10:00:00"
-  }
-}
-```
-
----
 
 ## 비동기 처리 규칙
 
@@ -341,19 +259,12 @@ X-Api-Key: order-service
 
 ### RabbitMQ 소비
 
-`RabbitMQBatchConsumer`가 WORK 큐를 배치로 소비한다. `notification.rabbitmq.messaging-enabled=true` 설정 시 활성화된다.
-
-처리 흐름:
-- WORK 큐에서 배치(최대 `batch-size`건) 수신 (manual ACK)
-- 메시지별 `MessageProcessContext` 생성 및 유효성 검사
-- 유효하지 않은 메시지 → `DeadLetterPublisher`로 DLQ 발행 후 ACK
-- 유효한 메시지 → `RabbitMQRecordHandler.processBatch()` 위임
-- `RabbitMQRecordHandler`에서 `DispatchLockManager.tryAcquire(notificationId)` 수행
-- 처리 결과 분류:
-  - `success` / `skipped` → ACK
-  - `nonRetryableFailure` → `DeadLetterPublisher`로 DLQ 발행 후 ACK
-  - `retryableFailure` → `WaitPublisher`로 WAIT 큐 발행 후 ACK
-  - 기타 → NACK
+- WORK 큐 수신 (manual ACK)
+- 메시지 처리 전 `DispatchLockManager.tryAcquire(notificationId)` 수행
+- 예외 분류:
+  - `RetryableMessageException` -> WAIT 큐 전송
+  - `NonRetryableMessageException` -> DLQ 큐 전송
+- WAIT/DLQ 전송 성공 시 원본 WORK 메시지 ACK
 
 ### 재시도 전략
 
@@ -362,11 +273,11 @@ X-Api-Key: order-service
 - WAIT 큐에 TTL 설정된 메시지가 만료되면 Broker DLX 라우팅으로 WORK 재진입
 - 재진입 시 `retryCount + 1`
 
-### 429 Rate Limit 처리
+### 시작 시 복구 전략
 
-- 외부 채널 API에서 `429 Too Many Requests` 응답 시 Retryable 예외로 처리
-- `Retry-After` 헤더가 있으면 해당 값을 WAIT 큐 TTL로 사용
-- 관련 메트릭 기록 및 재시도 카운트 증가
+- 앱 시작 시 Consumer Group 없으면 생성
+- WORK Pending 메시지를 조회해 WAIT로 이관 후 ACK
+- 복구 중 일부 메시지 실패가 발생해도 나머지 복구는 계속 진행
 
 ---
 
@@ -388,7 +299,7 @@ PENDING -> CANCELED
 | `FAILED` | 최종 실패 | O |
 | `CANCELED` | 취소 | O |
 
-> 재시도는 RabbitMQ WAIT 큐(TTL + DLX)에서 관리하며, Notification 엔티티는 최종 결과(SENT/FAILED)만 기록한다.
+> 구현 메모: 재시도는 RabbitMQ WAIT 큐(TTL + DLX)에서 관리하며, Notification 엔티티는 최종 결과(SENT/FAILED)만 기록한다.
 
 ### Outbox 상태
 
@@ -396,38 +307,7 @@ PENDING -> CANCELED
 |------|------|
 | `PENDING` | 발행 대기 |
 | `PROCESSED` | 발행 완료 |
-| `FAILED` | 발행 실패 (상태 정의 존재, 현재 Poller 기본 경로는 delete-on-success) |
-
----
-
-## 데이터 보관 및 아카이빙
-
-### 보관 정책
-
-- 메인 테이블(`notification`, `notification_group`)은 최근 7일 데이터만 서비스에서 조회한다.
-- `retentionDays` 경과 + 종결 상태(`SENT`/`FAILED`/`CANCELED`) 알림은 배치로 archive 테이블에 이관 후 삭제된다.
-
-### Archive 배치 순서
-
-| 순서 | 작업 | 설명 |
-|------|------|------|
-| 1 | `notification_read_status_archive` INSERT | 읽음 상태 먼저 이관 (FK 순서) |
-| 2 | `notification_read_status` DELETE | 원본 읽음 상태 삭제 |
-| 3 | `notification_archive` INSERT | 알림 이관 |
-| 4 | `notification` DELETE | 원본 알림 삭제 |
-| 5 | `notification_group_archive` INSERT | 모든 알림이 이관된 그룹 이관 |
-| 6 | `notification_group` DELETE | 원본 그룹 삭제 |
-
-### Archive 테이블 파티션
-
-- 3개 archive 테이블 모두 월별 RANGE 파티션 (`YEAR * 100 + MONTH`)
-- DDL에 2026-01 ~ 2027-12 파티션 사전 정의, 이후는 `p_future`
-- `NotificationArchiveScheduler`가 매월 1일 `NotificationPartitionManager`를 통해 다음 달 파티션 자동 생성
-- 오래된 파티션은 `ArchiveStorage.export()` 후 `ALTER TABLE ... DROP PARTITION`으로 삭제 (현재 `NoOpArchiveStorage` - S3 연동 시 교체)
-
-### Archive 조회
-
-아카이브 테이블에 대한 사용자 조회 API는 없다. 법적/감사 목적 조회는 운영 도구나 S3 Export를 통해 별도 처리한다.
+| `FAILED` | 발행 실패(상태 정의 존재, 현재 Poller 기본 경로는 delete-on-success) |
 
 ---
 
@@ -436,9 +316,8 @@ PENDING -> CANCELED
 ### 성능
 
 - API 검증/조회는 동기 처리, 발송은 비동기 처리로 분리
-- Outbox Poller는 1초 주기로 동작
+- Outbox Poller와 WAIT Scheduler는 1초 주기로 동작
 - 커서 조회는 `id DESC` 기반으로 페이징한다.
-- 인덱스: 그룹 조회 `(client_id, created_at)`, Outbox 조회 `(status, created_at)`
 
 ### 신뢰성
 
@@ -446,10 +325,18 @@ PENDING -> CANCELED
 - 분산 락으로 동일 알림 중복 처리 방지
 - 재시도 가능한 오류는 WAIT 큐에서 지수 백오프
 - 재시도 불가 오류는 DLQ에 보관
-- 만료 데이터는 archive 테이블에 보존
 
 ### 확장성
 
-- Consumer Group 구조로 컨슈머 수평 확장 가능
-- `ChannelSender` 전략 인터페이스로 채널 추가 가능
-- `ArchiveStorage` 인터페이스 교체로 S3 연동 확장 가능
+- Consumer Group 구조로 컨슈머 확장 가능
+- `ChannelSender` 전략 인터페이스로 채널 확장 가능
+
+---
+
+## 운영 체크포인트
+
+- 로컬 실행: `make up`, `make run`, `make test`
+- 프로덕션 필수 환경변수: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `REDIS_HOST`, `REDIS_PORT`
+- 현재 채널 발송 구현(`EmailSender`, `SmsSender`, `KakaoSender`)은 외부 연동 전의 기본 스텁 로직이다.
+- `notification_group`의 `(client_id, idempotency_key)`는 유니크 인덱스이며, `idempotency_key`가 `NULL`인 요청은 중복 허용된다.
+- `Outbox` 엔티티는 존재하나, Flyway 마이그레이션 기준 스키마와 운영 스키마는 반드시 동기화해서 관리해야 한다.

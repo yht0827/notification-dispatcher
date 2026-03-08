@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.domain.notification.ChannelType;
@@ -40,7 +41,7 @@ class NotificationArchiveServiceIntegrationTest extends IntegrationTestSupportNo
 			jdbcTemplate,
 			namedParameterJdbcTemplate,
 			new ArchiveProperties(true, false, 1000, 7, null, null),
-			transactionManager
+			new TransactionTemplate(transactionManager)
 		);
 
 		jdbcTemplate.execute("DROP TABLE IF EXISTS notification_archive");

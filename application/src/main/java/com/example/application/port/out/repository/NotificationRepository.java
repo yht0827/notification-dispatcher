@@ -1,11 +1,11 @@
 package com.example.application.port.out.repository;
 
-import com.example.domain.notification.Notification;
-import com.example.domain.notification.NotificationStatus;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+
+import com.example.domain.notification.Notification;
+import com.example.domain.notification.NotificationStatus;
 
 public interface NotificationRepository {
 
@@ -16,10 +16,6 @@ public interface NotificationRepository {
 	Optional<Notification> findById(Long id);
 
 	List<Notification> findAllByIdIn(List<Long> ids);
-
-	List<Notification> findByReceiver(String receiver);
-
-	List<Notification> findByReceiverAndStatus(String receiver, NotificationStatus status);
 
 	List<Notification> findByStatus(NotificationStatus status);
 

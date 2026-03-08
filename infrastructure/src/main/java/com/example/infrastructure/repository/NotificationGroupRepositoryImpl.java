@@ -59,12 +59,6 @@ public class NotificationGroupRepositoryImpl implements NotificationGroupReposit
 	}
 
 	@Override
-	public List<NotificationGroup> findRecentByCursor(Long cursorId, int limit) {
-		int normalizedLimit = normalizeLimit(limit);
-		return jpaRepository.findRecentSlice(cursorId, PageRequest.of(0, normalizedLimit));
-	}
-
-	@Override
 	public List<NotificationGroup> findByGroupType(GroupType groupType) {
 		return jpaRepository.findByGroupType(groupType);
 	}
@@ -81,8 +75,7 @@ public class NotificationGroupRepositoryImpl implements NotificationGroupReposit
 			SET sent_count = sent_count + ?,
 			    failed_count = failed_count + ?,
 			    updated_at = ?
-			WHERE deleted_at IS NULL
-			  AND id = ?
+			WHERE id = ?
 			""", new BatchPreparedStatementSetter() {
 			@Override
 			public void setValues(PreparedStatement ps, int index) throws SQLException {

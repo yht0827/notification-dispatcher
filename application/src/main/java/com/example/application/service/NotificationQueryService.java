@@ -3,7 +3,6 @@ package com.example.application.service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,12 +12,10 @@ import com.example.application.port.in.NotificationQueryUseCase;
 import com.example.application.port.in.result.CursorSlice;
 import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationGroupResult;
-import com.example.application.port.in.result.NotificationListResult;
 import com.example.application.port.in.result.NotificationResult;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationReadStatusRepository;
 import com.example.application.port.out.repository.NotificationRepository;
-import com.example.domain.notification.Notification;
 
 import lombok.RequiredArgsConstructor;
 
@@ -46,16 +43,6 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 	}
 
 	@Override
-	public CursorSlice<NotificationListResult> getRecentGroups(Long cursorId, int size) {
-		int limit = normalizeSize(size);
-		List<NotificationListResult> fetched = groupRepository.findRecentByCursor(cursorId, limit + 1)
-			.stream()
-			.map(mapper::toListResult)
-			.toList();
-		return CursorSlice.of(fetched, limit, NotificationListResult::groupId);
-	}
-
-	@Override
 	public CursorSlice<NotificationGroupResult> getGroupsByClientId(String clientId, Long cursorId,
 		int size) {
 		int limit = normalizeSize(size);
@@ -78,23 +65,6 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 				notification,
 				notificationReadStatusRepository.existsByNotificationId(notification.getId())
 			));
-	}
-
-	@Override
-	public List<NotificationResult> getNotificationsByReceiver(String receiver) {
-		List<Notification> notifications = notificationRepository.findByReceiver(receiver);
-		Set<Long> readNotificationIds = notificationReadStatusRepository.findReadNotificationIds(
-			notifications.stream()
-				.map(Notification::getId)
-				.toList()
-		);
-		return notifications
-			.stream()
-			.map(notification -> mapper.toNotificationResult(
-				notification,
-				readNotificationIds.contains(notification.getId())
-			))
-			.toList();
 	}
 
 	private int normalizeSize(int size) {

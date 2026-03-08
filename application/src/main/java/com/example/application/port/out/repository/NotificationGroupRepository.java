@@ -21,8 +21,6 @@ public interface NotificationGroupRepository {
 
     List<NotificationGroup> findByClientIdWithCursor(String clientId, LocalDateTime from, Long cursorId, int limit);
 
-    List<NotificationGroup> findRecentByCursor(Long cursorId, int limit);
-
     List<NotificationGroup> findByGroupType(GroupType groupType);
 
 	void bulkApplyDispatchCounts(List<NotificationGroupCountUpdate> updates);

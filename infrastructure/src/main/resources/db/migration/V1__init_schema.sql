@@ -16,14 +16,12 @@ CREATE TABLE notification_group
     sent_count      INT          NOT NULL DEFAULT 0,
     failed_count    INT          NOT NULL DEFAULT 0,
     created_at      DATETIME(6)  NOT NULL,
-    updated_at      DATETIME(6)  NOT NULL,
-    deleted_at      DATETIME(6)  NULL
+    updated_at      DATETIME(6)  NOT NULL
 );
 
 CREATE UNIQUE INDEX idx_notification_group_client_idempotency_key ON notification_group (client_id, idempotency_key);
 CREATE INDEX idx_notification_group_client_id ON notification_group (client_id);
 CREATE INDEX idx_notification_group_group_type ON notification_group (group_type);
-CREATE INDEX idx_notification_group_deleted_at ON notification_group (deleted_at);
 CREATE INDEX idx_notification_group_client_created ON notification_group (client_id, created_at);
 
 -- ---------------------------------------------
@@ -39,13 +37,11 @@ CREATE TABLE notification
     fail_reason   VARCHAR(500) NULL,
     version       BIGINT       NOT NULL DEFAULT 0,
     created_at    DATETIME(6)  NOT NULL,
-    updated_at    DATETIME(6)  NOT NULL,
-    deleted_at    DATETIME(6)  NULL
+    updated_at    DATETIME(6)  NOT NULL
 );
 
 CREATE INDEX idx_notification_group_id ON notification (group_id);
 CREATE INDEX idx_notification_receiver ON notification (receiver);
-CREATE INDEX idx_notification_deleted_at ON notification (deleted_at);
 CREATE INDEX idx_notification_receiver_status ON notification (receiver, status);
 CREATE INDEX idx_notification_status_created ON notification (status, created_at);
 CREATE INDEX idx_notification_group_status ON notification (group_id, status);
@@ -62,8 +58,7 @@ CREATE TABLE outbox
     status         VARCHAR(50)  NOT NULL,
     processed_at   DATETIME(6)  NULL,
     created_at     DATETIME(6)  NOT NULL,
-    updated_at     DATETIME(6)  NOT NULL,
-    deleted_at     DATETIME(6)  NULL
+    updated_at     DATETIME(6)  NOT NULL
 );
 
 CREATE INDEX idx_outbox_status_created ON outbox (status, created_at);

@@ -8,7 +8,6 @@ import org.springframework.stereotype.Component;
 import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.application.port.in.result.NotificationItemResult;
-import com.example.application.port.in.result.NotificationListResult;
 import com.example.application.port.in.result.NotificationResult;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
@@ -85,18 +84,6 @@ public class NotificationResultMapper {
 			notification.getFailReason(),
 			notification.getCreatedAt(),
 			isRead
-		);
-	}
-
-	public NotificationListResult toListResult(NotificationGroup group) {
-		int moreCount = Math.max(group.getTotalCount() - 1, 0);
-		return new NotificationListResult(
-			group.getId(),
-			group.getTitle(),
-			group.getContent(),
-			group.getCreatedAt(),
-			group.getTotalCount(),
-			moreCount
 		);
 	}
 }

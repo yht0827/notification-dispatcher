@@ -27,11 +27,6 @@ public interface NotificationJpaRepository extends JpaRepository<Notification, L
 	@Query("select n from Notification n where n.id = :id")
 	Optional<Notification> findByIdWithPessimisticLock(@Param("id") Long id);
 
-	@Query("select n from Notification n left join fetch n.group where n.receiver = :receiver")
-	List<Notification> findByReceiver(@Param("receiver") String receiver);
-
-    List<Notification> findByReceiverAndStatus(String receiver, NotificationStatus status);
-
     List<Notification> findByStatus(NotificationStatus status);
 
     List<Notification> findByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(

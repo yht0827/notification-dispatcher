@@ -52,16 +52,6 @@ public class NotificationRepositoryImpl implements NotificationRepository {
 	}
 
 	@Override
-	public List<Notification> findByReceiver(String receiver) {
-		return jpaRepository.findByReceiver(receiver);
-	}
-
-	@Override
-	public List<Notification> findByReceiverAndStatus(String receiver, NotificationStatus status) {
-		return jpaRepository.findByReceiverAndStatus(receiver, status);
-	}
-
-	@Override
 	public List<Notification> findByStatus(NotificationStatus status) {
 		return jpaRepository.findByStatus(status);
 	}
@@ -89,8 +79,7 @@ public class NotificationRepositoryImpl implements NotificationRepository {
 				    attempt_count = attempt_count + 1,
 				    updated_at = :updatedAt,
 				    version = version + 1
-				WHERE deleted_at IS NULL
-				  AND id IN (:ids)
+				WHERE id IN (:ids)
 				  AND status IN (:allowedStatuses)
 				""",
 			new MapSqlParameterSource()
@@ -117,8 +106,7 @@ public class NotificationRepositoryImpl implements NotificationRepository {
 				    fail_reason = NULL,
 				    updated_at = :updatedAt,
 				    version = version + 1
-				WHERE deleted_at IS NULL
-				  AND id IN (:ids)
+				WHERE id IN (:ids)
 				  AND status = :currentStatus
 				""",
 			new MapSqlParameterSource()
@@ -142,8 +130,7 @@ public class NotificationRepositoryImpl implements NotificationRepository {
 			    fail_reason = ?,
 			    updated_at = ?,
 			    version = version + 1
-			WHERE deleted_at IS NULL
-			  AND id = ?
+			WHERE id = ?
 			  AND status = ?
 			""", new BatchPreparedStatementSetter() {
 			@Override

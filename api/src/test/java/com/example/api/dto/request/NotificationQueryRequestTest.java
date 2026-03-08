@@ -22,20 +22,4 @@ class NotificationQueryRequestTest {
 
 		assertThat(request.resolveSize()).isEqualTo(50);
 	}
-
-	@Test
-	@DisplayName("NotificationListQueryRequest size가 null이면 기본값 20을 반환한다")
-	void listQueryResolveSize_returnsDefaultWhenNull() {
-		NotificationListQueryRequest request = new NotificationListQueryRequest(null, null);
-
-		assertThat(request.resolveSize()).isEqualTo(20);
-	}
-
-	@Test
-	@DisplayName("NotificationListQueryRequest size가 있으면 지정값을 반환한다")
-	void listQueryResolveSize_returnsExplicitValue() {
-		NotificationListQueryRequest request = new NotificationListQueryRequest(20L, 30);
-
-		assertThat(request.resolveSize()).isEqualTo(30);
-	}
 }
