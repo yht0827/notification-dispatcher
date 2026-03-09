@@ -35,7 +35,8 @@ class NotificationCommandIdempotencyIntegrationTest extends IntegrationTestSuppo
 			"같은 요청은 한 번만 처리되어야 합니다.",
 			ChannelType.EMAIL,
 			List.of("user1@example.com", "user2@example.com"),
-			"idem-integration-1001"
+			"idem-integration-1001",
+			null
 		);
 
 		// when

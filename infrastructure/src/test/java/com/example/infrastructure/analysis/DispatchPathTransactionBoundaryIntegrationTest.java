@@ -125,7 +125,8 @@ class DispatchPathTransactionBoundaryIntegrationTest extends IntegrationTestSupp
 				"content",
 				ChannelType.EMAIL,
 				receivers,
-				"dispatch-boundary-" + receiverCount
+				"dispatch-boundary-" + receiverCount,
+				null
 			)
 		);
 		return result.groupId();

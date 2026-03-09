@@ -79,7 +79,8 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 			"content",
 			ChannelType.EMAIL,
 			java.util.List.of("a@test.com", "b@test.com"),
-			"idem-write-pattern"
+			"idem-write-pattern",
+			null
 		);
 
 		NotificationCommandResult result = commandService.request(command);
@@ -148,7 +149,8 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 			"content",
 			ChannelType.EMAIL,
 			java.util.List.of("one@test.com"),
-			"idem-dispatch"
+			"idem-dispatch",
+			null
 		);
 
 		NotificationCommandResult result = commandService.request(command);
@@ -182,7 +184,8 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 			"content",
 			ChannelType.EMAIL,
 			receivers,
-			"idem-batch-" + receiverCount
+			"idem-batch-" + receiverCount,
+			null
 		));
 		return result.groupId();
 	}

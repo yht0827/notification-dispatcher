@@ -15,6 +15,7 @@ import com.example.application.port.in.result.NotificationReadResult;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationReadStatusRepository;
 import com.example.application.port.out.repository.NotificationRepository;
+import com.example.domain.exception.AccessDeniedException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -61,13 +62,16 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 
 	@Override
 	@Transactional
-	public Optional<NotificationReadResult> markAsRead(Long notificationId) {
+	public Optional<NotificationReadResult> markAsRead(String clientId, Long notificationId) {
 		LocalDateTime now = LocalDateTime.now();
 		var from = NotificationDetailRetentionPolicy.detailFrom(now);
 		return notificationRepository.findById(notificationId)
 			.filter(
 				notification -> NotificationDetailRetentionPolicy.isWithinRetention(notification.getCreatedAt(), from))
 			.map(notification -> {
+				if (!clientId.equals(notification.getGroup().getClientId())) {
+					throw new AccessDeniedException("해당 알림에 대한 접근 권한이 없습니다.");
+				}
 				notificationReadStatusRepository.markAsRead(notificationId, now);
 				LocalDateTime readAt = notificationReadStatusRepository.findReadAtByNotificationId(notificationId);
 				return new NotificationReadResult(notificationId, readAt);
@@ -76,12 +80,15 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 
 	@Override
 	@Transactional
-	public Optional<NotificationGroupReadResult> markGroupAsRead(Long groupId) {
+	public Optional<NotificationGroupReadResult> markGroupAsRead(String clientId, Long groupId) {
 		LocalDateTime now = LocalDateTime.now();
 		var from = NotificationDetailRetentionPolicy.detailFrom(now);
 		return notificationGroupRepository.findByIdWithNotifications(groupId)
 			.filter(group -> NotificationDetailRetentionPolicy.isWithinRetention(group.getCreatedAt(), from))
 			.map(group -> {
+				if (!clientId.equals(group.getClientId())) {
+					throw new AccessDeniedException("해당 알림 그룹에 대한 접근 권한이 없습니다.");
+				}
 				var notificationIds = group.getNotifications().stream()
 					.map(com.example.domain.notification.Notification::getId)
 					.toList();
