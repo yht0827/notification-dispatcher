@@ -16,6 +16,9 @@ import feign.RetryableException;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.ratelimiter.RateLimiter;
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
+import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryRegistry;
 import lombok.RequiredArgsConstructor;
@@ -29,19 +32,25 @@ public class MockApiCaller {
 	private final MockApiClient mockApiClient;
 	private final CircuitBreakerRegistry circuitBreakerRegistry;
 	private final RetryRegistry retryRegistry;
+	private final RateLimiterRegistry rateLimiterRegistry;
 
 	public SendResult call(MockApiSendRequest request) {
 		String instanceName = instanceName(request.channelType());
 		CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker(instanceName);
 		Retry retry = retryRegistry.retry(instanceName);
+		RateLimiter rateLimiter = rateLimiterRegistry.rateLimiter(instanceName);
 
-		// CB(outer) → Retry(inner) → actual call
+		// RateLimiter(outer) → CB → Retry(inner) → actual call
 		Supplier<SendResult> callSupplier = () -> doCall(request);
 		Supplier<SendResult> withRetry = Retry.decorateSupplier(retry, callSupplier);
 		Supplier<SendResult> withCb = CircuitBreaker.decorateSupplier(cb, withRetry);
+		Supplier<SendResult> withRateLimiter = RateLimiter.decorateSupplier(rateLimiter, withCb);
 
 		try {
-			return withCb.get();
+			return withRateLimiter.get();
+		} catch (RequestNotPermitted e) {
+			log.warn("발신 처리율 초과: channel={}, requestId={}", request.channelType(), request.requestId());
+			return SendResult.failRetryable("발신 처리율 초과 - " + request.channelType() + " 채널");
 		} catch (CallNotPermittedException e) {
 			log.warn("서킷 브레이커 OPEN: channel={}, requestId={}", request.channelType(), request.requestId());
 			return SendResult.failRetryable("서킷 브레이커 OPEN - " + request.channelType() + " 외부 API 연속 장애");
