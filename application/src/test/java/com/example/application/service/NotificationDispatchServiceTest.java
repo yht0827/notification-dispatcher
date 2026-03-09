@@ -25,6 +25,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.example.application.port.in.result.BatchDispatchResult;
 import com.example.application.port.in.result.NotificationDispatchResult;
+import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationRepository;
 import com.example.application.port.out.NotificationSender;
@@ -48,6 +49,9 @@ class NotificationDispatchServiceTest {
 
 	@Mock
 	private TransactionTemplate transactionTemplate;
+
+	@Mock
+	private NotificationGroupDetailCacheRepository groupDetailCacheRepository;
 
 	@InjectMocks
 	private NotificationDispatchService dispatchService;
@@ -91,6 +95,7 @@ class NotificationDispatchServiceTest {
 		assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
 		verify(notificationSender).send(notification);
 		verify(notificationRepository, times(2)).save(notification);
+		verify(groupDetailCacheRepository).evict(notification.getGroup().getId());
 	}
 
 	@Test
@@ -153,6 +158,7 @@ class NotificationDispatchServiceTest {
 		assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENDING);
 		verify(notificationSender).send(notification);
 		verify(notificationRepository).save(notification);
+		verify(groupDetailCacheRepository).evict(notification.getGroup().getId());
 	}
 
 	@Test
@@ -189,7 +195,8 @@ class NotificationDispatchServiceTest {
 		verify(notificationRepository).bulkStartSending(eq(List.of(1L, 2L)), any());
 		verify(notificationRepository).bulkMarkAsSent(eq(List.of(1L, 2L)), any(), any());
 		verify(notificationSender, times(2)).send(any(Notification.class));
-		verifyNoInteractions(notificationGroupRepository);
+		verify(notificationGroupRepository).bulkApplyDispatchCounts(anyList());
+		verify(groupDetailCacheRepository, times(4)).evict(any(Long.class));
 	}
 
 	@Test
@@ -224,6 +231,7 @@ class NotificationDispatchServiceTest {
 		});
 		verify(notificationRepository).bulkStartSending(eq(List.of(10L)), any());
 		verify(notificationRepository).bulkMarkAsFailed(anyList(), any());
+		verify(groupDetailCacheRepository, times(2)).evict(pending.getGroup().getId());
 	}
 
 	private Notification createNotification() {
@@ -240,6 +248,7 @@ class NotificationDispatchServiceTest {
 			ChannelType.EMAIL,
 			1
 		);
+		ReflectionTestUtils.setField(group, "id", id != null ? id + 1_000L : 1_000L);
 		Notification notification = group.addNotification(receiver);
 		if (id != null) {
 			ReflectionTestUtils.setField(notification, "id", id);

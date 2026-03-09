@@ -15,6 +15,7 @@ import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.application.port.in.result.NotificationResult;
 import com.example.application.port.in.result.NotificationUnreadCountResult;
+import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
 import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationReadStatusRepository;
@@ -30,6 +31,7 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 	private final NotificationGroupRepository groupRepository;
 	private final NotificationRepository notificationRepository;
 	private final NotificationReadStatusRepository notificationReadStatusRepository;
+	private final NotificationGroupDetailCacheRepository groupDetailCacheRepository;
 	private final NotificationUnreadCountCacheRepository unreadCountCacheRepository;
 	private final NotificationResultMapper mapper;
 
@@ -41,6 +43,12 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 	@Override
 	public Optional<NotificationGroupDetailResult> getGroupDetail(Long groupId) {
 		LocalDateTime from = detailFrom();
+		Optional<NotificationGroupDetailResult> cached = groupDetailCacheRepository.get(groupId)
+			.filter(detail -> NotificationDetailRetentionPolicy.isWithinRetention(detail.createdAt(), from));
+		if (cached.isPresent()) {
+			return cached;
+		}
+		groupDetailCacheRepository.evict(groupId);
 		return groupRepository.findByIdWithNotifications(groupId)
 			.filter(group -> NotificationDetailRetentionPolicy.isWithinRetention(group.getCreatedAt(), from))
 			.map(group -> {
@@ -49,7 +57,9 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 					.toList();
 				Map<Long, LocalDateTime> readAtByNotificationId =
 					notificationReadStatusRepository.findReadAtByNotificationIds(notificationIds);
-				return mapper.toGroupDetailResult(group, readAtByNotificationId);
+				NotificationGroupDetailResult detail = mapper.toGroupDetailResult(group, readAtByNotificationId);
+				groupDetailCacheRepository.put(groupId, detail);
+				return detail;
 			});
 	}
 
