@@ -270,8 +270,9 @@ public class NotificationRabbitConfig {
 	public MessageProcessOrchestrator messageProcessOrchestrator(
 		RabbitMQRecordHandler recordHandler,
 		DeadLetterPublisher dlqPublisher,
-		WaitPublisher waitPublisher) {
-		return new MessageProcessOrchestrator(recordHandler, dlqPublisher, waitPublisher);
+		WaitPublisher waitPublisher,
+		io.micrometer.core.instrument.MeterRegistry meterRegistry) {
+		return new MessageProcessOrchestrator(recordHandler, dlqPublisher, waitPublisher, meterRegistry);
 	}
 
 	@Bean

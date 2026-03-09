@@ -22,6 +22,9 @@ import com.example.domain.outbox.OutboxEventType;
 import com.example.domain.outbox.OutboxStatus;
 import com.example.application.port.out.NotificationEventPublisher;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+
 @ExtendWith(MockitoExtension.class)
 class OutboxPollerTest {
 
@@ -34,11 +37,18 @@ class OutboxPollerTest {
 	@Mock
 	private NotificationEventPublisher eventPublisher;
 
+	@Mock
+	private MeterRegistry meterRegistry;
+
+	@Mock
+	private Counter counter;
+
 	private OutboxPoller outboxPoller;
 
 	@BeforeEach
 	void setUp() {
-		outboxPoller = new OutboxPoller(outboxRepository, eventPublisher, new OutboxProperties(BATCH_SIZE));
+		when(meterRegistry.counter(anyString())).thenReturn(counter);
+		outboxPoller = new OutboxPoller(outboxRepository, eventPublisher, new OutboxProperties(BATCH_SIZE), meterRegistry);
 	}
 
 	@Test
