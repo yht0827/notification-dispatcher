@@ -2,6 +2,7 @@ package com.example.application.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -23,6 +24,7 @@ import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.application.port.in.result.NotificationResult;
 import com.example.application.port.in.result.NotificationUnreadCountResult;
+import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationReadStatusRepository;
 import com.example.application.port.out.repository.NotificationRepository;
@@ -43,6 +45,9 @@ class NotificationQueryServiceTest {
 
 	@Mock
 	private NotificationReadStatusRepository notificationReadStatusRepository;
+
+	@Mock
+	private NotificationUnreadCountCacheRepository unreadCountCacheRepository;
 
 	@Spy
 	private NotificationResultMapper mapper;
@@ -218,6 +223,7 @@ class NotificationQueryServiceTest {
 	@Test
 	@DisplayName("읽지 않은 알림 개수는 최근 7일 + clientId + receiver 기준으로 조회한다")
 	void getUnreadCount_returnsCount() {
+		when(unreadCountCacheRepository.get("client-1", "user@example.com")).thenReturn(Optional.empty());
 		when(notificationRepository.countUnreadByClientIdAndReceiver(
 			org.mockito.ArgumentMatchers.eq("client-1"),
 			org.mockito.ArgumentMatchers.eq("user@example.com"),
@@ -233,6 +239,19 @@ class NotificationQueryServiceTest {
 			org.mockito.ArgumentMatchers.eq("user@example.com"),
 			any(LocalDateTime.class)
 		);
+		verify(unreadCountCacheRepository).put("client-1", "user@example.com", 7L);
+	}
+
+	@Test
+	@DisplayName("읽지 않은 알림 개수는 캐시 hit면 DB 조회 없이 반환한다")
+	void getUnreadCount_returnsCachedCount() {
+		when(unreadCountCacheRepository.get("client-1", "user@example.com")).thenReturn(Optional.of(5L));
+
+		NotificationUnreadCountResult result = queryService.getUnreadCount("client-1", "user@example.com");
+
+		assertThat(result.receiver()).isEqualTo("user@example.com");
+		assertThat(result.unreadCount()).isEqualTo(5L);
+		verify(notificationRepository, never()).countUnreadByClientIdAndReceiver(any(), any(), any());
 	}
 
 }
