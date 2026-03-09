@@ -15,11 +15,13 @@ import com.example.application.port.in.result.NotificationGroupReadResult;
 import com.example.application.port.in.result.NotificationReadResult;
 import com.example.application.port.out.cache.NotificationDetailCacheRepository;
 import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
+import com.example.application.port.out.cache.NotificationGroupListCacheRepository;
 import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationReadStatusRepository;
 import com.example.application.port.out.repository.NotificationRepository;
 import com.example.domain.exception.AccessDeniedException;
+import com.example.domain.notification.Notification;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,31 +38,25 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 	private final NotificationWriteExecutor notificationWriteExecutor;
 	private final NotificationDetailCacheRepository notificationDetailCacheRepository;
 	private final NotificationGroupDetailCacheRepository groupDetailCacheRepository;
+	private final NotificationGroupListCacheRepository groupListCacheRepository;
 	private final NotificationUnreadCountCacheRepository unreadCountCacheRepository;
 
 	@Override
 	public NotificationCommandResult request(SendCommand command) {
 		String idempotencyKey = normalizeIdempotencyKey(command.idempotencyKey());
 
-		if (idempotencyKey != null) {
-			Optional<NotificationCommandResult> existing =
-				idempotencyLookupService.findExistingResult(command.clientId(), idempotencyKey);
-			if (existing.isPresent()) {
-				log.info("중복 요청 감지: groupId={}", existing.get().groupId());
-				return existing.get();
-			}
+		Optional<NotificationCommandResult> existing = findExistingResult(command.clientId(), idempotencyKey);
+		if (existing.isPresent()) {
+			log.info("중복 요청 감지: groupId={}", existing.get().groupId());
+			return existing.get();
 		}
 
 		try {
 			NotificationCommandResult result = notificationWriteExecutor.createAndPublish(command, idempotencyKey);
-			evictUnreadCount(command.clientId(), command.receivers());
+			evictCachesAfterCreation(command.clientId(), command.receivers());
 			return result;
 		} catch (DataIntegrityViolationException e) {
-			if (idempotencyKey == null) {
-				throw e;
-			}
-			Optional<NotificationCommandResult> recovered =
-				idempotencyLookupService.findExistingResultAfterCollision(command.clientId(), idempotencyKey);
+			Optional<NotificationCommandResult> recovered = recoverExistingResult(command.clientId(), idempotencyKey);
 			if (recovered.isPresent()) {
 				log.info("멱등성 경쟁 감지 후 기존 그룹 반환: groupId={}", recovered.get().groupId());
 				return recovered.get();
@@ -75,16 +71,11 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 		LocalDateTime now = LocalDateTime.now();
 		var from = NotificationDetailRetentionPolicy.detailFrom(now);
 		return notificationRepository.findById(notificationId)
-			.filter(
-				notification -> NotificationDetailRetentionPolicy.isWithinRetention(notification.getCreatedAt(), from))
+			.filter(notification -> NotificationDetailRetentionPolicy.isWithinRetention(notification.getCreatedAt(), from))
 			.map(notification -> {
-				if (!clientId.equals(notification.getGroup().getClientId())) {
-					throw new AccessDeniedException("해당 알림에 대한 접근 권한이 없습니다.");
-				}
+				validateClientAccess(clientId, notification.getGroup().getClientId(), "해당 알림에 대한 접근 권한이 없습니다.");
 				notificationReadStatusRepository.markAsRead(notificationId, now);
-				evictNotificationDetail(notificationId);
-				evictGroupDetail(notification.getGroup().getId());
-				evictUnreadCount(clientId, notification.getReceiver());
+				evictCachesAfterRead(clientId, notification);
 				LocalDateTime readAt = notificationReadStatusRepository.findReadAtByNotificationId(notificationId);
 				return new NotificationReadResult(notificationId, readAt);
 			});
@@ -98,24 +89,63 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 		return notificationGroupRepository.findByIdWithNotifications(groupId)
 			.filter(group -> NotificationDetailRetentionPolicy.isWithinRetention(group.getCreatedAt(), from))
 			.map(group -> {
-				if (!clientId.equals(group.getClientId())) {
-					throw new AccessDeniedException("해당 알림 그룹에 대한 접근 권한이 없습니다.");
-				}
-				var notificationIds = group.getNotifications().stream()
-					.map(com.example.domain.notification.Notification::getId)
-					.toList();
+				validateClientAccess(clientId, group.getClientId(), "해당 알림 그룹에 대한 접근 권한이 없습니다.");
+				List<Notification> notifications = group.getNotifications();
+				List<Long> notificationIds = notificationIds(notifications);
 				int readCount = notificationReadStatusRepository.markAllAsRead(notificationIds, now);
-				evictNotificationDetails(notificationIds);
-				evictGroupDetail(groupId);
-				evictUnreadCount(
-					clientId,
-					group.getNotifications().stream()
-						.map(com.example.domain.notification.Notification::getReceiver)
-						.distinct()
-						.toList()
-				);
+				evictCachesAfterGroupRead(clientId, groupId, notificationIds, receivers(notifications));
 				return new NotificationGroupReadResult(groupId, readCount, now);
 			});
+	}
+
+	private Optional<NotificationCommandResult> findExistingResult(String clientId, String idempotencyKey) {
+		if (idempotencyKey == null) {
+			return Optional.empty();
+		}
+		return idempotencyLookupService.findExistingResult(clientId, idempotencyKey);
+	}
+
+	private Optional<NotificationCommandResult> recoverExistingResult(String clientId, String idempotencyKey) {
+		if (idempotencyKey == null) {
+			return Optional.empty();
+		}
+		return idempotencyLookupService.findExistingResultAfterCollision(clientId, idempotencyKey);
+	}
+
+	private void evictCachesAfterCreation(String clientId, List<String> receivers) {
+		evictGroupList(clientId);
+		evictUnreadCount(clientId, receivers);
+	}
+
+	private void evictCachesAfterRead(String clientId, Notification notification) {
+		evictNotificationDetail(notification.getId());
+		evictGroupDetail(notification.getGroup().getId());
+		evictUnreadCount(clientId, notification.getReceiver());
+	}
+
+	private void evictCachesAfterGroupRead(String clientId, Long groupId, List<Long> notificationIds,
+		List<String> receivers) {
+		evictNotificationDetails(notificationIds);
+		evictGroupDetail(groupId);
+		evictUnreadCount(clientId, receivers);
+	}
+
+	private List<Long> notificationIds(List<Notification> notifications) {
+		return notifications.stream()
+			.map(Notification::getId)
+			.toList();
+	}
+
+	private List<String> receivers(List<Notification> notifications) {
+		return notifications.stream()
+			.map(Notification::getReceiver)
+			.toList();
+	}
+
+	private void validateClientAccess(String clientId, String ownerClientId, String message) {
+		if (!clientId.equals(ownerClientId)) {
+			throw new AccessDeniedException(message);
+		}
 	}
 
 	private void evictUnreadCount(String clientId, List<String> receivers) {
@@ -154,6 +184,13 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 			.filter(java.util.Objects::nonNull)
 			.distinct()
 			.forEach(notificationDetailCacheRepository::evict);
+	}
+
+	private void evictGroupList(String clientId) {
+		if (clientId == null || clientId.isBlank()) {
+			return;
+		}
+		groupListCacheRepository.evictLatest(clientId);
 	}
 
 	private String normalizeIdempotencyKey(String idempotencyKey) {

@@ -23,6 +23,11 @@ public class NotificationUnreadCountCacheRepositoryImpl implements NotificationU
 	private final NotificationCacheProperties cacheProperties;
 
 	@Override
+	public boolean enabled() {
+		return cacheProperties.unreadCountEnabled();
+	}
+
+	@Override
 	public Optional<Long> get(String clientId, String receiver) {
 		try {
 			String value = redisTemplate.opsForValue().get(key(clientId, receiver));

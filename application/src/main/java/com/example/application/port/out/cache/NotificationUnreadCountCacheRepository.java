@@ -4,6 +4,8 @@ import java.util.Optional;
 
 public interface NotificationUnreadCountCacheRepository {
 
+	boolean enabled();
+
 	Optional<Long> get(String clientId, String receiver);
 
 	void put(String clientId, String receiver, long unreadCount);

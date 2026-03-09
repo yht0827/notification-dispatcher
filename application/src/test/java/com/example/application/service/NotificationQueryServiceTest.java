@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.List;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +28,7 @@ import com.example.application.port.in.result.NotificationResult;
 import com.example.application.port.in.result.NotificationUnreadCountResult;
 import com.example.application.port.out.cache.NotificationDetailCacheRepository;
 import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
+import com.example.application.port.out.cache.NotificationGroupListCacheRepository;
 import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationReadStatusRepository;
@@ -58,11 +60,23 @@ class NotificationQueryServiceTest {
 	@Mock
 	private NotificationGroupDetailCacheRepository groupDetailCacheRepository;
 
+	@Mock
+	private NotificationGroupListCacheRepository groupListCacheRepository;
+
 	@Spy
 	private NotificationResultMapper mapper;
 
 	@InjectMocks
 	private NotificationQueryService queryService;
+
+	@BeforeEach
+	void setUp() {
+		org.mockito.Mockito.lenient().when(unreadCountCacheRepository.enabled()).thenReturn(true);
+		org.mockito.Mockito.lenient().when(notificationDetailCacheRepository.enabled()).thenReturn(true);
+		org.mockito.Mockito.lenient().when(groupDetailCacheRepository.enabled()).thenReturn(true);
+		org.mockito.Mockito.lenient().when(groupListCacheRepository.enabled()).thenReturn(true);
+		org.mockito.Mockito.lenient().when(groupListCacheRepository.latestLimit()).thenReturn(60);
+	}
 
 	@Test
 	@DisplayName("요청자별 조회 시 hasNext가 true이면 nextCursorId가 설정된다")
@@ -73,11 +87,12 @@ class NotificationQueryServiceTest {
 		NotificationGroup third = org.mockito.Mockito.mock(NotificationGroup.class);
 		when(first.getId()).thenReturn(300L);
 		when(second.getId()).thenReturn(200L);
+		when(groupListCacheRepository.getLatest("order-service")).thenReturn(Optional.empty());
 		when(groupRepository.findByClientIdWithCursor(
 			org.mockito.ArgumentMatchers.eq("order-service"),
 			any(java.time.LocalDateTime.class),
 			org.mockito.ArgumentMatchers.isNull(),
-			org.mockito.ArgumentMatchers.eq(3)
+			org.mockito.ArgumentMatchers.eq(60)
 		)).thenReturn(List.of(first, second, third));
 
 		// when
@@ -90,6 +105,33 @@ class NotificationQueryServiceTest {
 		assertThat(slice.items().get(1).id()).isEqualTo(200L);
 		assertThat(slice.hasNext()).isTrue();
 		assertThat(slice.nextCursorId()).isEqualTo(200L);
+		verify(groupListCacheRepository).putLatest(eq("order-service"), any());
+	}
+
+	@Test
+	@DisplayName("요청자별 최신 목록은 캐시 hit면 DB 조회 없이 커서 슬라이스를 반환한다")
+	void getGroupsByClientId_returnsSliceFromCachedLatest() {
+		NotificationGroupResult first = new NotificationGroupResult(
+			300L, "client-1", "sender", "title-300", GroupType.BULK, ChannelType.EMAIL,
+			1, 0, 0, 1, false, LocalDateTime.now().minusHours(1)
+		);
+		NotificationGroupResult second = new NotificationGroupResult(
+			200L, "client-1", "sender", "title-200", GroupType.BULK, ChannelType.EMAIL,
+			1, 0, 0, 1, false, LocalDateTime.now().minusHours(2)
+		);
+		NotificationGroupResult third = new NotificationGroupResult(
+			100L, "client-1", "sender", "title-100", GroupType.BULK, ChannelType.EMAIL,
+			1, 0, 0, 1, false, LocalDateTime.now().minusHours(3)
+		);
+		when(groupListCacheRepository.getLatest("client-1")).thenReturn(Optional.of(List.of(first, second, third)));
+
+		CursorSlice<NotificationGroupResult> slice =
+			queryService.getGroupsByClientId("client-1", 250L, 2);
+
+		assertThat(slice.items()).containsExactly(second, third);
+		assertThat(slice.hasNext()).isFalse();
+		assertThat(slice.nextCursorId()).isNull();
+		verify(groupRepository, never()).findByClientIdWithCursor(any(), any(), any(), any(Integer.class));
 	}
 
 	@Test
@@ -97,6 +139,7 @@ class NotificationQueryServiceTest {
 	void getGroupsByClientId_returnsSliceWithoutNextCursor() {
 		// given
 		NotificationGroup only = org.mockito.Mockito.mock(NotificationGroup.class);
+		when(groupListCacheRepository.getLatest("order-service")).thenReturn(Optional.empty());
 		when(groupRepository.findByClientIdWithCursor(
 			org.mockito.ArgumentMatchers.eq("order-service"),
 			any(java.time.LocalDateTime.class),

@@ -25,6 +25,11 @@ public class NotificationDetailCacheRepositoryImpl implements NotificationDetail
 	private final NotificationCacheProperties cacheProperties;
 
 	@Override
+	public boolean enabled() {
+		return cacheProperties.notificationDetailEnabled();
+	}
+
+	@Override
 	public Optional<NotificationResult> get(Long notificationId) {
 		try {
 			String value = redisTemplate.opsForValue().get(key(notificationId));

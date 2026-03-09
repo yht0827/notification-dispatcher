@@ -6,6 +6,8 @@ import com.example.application.port.in.result.NotificationGroupDetailResult;
 
 public interface NotificationGroupDetailCacheRepository {
 
+	boolean enabled();
+
 	Optional<NotificationGroupDetailResult> get(Long groupId);
 
 	void put(Long groupId, NotificationGroupDetailResult detail);

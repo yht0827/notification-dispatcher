@@ -25,6 +25,11 @@ public class NotificationGroupDetailCacheRepositoryImpl implements NotificationG
 	private final NotificationCacheProperties cacheProperties;
 
 	@Override
+	public boolean enabled() {
+		return cacheProperties.groupDetailEnabled();
+	}
+
+	@Override
 	public Optional<NotificationGroupDetailResult> get(Long groupId) {
 		try {
 			String value = redisTemplate.opsForValue().get(key(groupId));

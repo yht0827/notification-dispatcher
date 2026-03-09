@@ -6,6 +6,8 @@ import com.example.application.port.in.result.NotificationResult;
 
 public interface NotificationDetailCacheRepository {
 
+	boolean enabled();
+
 	Optional<NotificationResult> get(Long notificationId);
 
 	void put(Long notificationId, NotificationResult detail);

@@ -1232,7 +1232,7 @@
       "gridPos": {
         "x": 0,
         "y": 77,
-        "w": 8,
+        "w": 6,
         "h": 8
       },
       "fieldConfig": {
@@ -1270,9 +1270,9 @@
       "type": "timeseries",
       "title": "Connected Clients",
       "gridPos": {
-        "x": 8,
+        "x": 6,
         "y": 77,
-        "w": 8,
+        "w": 6,
         "h": 8
       },
       "fieldConfig": {
@@ -1310,9 +1310,9 @@
       "type": "timeseries",
       "title": "Commands/s",
       "gridPos": {
-        "x": 16,
+        "x": 12,
         "y": 77,
-        "w": 8,
+        "w": 6,
         "h": 8
       },
       "fieldConfig": {
@@ -1338,6 +1338,46 @@
         {
           "expr": "rate(redis_commands_processed_total[1m])",
           "legendFormat": "Commands/s"
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "type": "timeseries",
+      "title": "Keyspace Hit/Miss",
+      "gridPos": {
+        "x": 18,
+        "y": 77,
+        "w": 6,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(redis_keyspace_hits_total[1m]) or vector(0)",
+          "legendFormat": "Hits/s"
+        },
+        {
+          "expr": "rate(redis_keyspace_misses_total[1m]) or vector(0)",
+          "legendFormat": "Misses/s"
         }
       ]
     }

@@ -1,9 +1,11 @@
 package com.example.application.service;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +16,7 @@ import com.example.application.port.in.result.BatchDispatchResult;
 import com.example.application.port.in.result.NotificationDispatchResult;
 import com.example.application.port.out.cache.NotificationDetailCacheRepository;
 import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
+import com.example.application.port.out.cache.NotificationGroupListCacheRepository;
 import com.example.application.port.out.repository.NotificationFailureUpdate;
 import com.example.application.port.out.repository.NotificationGroupCountUpdate;
 import com.example.application.port.out.repository.NotificationGroupRepository;
@@ -37,6 +40,7 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 	private final TransactionTemplate transactionTemplate;
 	private final NotificationDetailCacheRepository notificationDetailCacheRepository;
 	private final NotificationGroupDetailCacheRepository groupDetailCacheRepository;
+	private final NotificationGroupListCacheRepository groupListCacheRepository;
 
 	@Override
 	@Transactional
@@ -59,14 +63,12 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 			// SENDING → SENT
 			managedNotification.markAsSent();
 			notificationRepository.save(managedNotification);
-			evictNotificationDetail(managedNotification);
-			evictGroupDetail(managedNotification);
+			evictCaches(managedNotification);
 			log.info("알림 발송 성공: id={}, receiver={}", managedNotification.getId(), managedNotification.getReceiver());
 			return NotificationDispatchResult.success();
 		} else {
 			log.warn("알림 발송 실패: id={}, reason={}", managedNotification.getId(), sendResult.failReason());
-			evictNotificationDetail(managedNotification);
-			evictGroupDetail(managedNotification);
+			evictCaches(managedNotification);
 			if (sendResult.isNonRetryableFailure()) {
 				return NotificationDispatchResult.failNonRetryable(sendResult.failReason());
 			}
@@ -107,8 +109,7 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 		notificationRepository.findById(notificationId).ifPresent(notification -> {
 			notification.markAsFailed(reason);
 			notificationRepository.save(notification);
-			evictNotificationDetail(notification);
-			evictGroupDetail(notification);
+			evictCaches(notification);
 			log.error("알림 최종 실패: id={}, reason={}", notificationId, reason);
 		});
 	}
@@ -126,8 +127,7 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 				preparedById.put(notification.getId(), notification);
 			}
 			notificationRepository.bulkStartSending(notificationIds, java.time.LocalDateTime.now());
-			evictNotificationDetails(preparedById.values());
-			evictGroupDetails(preparedById.values());
+			evictCaches(preparedById.values());
 			return preparedById;
 		});
 	}
@@ -188,8 +188,7 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 			if (!groupCountUpdates.isEmpty()) {
 				notificationGroupRepository.bulkApplyDispatchCounts(List.copyOf(groupCountUpdates.values()));
 			}
-			evictNotificationDetails(preparedById.values());
-			evictGroupDetails(preparedById.values());
+			evictCaches(preparedById.values());
 			return results;
 		});
 	}
@@ -213,24 +212,25 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 		));
 	}
 
-	private void evictGroupDetail(Notification notification) {
-		if (notification == null || notification.getGroup() == null || notification.getGroup().getId() == null) {
+	private void evictCaches(Notification notification) {
+		if (notification == null) {
 			return;
 		}
-		groupDetailCacheRepository.evict(notification.getGroup().getId());
+		evictNotificationDetails(List.of(notification));
+		evictGroupDetails(List.of(notification));
+		evictGroupLists(List.of(notification));
 	}
 
-	private void evictNotificationDetail(Notification notification) {
-		if (notification == null || notification.getId() == null) {
-			return;
-		}
-		notificationDetailCacheRepository.evict(notification.getId());
+	private void evictCaches(Iterable<Notification> notifications) {
+		evictNotificationDetails(notifications);
+		evictGroupDetails(notifications);
+		evictGroupLists(notifications);
 	}
 
 	private void evictNotificationDetails(Iterable<Notification> notifications) {
-		java.util.Set<Long> notificationIds = new java.util.LinkedHashSet<>();
+		Set<Long> notificationIds = new LinkedHashSet<>();
 		for (Notification notification : notifications) {
-			if (notification.getId() == null) {
+			if (notification == null || notification.getId() == null) {
 				continue;
 			}
 			notificationIds.add(notification.getId());
@@ -239,13 +239,28 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 	}
 
 	private void evictGroupDetails(Iterable<Notification> notifications) {
-		java.util.Set<Long> groupIds = new java.util.LinkedHashSet<>();
+		Set<Long> groupIds = new LinkedHashSet<>();
 		for (Notification notification : notifications) {
-			if (notification.getGroup() == null || notification.getGroup().getId() == null) {
+			if (notification == null || notification.getGroup() == null || notification.getGroup().getId() == null) {
 				continue;
 			}
 			groupIds.add(notification.getGroup().getId());
 		}
 		groupIds.forEach(groupDetailCacheRepository::evict);
+	}
+
+	private void evictGroupLists(Iterable<Notification> notifications) {
+		Set<String> clientIds = new LinkedHashSet<>();
+		for (Notification notification : notifications) {
+			if (notification == null || notification.getGroup() == null) {
+				continue;
+			}
+			String clientId = notification.getGroup().getClientId();
+			if (clientId == null || clientId.isBlank()) {
+				continue;
+			}
+			clientIds.add(clientId);
+		}
+		clientIds.forEach(groupListCacheRepository::evictLatest);
 	}
 }
