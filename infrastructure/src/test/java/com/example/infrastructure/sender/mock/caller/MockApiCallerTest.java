@@ -9,7 +9,6 @@ import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
@@ -24,6 +23,10 @@ import com.example.infrastructure.sender.mock.exception.MockApiRetryableExceptio
 import feign.Request;
 import feign.RequestTemplate;
 import feign.RetryableException;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.retry.RetryConfig;
+import io.github.resilience4j.retry.RetryRegistry;
 
 @ExtendWith(MockitoExtension.class)
 class MockApiCallerTest {
@@ -31,15 +34,39 @@ class MockApiCallerTest {
 	@Mock
 	private MockApiClient mockApiClient;
 
-	@InjectMocks
 	private MockApiCaller mockApiCaller;
+
+	@org.junit.jupiter.api.BeforeEach
+	void setUp() {
+		CircuitBreakerRegistry circuitBreakerRegistry = CircuitBreakerRegistry.of(
+			CircuitBreakerConfig.custom()
+				.slidingWindowSize(10)
+				.minimumNumberOfCalls(10)
+				.failureRateThreshold(50)
+				.build()
+		);
+		circuitBreakerRegistry.circuitBreaker("email-api");
+		circuitBreakerRegistry.circuitBreaker("sms-api");
+		circuitBreakerRegistry.circuitBreaker("kakao-api");
+
+		RetryRegistry retryRegistry = RetryRegistry.of(
+			RetryConfig.custom()
+				.maxAttempts(1)
+				.build()
+		);
+		retryRegistry.retry("email-api");
+		retryRegistry.retry("sms-api");
+		retryRegistry.retry("kakao-api");
+
+		mockApiCaller = new MockApiCaller(mockApiClient, circuitBreakerRegistry, retryRegistry);
+	}
 
 	@Test
 	@DisplayName("2xx + body 존재면 result 문자열과 무관하게 성공 처리한다")
 	void call_returnsSuccess_whenStatus2xxAndBodyPresent() {
 		MockApiSendRequest request = new MockApiSendRequest("req-1", "EMAIL", "user@example.com", "hello", null);
 		MockApiSendSuccessResponse body = new MockApiSendSuccessResponse("SUCEESS", "req-1", "EMAIL", "2026-03-04T00:00:00Z", 20L);
-		when(mockApiClient.send(request)).thenReturn(ResponseEntity.ok(body));
+		when(mockApiClient.sendEmail(request)).thenReturn(ResponseEntity.ok(body));
 
 		SendResult result = mockApiCaller.call(request);
 
@@ -50,7 +77,7 @@ class MockApiCallerTest {
 	@DisplayName("2xx라도 body가 없으면 retryable 예외를 던진다")
 	void call_throwsRetryable_whenBodyIsNull() {
 		MockApiSendRequest request = new MockApiSendRequest("req-2", "SMS", "010-0000-0000", "hello", null);
-		when(mockApiClient.send(request)).thenReturn(ResponseEntity.ok(null));
+		when(mockApiClient.sendSms(request)).thenReturn(ResponseEntity.ok(null));
 
 		assertThatThrownBy(() -> mockApiCaller.call(request))
 			.isInstanceOf(MockApiRetryableException.class)
@@ -62,7 +89,7 @@ class MockApiCallerTest {
 	void call_throwsRetryable_whenStatusIsNot2xx() {
 		MockApiSendRequest request = new MockApiSendRequest("req-3", "KAKAO", "kakao-user", "hello", null);
 		MockApiSendSuccessResponse body = new MockApiSendSuccessResponse("SUCCESS", "req-3", "KAKAO", "2026-03-04T00:00:00Z", 10L);
-		when(mockApiClient.send(request)).thenReturn(ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body));
+		when(mockApiClient.sendKakao(request)).thenReturn(ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body));
 
 		assertThatThrownBy(() -> mockApiCaller.call(request))
 			.isInstanceOf(MockApiRetryableException.class)
@@ -73,7 +100,7 @@ class MockApiCallerTest {
 	@DisplayName("429 rate limit 예외는 그대로 전파한다")
 	void call_propagatesRateLimitException() {
 		MockApiSendRequest request = new MockApiSendRequest("req-rate-limit", "EMAIL", "user@example.com", "hello", null);
-		when(mockApiClient.send(request)).thenThrow(new MockApiRateLimitException("too many requests", 15_000L));
+		when(mockApiClient.sendEmail(request)).thenThrow(new MockApiRateLimitException("too many requests", 15_000L));
 
 		assertThatThrownBy(() -> mockApiCaller.call(request))
 			.isInstanceOf(MockApiRateLimitException.class)
@@ -92,7 +119,7 @@ class MockApiCallerTest {
 			0L,
 			Request.create(Request.HttpMethod.POST, "/mock/send", Map.of(), null, null, new RequestTemplate())
 		);
-		when(mockApiClient.send(request)).thenThrow(timeout);
+		when(mockApiClient.sendEmail(request)).thenThrow(timeout);
 
 		assertThatThrownBy(() -> mockApiCaller.call(request))
 			.isInstanceOf(MockApiRetryableException.class)
@@ -103,7 +130,7 @@ class MockApiCallerTest {
 	@DisplayName("예상치 못한 런타임 예외도 retryable 예외로 정규화한다")
 	void call_wrapsUnexpectedRuntimeAsRetryable() {
 		MockApiSendRequest request = new MockApiSendRequest("req-runtime", "EMAIL", "user@example.com", "hello", null);
-		when(mockApiClient.send(request)).thenThrow(new IllegalStateException("boom"));
+		when(mockApiClient.sendEmail(request)).thenThrow(new IllegalStateException("boom"));
 
 		assertThatThrownBy(() -> mockApiCaller.call(request))
 			.isInstanceOf(MockApiRetryableException.class)

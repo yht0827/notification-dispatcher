@@ -1,4 +1,4 @@
-package com.example.infrastructure.sender.mock.http;
+package com.example.infrastructure.sender.mock.caller;
 
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +15,14 @@ import com.example.infrastructure.sender.mock.dto.MockApiSendSuccessResponse;
 public interface MockApiFeignClient extends MockApiClient {
 
 	@Override
-	@PostMapping("/mock/send")
-	ResponseEntity<MockApiSendSuccessResponse> send(@RequestBody MockApiSendRequest request);
+	@PostMapping("/mock/email/send")
+	ResponseEntity<MockApiSendSuccessResponse> sendEmail(@RequestBody MockApiSendRequest request);
+
+	@Override
+	@PostMapping("/mock/sms/send")
+	ResponseEntity<MockApiSendSuccessResponse> sendSms(@RequestBody MockApiSendRequest request);
+
+	@Override
+	@PostMapping("/mock/kakao/send")
+	ResponseEntity<MockApiSendSuccessResponse> sendKakao(@RequestBody MockApiSendRequest request);
 }

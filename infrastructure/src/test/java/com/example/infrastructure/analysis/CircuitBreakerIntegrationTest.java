@@ -38,14 +38,14 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
  * <p>테스트 전용 설정으로 circuit breaker 파라미터를 단축해 실행 시간을 최소화한다:
  * sliding-window=5, min-calls=5, wait-duration=2s, permitted-in-half-open=1</p>
  */
-@SpringBootTest(
+	@SpringBootTest(
 	classes = TestApplication.class,
 	properties = {
-		"resilience4j.circuitbreaker.instances.mockApi.sliding-window-size=5",
-		"resilience4j.circuitbreaker.instances.mockApi.minimum-number-of-calls=5",
-		"resilience4j.circuitbreaker.instances.mockApi.wait-duration-in-open-state=2s",
-		"resilience4j.circuitbreaker.instances.mockApi.permitted-number-of-calls-in-half-open-state=1",
-		"resilience4j.retry.instances.mockApi.max-attempts=1"
+		"resilience4j.circuitbreaker.instances.email-api.sliding-window-size=5",
+		"resilience4j.circuitbreaker.instances.email-api.minimum-number-of-calls=5",
+		"resilience4j.circuitbreaker.instances.email-api.wait-duration-in-open-state=2s",
+		"resilience4j.circuitbreaker.instances.email-api.permitted-number-of-calls-in-half-open-state=1",
+		"resilience4j.retry.instances.email-api.max-attempts=1"
 	}
 )
 @ActiveProfiles("test")
@@ -69,17 +69,17 @@ class CircuitBreakerIntegrationTest {
 
 	@BeforeEach
 	void setUp() {
-		circuitBreakerRegistry.circuitBreaker("mockApi").reset();
+		circuitBreakerRegistry.circuitBreaker("email-api").reset();
 		reset(mockApiClient);
 	}
 
 	@Test
 	@DisplayName("연속 실패가 minimum-number-of-calls 이상 쌓이면 서킷이 OPEN된다")
 	void circuitBreaker_opensAfterConsecutiveFailures() {
-		CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("mockApi");
+		CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("email-api");
 		assertThat(cb.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
 
-		when(mockApiClient.send(any())).thenThrow(new RuntimeException("upstream 503"));
+		when(mockApiClient.sendEmail(any())).thenThrow(new RuntimeException("upstream 503"));
 
 		for (int i = 0; i < 5; i++) {
 			try {
@@ -94,7 +94,7 @@ class CircuitBreakerIntegrationTest {
 	@Test
 	@DisplayName("OPEN 상태에서는 Feign 클라이언트에 도달하지 않고 fallback이 즉시 반환된다")
 	void circuitBreaker_shortCircuits_whenOpen() {
-		when(mockApiClient.send(any())).thenThrow(new RuntimeException("upstream 503"));
+		when(mockApiClient.sendEmail(any())).thenThrow(new RuntimeException("upstream 503"));
 
 		for (int i = 0; i < 5; i++) {
 			try {
@@ -107,16 +107,16 @@ class CircuitBreakerIntegrationTest {
 
 		var result = mockApiCaller.call(TEST_REQUEST);
 
-		verify(mockApiClient, never()).send(any());
+		verify(mockApiClient, never()).sendEmail(any());
 		assertThat(result.isSuccess()).isFalse();
 	}
 
 	@Test
 	@DisplayName("OPEN → wait-duration 경과 → 성공 응답 → CLOSED 복구 사이클이 동작한다")
 	void circuitBreaker_recovers_afterWaitDuration() throws InterruptedException {
-		CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("mockApi");
+		CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("email-api");
 
-		when(mockApiClient.send(any())).thenThrow(new RuntimeException("upstream 503"));
+		when(mockApiClient.sendEmail(any())).thenThrow(new RuntimeException("upstream 503"));
 		for (int i = 0; i < 5; i++) {
 			try {
 				mockApiCaller.call(TEST_REQUEST);
@@ -128,7 +128,7 @@ class CircuitBreakerIntegrationTest {
 		Thread.sleep(2_500);
 
 		reset(mockApiClient);
-		when(mockApiClient.send(any())).thenReturn(ResponseEntity.ok(SUCCESS_RESPONSE));
+		when(mockApiClient.sendEmail(any())).thenReturn(ResponseEntity.ok(SUCCESS_RESPONSE));
 		var result = mockApiCaller.call(TEST_REQUEST);
 
 		assertThat(result.isSuccess()).isTrue();

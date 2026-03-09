@@ -19,7 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.example.application.service.mapper.NotificationCommandResultMapper;
+import com.example.application.mapper.NotificationCommandResultMapper;
 import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.out.event.OutboxSavedEvent;
@@ -61,8 +61,7 @@ class NotificationWriteExecutorTest {
 			"content",
 			ChannelType.EMAIL,
 			List.of("a@test.com", "b@test.com"),
-			"idem-1",
-			null
+			"idem-1"
 		);
 
 		when(groupRepository.saveAndFlush(any(NotificationGroup.class))).thenAnswer(invocation -> {
@@ -92,7 +91,6 @@ class NotificationWriteExecutorTest {
 			"content",
 			ChannelType.EMAIL,
 			List.of(),
-			null,
 			null
 		);
 

@@ -14,7 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.example.application.service.mapper.NotificationCommandResultMapper;
+import com.example.application.mapper.NotificationCommandResultMapper;
 import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.domain.notification.ChannelType;

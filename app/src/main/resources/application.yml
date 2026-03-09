@@ -37,29 +37,31 @@ notification:
       name: mockApi
       enabled: false
       base-url: http://localhost:8081
-      send-path: /mock/send
 
 # ─────────────────────────────────────────
 # Resilience4j
 # ─────────────────────────────────────────
 resilience4j:
   retry:
-    retry-aspect-order: 2
-    instances:
-      mockApi:
+    configs:
+      channel:
         max-attempts: 2
         wait-duration: 200ms
-        enable-exponential-backoff: false
-        exponential-backoff-multiplier: 2
         retry-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiRetryableException
         ignore-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiNonRetryableException
           - com.example.infrastructure.sender.mock.exception.MockApiRateLimitException
-  circuitbreaker:
-    circuit-breaker-aspect-order: 1
     instances:
-      mockApi:
+      email-api:
+        base-config: channel
+      sms-api:
+        base-config: channel
+      kakao-api:
+        base-config: channel
+  circuitbreaker:
+    configs:
+      channel:
         sliding-window-size: 20
         minimum-number-of-calls: 20
         failure-rate-threshold: 30 # mixed-latency VU15 재검증(r1~r3) 기준
@@ -69,6 +71,13 @@ resilience4j:
           - com.example.infrastructure.sender.mock.exception.MockApiRateLimitException
         ignore-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiNonRetryableException
+    instances:
+      email-api:
+        base-config: channel
+      sms-api:
+        base-config: channel
+      kakao-api:
+        base-config: channel
 # ─────────────────────────────────────────
 # Actuator / Metrics
 # ─────────────────────────────────────────

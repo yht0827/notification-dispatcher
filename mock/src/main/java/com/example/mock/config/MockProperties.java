@@ -1,7 +1,9 @@
 package com.example.mock.config;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
@@ -22,12 +24,20 @@ public class MockProperties {
 	@NotNull
 	private MockMode mode = MockMode.RANDOM;
 
+	private Map<String, ChannelConfig> channels = new HashMap<>();
+
 	@Valid
 	private final Latency latency = new Latency();
 	@Valid
 	private final Failure failure = new Failure();
 	@Valid
 	private final Log log = new Log();
+
+	@Getter
+	@Setter
+	public static class ChannelConfig {
+		private MockMode mode;  // null이면 전역 mode 사용
+	}
 
 	@Getter
 	@Setter
