@@ -29,6 +29,7 @@ import com.example.application.port.in.result.NotificationGroupReadResult;
 import com.example.application.port.in.result.NotificationReadResult;
 import com.example.application.port.out.cache.NotificationDetailCacheRepository;
 import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
+import com.example.application.port.out.cache.NotificationGroupListCacheRepository;
 import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationReadStatusRepository;
@@ -64,6 +65,9 @@ class NotificationWriteServiceTest {
 	@Mock
 	private NotificationGroupDetailCacheRepository groupDetailCacheRepository;
 
+	@Mock
+	private NotificationGroupListCacheRepository groupListCacheRepository;
+
 	private NotificationWriteService commandService;
 
 	@BeforeEach
@@ -76,6 +80,7 @@ class NotificationWriteServiceTest {
 			notificationWriteExecutor,
 			notificationDetailCacheRepository,
 			groupDetailCacheRepository,
+			groupListCacheRepository,
 			unreadCountCacheRepository
 		);
 	}
@@ -146,6 +151,7 @@ class NotificationWriteServiceTest {
 		assertThat(result.groupId()).isEqualTo(1L);
 		assertThat(result.totalCount()).isEqualTo(2);
 		verify(notificationWriteExecutor).createAndPublish(command, "idem-order-2001");
+		verify(groupListCacheRepository).evictLatest("order-service");
 		verify(unreadCountCacheRepository).evict("order-service", "user1@example.com");
 		verify(unreadCountCacheRepository).evict("order-service", "user2@example.com");
 	}
@@ -176,6 +182,7 @@ class NotificationWriteServiceTest {
 		verify(idempotencyLookupService, never()).findExistingResult(any(), any());
 		verify(idempotencyLookupService, never()).findExistingResultAfterCollision(any(), any());
 		verify(notificationWriteExecutor).createAndPublish(command, null);
+		verify(groupListCacheRepository).evictLatest("order-service");
 		verify(unreadCountCacheRepository).evict("order-service", "user1@example.com");
 	}
 
@@ -218,6 +225,7 @@ class NotificationWriteServiceTest {
 		verify(idempotencyLookupService).findExistingResult("order-service", "idem-order-3001");
 		verify(idempotencyLookupService)
 			.findExistingResultAfterCollision("order-service", "idem-order-3001");
+		verify(groupListCacheRepository, never()).evictLatest(any());
 		verify(unreadCountCacheRepository, never()).evict(any(), any());
 	}
 
@@ -257,6 +265,7 @@ class NotificationWriteServiceTest {
 		when(group.getId()).thenReturn(10L);
 		Notification notification = org.mockito.Mockito.mock(Notification.class);
 		when(notification.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(1));
+		when(notification.getId()).thenReturn(1L);
 		when(notification.getGroup()).thenReturn(group);
 		when(notification.getReceiver()).thenReturn("receiver@example.com");
 		when(notificationRepository.findById(1L)).thenReturn(Optional.of(notification));

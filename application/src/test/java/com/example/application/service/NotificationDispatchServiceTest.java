@@ -27,6 +27,7 @@ import com.example.application.port.in.result.BatchDispatchResult;
 import com.example.application.port.in.result.NotificationDispatchResult;
 import com.example.application.port.out.cache.NotificationDetailCacheRepository;
 import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
+import com.example.application.port.out.cache.NotificationGroupListCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationRepository;
 import com.example.application.port.out.NotificationSender;
@@ -56,6 +57,9 @@ class NotificationDispatchServiceTest {
 
 	@Mock
 	private NotificationGroupDetailCacheRepository groupDetailCacheRepository;
+
+	@Mock
+	private NotificationGroupListCacheRepository groupListCacheRepository;
 
 	@InjectMocks
 	private NotificationDispatchService dispatchService;
@@ -101,6 +105,7 @@ class NotificationDispatchServiceTest {
 		verify(notificationRepository, times(2)).save(notification);
 		verify(notificationDetailCacheRepository).evict(notification.getId());
 		verify(groupDetailCacheRepository).evict(notification.getGroup().getId());
+		verify(groupListCacheRepository).evictLatest(notification.getGroup().getClientId());
 	}
 
 	@Test
@@ -165,6 +170,7 @@ class NotificationDispatchServiceTest {
 		verify(notificationRepository).save(notification);
 		verify(notificationDetailCacheRepository).evict(notification.getId());
 		verify(groupDetailCacheRepository).evict(notification.getGroup().getId());
+		verify(groupListCacheRepository).evictLatest(notification.getGroup().getClientId());
 	}
 
 	@Test
@@ -204,6 +210,7 @@ class NotificationDispatchServiceTest {
 		verify(notificationGroupRepository).bulkApplyDispatchCounts(anyList());
 		verify(notificationDetailCacheRepository, times(4)).evict(any(Long.class));
 		verify(groupDetailCacheRepository, times(4)).evict(any(Long.class));
+		verify(groupListCacheRepository, times(2)).evictLatest("dispatch-service");
 	}
 
 	@Test

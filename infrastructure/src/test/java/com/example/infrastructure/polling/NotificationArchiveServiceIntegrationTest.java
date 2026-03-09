@@ -46,6 +46,11 @@ class NotificationArchiveServiceIntegrationTest extends IntegrationTestSupportNo
 			new TransactionTemplate(transactionManager),
 			new NotificationDetailCacheRepository() {
 				@Override
+				public boolean enabled() {
+					return false;
+				}
+
+				@Override
 				public java.util.Optional<com.example.application.port.in.result.NotificationResult> get(Long notificationId) {
 					return java.util.Optional.empty();
 				}
@@ -59,6 +64,11 @@ class NotificationArchiveServiceIntegrationTest extends IntegrationTestSupportNo
 				}
 			},
 			new NotificationGroupDetailCacheRepository() {
+				@Override
+				public boolean enabled() {
+					return false;
+				}
+
 				@Override
 				public java.util.Optional<com.example.application.port.in.result.NotificationGroupDetailResult> get(Long groupId) {
 					return java.util.Optional.empty();
