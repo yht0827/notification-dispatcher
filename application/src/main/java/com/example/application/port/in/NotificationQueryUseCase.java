@@ -6,6 +6,7 @@ import com.example.application.port.in.result.CursorSlice;
 import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.application.port.in.result.NotificationResult;
+import com.example.application.port.in.result.NotificationUnreadCountResult;
 
 public interface NotificationQueryUseCase {
 
@@ -16,4 +17,6 @@ public interface NotificationQueryUseCase {
 	CursorSlice<NotificationGroupResult> getGroupsByClientId(String clientId, Long cursorId, int size);
 
 	Optional<NotificationResult> getNotification(Long notificationId);
+
+	NotificationUnreadCountResult getUnreadCount(String clientId, String receiver);
 }

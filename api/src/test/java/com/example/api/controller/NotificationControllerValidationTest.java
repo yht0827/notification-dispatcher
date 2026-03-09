@@ -54,4 +54,13 @@ class NotificationControllerValidationTest {
 				.param("size", "101"))
 			.andExpect(status().isBadRequest());
 	}
+
+	@Test
+	@DisplayName("읽지 않은 개수 조회 receiver가 비어 있으면 400을 반환한다")
+	void getUnreadCount_returnsBadRequestWhenReceiverBlank() throws Exception {
+		mockMvc.perform(get("/api/v1/notifications/unread-count")
+				.header("X-Api-Key", "order-service")
+				.param("receiver", " "))
+			.andExpect(status().isBadRequest());
+	}
 }

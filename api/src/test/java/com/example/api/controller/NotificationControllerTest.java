@@ -25,6 +25,7 @@ import com.example.api.dto.response.NotificationGroupSliceResponse;
 import com.example.api.dto.response.NotificationReadResponse;
 import com.example.api.dto.response.NotificationResponse;
 import com.example.api.dto.response.NotificationSendResponse;
+import com.example.api.dto.response.NotificationUnreadCountResponse;
 import com.example.api.exception.ErrorCode;
 import com.example.api.exception.NotificationException;
 import com.example.application.port.in.NotificationQueryUseCase;
@@ -38,6 +39,7 @@ import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.application.port.in.result.NotificationItemResult;
 import com.example.application.port.in.result.NotificationReadResult;
 import com.example.application.port.in.result.NotificationResult;
+import com.example.application.port.in.result.NotificationUnreadCountResult;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.GroupType;
 import com.example.domain.notification.NotificationStatus;
@@ -197,6 +199,21 @@ class NotificationControllerTest {
 			.isInstanceOf(NotificationException.class)
 			.extracting("errorCode")
 			.isEqualTo(ErrorCode.NOTIFICATION_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("읽지 않은 알림 개수 조회 성공 시 count 응답을 반환한다")
+	void getUnreadCount_returnsResponse() {
+		when(queryUseCase.getUnreadCount("dev-api-key-001", "user@example.com"))
+			.thenReturn(new NotificationUnreadCountResult("user@example.com", 12L));
+
+		ApiResponse<NotificationUnreadCountResponse> response =
+			controller.getUnreadCount("dev-api-key-001", "user@example.com");
+
+		assertThat(response.success()).isTrue();
+		assertThat(response.data()).isNotNull();
+		assertThat(response.data().receiver()).isEqualTo("user@example.com");
+		assertThat(response.data().unreadCount()).isEqualTo(12L);
 	}
 
 	@Test

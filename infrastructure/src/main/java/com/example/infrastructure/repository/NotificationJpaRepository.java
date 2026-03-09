@@ -23,6 +23,24 @@ public interface NotificationJpaRepository extends JpaRepository<Notification, L
 	@Query("select distinct n from Notification n left join fetch n.group where n.id in :ids")
 	List<Notification> findAllByIdIn(@Param("ids") List<Long> ids);
 
+	@Query("""
+		select count(n)
+		from Notification n
+		where n.group.clientId = :clientId
+		  and n.receiver = :receiver
+		  and n.createdAt >= :from
+		  and not exists (
+		    select 1
+		    from NotificationReadStatus rs
+		    where rs.notificationId = n.id
+		  )
+		""")
+	long countUnreadByClientIdAndReceiver(
+		@Param("clientId") String clientId,
+		@Param("receiver") String receiver,
+		@Param("from") LocalDateTime from
+	);
+
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("select n from Notification n where n.id = :id")
 	Optional<Notification> findByIdWithPessimisticLock(@Param("id") Long id);

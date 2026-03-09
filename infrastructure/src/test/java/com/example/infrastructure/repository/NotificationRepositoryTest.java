@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -22,6 +23,9 @@ class NotificationRepositoryTest extends IntegrationTestSupport {
 
     @Autowired
     private NotificationGroupRepository groupRepository;
+
+	@Autowired
+	private NotificationReadStatusJpaRepository notificationReadStatusJpaRepository;
 
     @Test
     @DisplayName("알림을 저장하고 조회한다")
@@ -79,6 +83,29 @@ class NotificationRepositoryTest extends IntegrationTestSupport {
         // then
         assertThat(pending).hasSize(1);
     }
+
+	@Test
+	@DisplayName("clientId + receiver + 최근 7일 기준으로 읽지 않은 알림 개수를 센다")
+	void countUnreadByClientIdAndReceiver() {
+		NotificationGroup group = NotificationGroup.create(
+			"client-a", "MyShop", "테스트", "내용", ChannelType.EMAIL, 3
+		);
+		Notification unreadRecent = group.addNotification("user@example.com");
+		Notification readRecent = group.addNotification("user@example.com");
+		group.addNotification("other@example.com");
+		groupRepository.save(group);
+
+		NotificationReadStatus readStatus = NotificationReadStatus.create(readRecent.getId(), LocalDateTime.now());
+		notificationReadStatusJpaRepository.save(readStatus);
+
+		long count = notificationRepository.countUnreadByClientIdAndReceiver(
+			"client-a",
+			"user@example.com",
+			LocalDateTime.now().minusDays(7)
+		);
+
+		assertThat(count).isEqualTo(1L);
+	}
 
     private NotificationGroup createAndSaveGroup() {
         return NotificationGroup.create("test-service", "MyShop", "테스트", "테스트 내용", ChannelType.EMAIL, 1);
