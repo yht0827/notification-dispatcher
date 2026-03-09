@@ -15,6 +15,14 @@ import com.example.infrastructure.sender.mock.dto.MockApiSendSuccessResponse;
 public interface MockApiFeignClient extends MockApiClient {
 
 	@Override
-	@PostMapping("${notification.external.mock.send-path:/mock/send}")
-	ResponseEntity<MockApiSendSuccessResponse> send(@RequestBody MockApiSendRequest request);
+	@PostMapping("/mock/email/send")
+	ResponseEntity<MockApiSendSuccessResponse> sendEmail(@RequestBody MockApiSendRequest request);
+
+	@Override
+	@PostMapping("/mock/sms/send")
+	ResponseEntity<MockApiSendSuccessResponse> sendSms(@RequestBody MockApiSendRequest request);
+
+	@Override
+	@PostMapping("/mock/kakao/send")
+	ResponseEntity<MockApiSendSuccessResponse> sendKakao(@RequestBody MockApiSendRequest request);
 }

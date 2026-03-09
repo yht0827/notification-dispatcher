@@ -1,5 +1,7 @@
 package com.example.infrastructure.sender.mock.caller;
 
+import java.util.function.Supplier;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 
@@ -12,8 +14,10 @@ import com.example.infrastructure.sender.mock.exception.MockApiRetryableExceptio
 
 import feign.RetryableException;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.retry.annotation.Retry;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.retry.Retry;
+import io.github.resilience4j.retry.RetryRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -21,27 +25,52 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @RequiredArgsConstructor
 public class MockApiCaller {
-	private final MockApiClient mockApiClient;
 
-	@Retry(name = "mockApi")
-	@CircuitBreaker(name = "mockApi", fallbackMethod = "fallbackOnCircuitOpen")
+	private final MockApiClient mockApiClient;
+	private final CircuitBreakerRegistry circuitBreakerRegistry;
+	private final RetryRegistry retryRegistry;
+
 	public SendResult call(MockApiSendRequest request) {
+		String instanceName = instanceName(request.channelType());
+		CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker(instanceName);
+		Retry retry = retryRegistry.retry(instanceName);
+
+		// CB(outer) → Retry(inner) → actual call
+		Supplier<SendResult> callSupplier = () -> doCall(request);
+		Supplier<SendResult> withRetry = Retry.decorateSupplier(retry, callSupplier);
+		Supplier<SendResult> withCb = CircuitBreaker.decorateSupplier(cb, withRetry);
+
+		try {
+			return withCb.get();
+		} catch (CallNotPermittedException e) {
+			log.warn("서킷 브레이커 OPEN: channel={}, requestId={}", request.channelType(), request.requestId());
+			return SendResult.failRetryable("서킷 브레이커 OPEN - " + request.channelType() + " 외부 API 연속 장애");
+		}
+	}
+
+	private SendResult doCall(MockApiSendRequest request) {
 		log.debug("mock API 호출: requestId={}, channel={}", request.requestId(), request.channelType());
 
 		try {
-			ResponseEntity<MockApiSendSuccessResponse> response = mockApiClient.send(request);
+			ResponseEntity<MockApiSendSuccessResponse> response = switch (request.channelType().toUpperCase()) {
+				case "EMAIL" -> mockApiClient.sendEmail(request);
+				case "SMS" -> mockApiClient.sendSms(request);
+				case "KAKAO" -> mockApiClient.sendKakao(request);
+				default -> throw new MockApiNonRetryableException("지원하지 않는 채널: " + request.channelType());
+			};
+
 			if (!response.getStatusCode().is2xxSuccessful()) {
 				throw new MockApiRetryableException("외부 API 성공 응답 상태 코드가 아닙니다: " + response.getStatusCode().value());
 			}
 
 			MockApiSendSuccessResponse responseBody = response.getBody();
-
 			if (responseBody == null) {
 				throw new MockApiRetryableException("외부 API 성공 응답이 비어 있습니다.");
 			}
 
 			log.debug("mock API 응답 수신: requestId={}, status={}", request.requestId(), response.getStatusCode().value());
 			return SendResult.success();
+
 		} catch (MockApiNonRetryableException | MockApiRetryableException | MockApiRateLimitException e) {
 			throw e;
 		} catch (RetryableException e) {
@@ -51,8 +80,7 @@ public class MockApiCaller {
 		}
 	}
 
-	private SendResult fallbackOnCircuitOpen(MockApiSendRequest request, CallNotPermittedException e) {
-		log.warn("서킷 브레이커 OPEN: requestId={}, channel={}", request.requestId(), request.channelType());
-		return SendResult.failRetryable("서킷 브레이커 OPEN - 외부 API 연속 장애");
+	private String instanceName(String channelType) {
+		return channelType.toLowerCase() + "-api";  // "email-api", "sms-api", "kakao-api"
 	}
 }

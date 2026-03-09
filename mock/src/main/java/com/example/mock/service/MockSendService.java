@@ -32,7 +32,7 @@ public class MockSendService {
 
 	public MockSendSuccessResponse handleSend(MockSendRequest request) {
 		MockSendContext context = MockSendContext.from(request, nowMillis());
-		MockMode mode = properties.getMode();
+		MockMode mode = resolveMode(context.channelType());
 
 		boolean delayed = behaviorDecider.shouldDelay(mode);
 		if (delayed) {
@@ -106,6 +106,17 @@ public class MockSendService {
 			HttpStatus.OK.value(),
 			latencyMs
 		);
+	}
+
+	private MockMode resolveMode(String channelType) {
+		if (channelType != null && !channelType.isBlank()) {
+			MockProperties.ChannelConfig channelConfig = properties.getChannels()
+				.get(channelType.toLowerCase());
+			if (channelConfig != null && channelConfig.getMode() != null) {
+				return channelConfig.getMode();
+			}
+		}
+		return properties.getMode();
 	}
 
 	private String maskedPreview(String message) {
