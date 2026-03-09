@@ -61,7 +61,8 @@ class NotificationWriteExecutorTest {
 			"content",
 			ChannelType.EMAIL,
 			List.of("a@test.com", "b@test.com"),
-			"idem-1"
+			"idem-1",
+			null
 		);
 
 		when(groupRepository.saveAndFlush(any(NotificationGroup.class))).thenAnswer(invocation -> {
@@ -91,6 +92,7 @@ class NotificationWriteExecutorTest {
 			"content",
 			ChannelType.EMAIL,
 			List.of(),
+			null,
 			null
 		);
 

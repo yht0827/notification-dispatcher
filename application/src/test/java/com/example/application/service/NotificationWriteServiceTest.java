@@ -76,7 +76,8 @@ class NotificationWriteServiceTest {
 			"주문이 완료되었습니다.",
 			ChannelType.EMAIL,
 			List.of("user1@example.com", "user2@example.com"),
-			" idem-order-1001 "
+			" idem-order-1001 ",
+			null
 		);
 		NotificationGroup existingGroup = NotificationGroup.create(
 			"order-service",
@@ -113,7 +114,8 @@ class NotificationWriteServiceTest {
 			"주문이 완료되었습니다.",
 			ChannelType.EMAIL,
 			List.of("user1@example.com", "user2@example.com"),
-			"idem-order-2001"
+			"idem-order-2001",
+			null
 		);
 
 		NotificationCommandResult created = new NotificationCommandResult(1L, 2);
@@ -142,7 +144,8 @@ class NotificationWriteServiceTest {
 			"주문이 완료되었습니다.",
 			ChannelType.EMAIL,
 			List.of("user1@example.com"),
-			"   "
+			"   ",
+			null
 		);
 		NotificationCommandResult created = new NotificationCommandResult(10L, 1);
 		when(notificationWriteExecutor.createAndPublish(command, null)).thenReturn(created);
@@ -168,7 +171,8 @@ class NotificationWriteServiceTest {
 			"주문이 완료되었습니다.",
 			ChannelType.EMAIL,
 			List.of("user1@example.com", "user2@example.com"),
-			"idem-order-3001"
+			"idem-order-3001",
+			null
 		);
 		NotificationGroup existingGroup = NotificationGroup.create(
 			"order-service",
@@ -208,7 +212,8 @@ class NotificationWriteServiceTest {
 			"주문이 완료되었습니다.",
 			ChannelType.EMAIL,
 			List.of("user1@example.com", "user2@example.com"),
-			"idem-order-4001"
+			"idem-order-4001",
+			null
 		);
 		DataIntegrityViolationException duplicate = new DataIntegrityViolationException("duplicate key");
 
@@ -228,13 +233,16 @@ class NotificationWriteServiceTest {
 	@Test
 	@DisplayName("7일 이내 알림은 읽음 처리한다")
 	void markAsRead_marksRecentNotification() {
+		NotificationGroup group = org.mockito.Mockito.mock(NotificationGroup.class);
+		when(group.getClientId()).thenReturn("clientId");
 		Notification notification = org.mockito.Mockito.mock(Notification.class);
 		when(notification.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(1));
+		when(notification.getGroup()).thenReturn(group);
 		when(notificationRepository.findById(1L)).thenReturn(Optional.of(notification));
 		when(notificationReadStatusRepository.findReadAtByNotificationId(1L))
 			.thenReturn(LocalDateTime.of(2026, 3, 8, 12, 0));
 
-		Optional<NotificationReadResult> result = commandService.markAsRead(1L);
+		Optional<NotificationReadResult> result = commandService.markAsRead("clientId", 1L);
 
 		assertThat(result).isPresent();
 		assertThat(result.orElseThrow().notificationId()).isEqualTo(1L);
@@ -249,7 +257,7 @@ class NotificationWriteServiceTest {
 		when(notification.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(8));
 		when(notificationRepository.findById(1L)).thenReturn(Optional.of(notification));
 
-		Optional<NotificationReadResult> result = commandService.markAsRead(1L);
+		Optional<NotificationReadResult> result = commandService.markAsRead("clientId", 1L);
 
 		assertThat(result).isEmpty();
 		verify(notificationReadStatusRepository, never()).markAsRead(any(Long.class), any(LocalDateTime.class));
@@ -260,7 +268,7 @@ class NotificationWriteServiceTest {
 	void markAsRead_returnsFalseWhenNotificationMissing() {
 		when(notificationRepository.findById(1L)).thenReturn(Optional.empty());
 
-		Optional<NotificationReadResult> result = commandService.markAsRead(1L);
+		Optional<NotificationReadResult> result = commandService.markAsRead("clientId", 1L);
 
 		assertThat(result).isEmpty();
 		verify(notificationReadStatusRepository, never()).markAsRead(any(Long.class), any(LocalDateTime.class));
@@ -273,6 +281,7 @@ class NotificationWriteServiceTest {
 		Notification first = org.mockito.Mockito.mock(Notification.class);
 		Notification second = org.mockito.Mockito.mock(Notification.class);
 		when(group.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(1));
+		when(group.getClientId()).thenReturn("clientId");
 		when(group.getNotifications()).thenReturn(List.of(first, second));
 		when(first.getId()).thenReturn(1L);
 		when(second.getId()).thenReturn(2L);
@@ -280,7 +289,7 @@ class NotificationWriteServiceTest {
 		when(notificationReadStatusRepository.markAllAsRead(eq(List.of(1L, 2L)), any(LocalDateTime.class)))
 			.thenReturn(2);
 
-		Optional<NotificationGroupReadResult> result = commandService.markGroupAsRead(10L);
+		Optional<NotificationGroupReadResult> result = commandService.markGroupAsRead("clientId", 10L);
 
 		assertThat(result).isPresent();
 		assertThat(result.orElseThrow().groupId()).isEqualTo(10L);
@@ -294,6 +303,7 @@ class NotificationWriteServiceTest {
 		Notification first = org.mockito.Mockito.mock(Notification.class);
 		Notification second = org.mockito.Mockito.mock(Notification.class);
 		when(group.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(1));
+		when(group.getClientId()).thenReturn("clientId");
 		when(group.getNotifications()).thenReturn(List.of(first, second));
 		when(first.getId()).thenReturn(1L);
 		when(second.getId()).thenReturn(2L);
@@ -301,7 +311,7 @@ class NotificationWriteServiceTest {
 		when(notificationReadStatusRepository.markAllAsRead(eq(List.of(1L, 2L)), any(LocalDateTime.class)))
 			.thenReturn(0);
 
-		Optional<NotificationGroupReadResult> result = commandService.markGroupAsRead(10L);
+		Optional<NotificationGroupReadResult> result = commandService.markGroupAsRead("clientId", 10L);
 
 		assertThat(result).isPresent();
 		assertThat(result.orElseThrow().groupId()).isEqualTo(10L);
@@ -315,7 +325,7 @@ class NotificationWriteServiceTest {
 		when(group.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(8));
 		when(notificationGroupRepository.findByIdWithNotifications(10L)).thenReturn(Optional.of(group));
 
-		Optional<NotificationGroupReadResult> result = commandService.markGroupAsRead(10L);
+		Optional<NotificationGroupReadResult> result = commandService.markGroupAsRead("clientId", 10L);
 
 		assertThat(result).isEmpty();
 		verify(notificationReadStatusRepository, never()).markAllAsRead(any(), any());
@@ -326,7 +336,7 @@ class NotificationWriteServiceTest {
 	void markGroupAsRead_returnsEmptyWhenGroupMissing() {
 		when(notificationGroupRepository.findByIdWithNotifications(10L)).thenReturn(Optional.empty());
 
-		Optional<NotificationGroupReadResult> result = commandService.markGroupAsRead(10L);
+		Optional<NotificationGroupReadResult> result = commandService.markGroupAsRead("clientId", 10L);
 
 		assertThat(result).isEmpty();
 		verify(notificationReadStatusRepository, never()).markAllAsRead(any(), any());

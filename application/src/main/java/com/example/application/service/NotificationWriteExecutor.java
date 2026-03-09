@@ -1,5 +1,6 @@
 package com.example.application.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.context.ApplicationEventPublisher;
@@ -35,25 +36,26 @@ public class NotificationWriteExecutor {
 		command.receivers().forEach(group::addNotification);
 
 		NotificationGroup savedGroup = groupRepository.saveAndFlush(group);
-		saveOutboxEvents(savedGroup);
+		saveOutboxEvents(savedGroup, command.scheduledAt());
 		return resultMapper.toResult(savedGroup);
 	}
 
-	private void saveOutboxEvents(NotificationGroup savedGroup) {
+	private void saveOutboxEvents(NotificationGroup savedGroup, LocalDateTime scheduledAt) {
 		List<Long> notificationIds = savedGroup.getNotifications().stream()
 			.map(Notification::getId)
 			.toList();
 
 		List<Outbox> outboxes = notificationIds.stream()
-			.map(Outbox::createNotificationEvent)
+			.map(id -> Outbox.createNotificationEvent(id, scheduledAt))
 			.toList();
 
 		outboxRepository.saveAll(outboxes);
 
-		if (!notificationIds.isEmpty()) {
+		// 즉시 발송만 OutboxSavedEvent 발행 (예약 발송은 OutboxPoller가 처리)
+		if (scheduledAt == null && !notificationIds.isEmpty()) {
 			eventPublisher.publishEvent(new OutboxSavedEvent(notificationIds));
 		}
-		log.debug("Outbox 저장 완료: count={}", outboxes.size());
+		log.debug("Outbox 저장 완료: total={}, scheduled={}", outboxes.size(), scheduledAt != null);
 	}
 
 	private NotificationGroup createGroup(SendCommand command, String idempotencyKey) {

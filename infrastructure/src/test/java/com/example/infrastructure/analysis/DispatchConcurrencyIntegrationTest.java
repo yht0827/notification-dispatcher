@@ -428,7 +428,8 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 			"content",
 			ChannelType.EMAIL,
 			receivers,
-			idempotencyKey
+			idempotencyKey,
+			null
 		);
 
 		NotificationCommandResult result = commandService.request(command);

@@ -16,7 +16,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
 import com.example.api.dto.request.NotificationGroupQueryRequest;
 import com.example.api.dto.request.NotificationSendRequest;
 import com.example.api.dto.response.ApiResponse;
@@ -59,18 +58,18 @@ class NotificationControllerTest {
 	@DisplayName("발송 요청 시 ApiResponse와 NotificationSendResponse를 반환한다")
 	void send_returnsResponse() {
 		NotificationSendRequest request = new NotificationSendRequest(
-			"order-service",
 			"MyShop",
 			"주문 완료",
 			"주문이 완료되었습니다.",
 			ChannelType.EMAIL,
 			List.of("user1@example.com", "user2@example.com"),
-			"idem-1"
+			"idem-1",
+			null
 		);
 		when(writeUseCase.request(any(SendCommand.class)))
 			.thenReturn(new NotificationCommandResult(1L, 2));
 
-		ApiResponse<NotificationSendResponse> response = controller.send(request);
+		ApiResponse<NotificationSendResponse> response = controller.send("order-service", request);
 
 		assertThat(response.success()).isTrue();
 		assertThat(response.data().groupId()).isEqualTo(1L);
@@ -133,7 +132,7 @@ class NotificationControllerTest {
 	@Test
 	@DisplayName("요청자별 그룹 목록 조회는 기본 size 20을 사용한다")
 	void getGroupsByClientId_usesDefaultSize() {
-		NotificationGroupQueryRequest request = new NotificationGroupQueryRequest("order-service", null, null);
+		NotificationGroupQueryRequest request = new NotificationGroupQueryRequest(null, null);
 		CursorSlice<NotificationGroupResult> slice = new CursorSlice<>(
 			List.of(new NotificationGroupResult(
 				1L,
@@ -154,7 +153,7 @@ class NotificationControllerTest {
 		);
 		when(queryUseCase.getGroupsByClientId("order-service", null, 20)).thenReturn(slice);
 
-		ApiResponse<NotificationGroupSliceResponse> response = controller.getGroupsByClientId(request);
+		ApiResponse<NotificationGroupSliceResponse> response = controller.getGroupsByClientId("order-service", request);
 
 		assertThat(response.success()).isTrue();
 		assertThat(response.data().items()).hasSize(1);
@@ -203,25 +202,25 @@ class NotificationControllerTest {
 	@Test
 	@DisplayName("읽음 처리 성공 시 success 응답을 반환한다")
 	void markAsRead_returnsSuccess() {
-		when(writeUseCase.markAsRead(1L))
+		when(writeUseCase.markAsRead("dev-api-key-001", 1L))
 			.thenReturn(Optional.of(new NotificationReadResult(1L, LocalDateTime.of(2026, 3, 8, 12, 0))));
 
-		ApiResponse<NotificationReadResponse> response = controller.markAsRead(1L);
+		ApiResponse<NotificationReadResponse> response = controller.markAsRead("dev-api-key-001", 1L);
 
 		assertThat(response.success()).isTrue();
 		assertThat(response.data()).isNotNull();
 		assertThat(response.data().notificationId()).isEqualTo(1L);
 		assertThat(response.data().readAt()).isEqualTo(LocalDateTime.of(2026, 3, 8, 12, 0));
 		assertThat(response.data().message()).isEqualTo("알림을 읽음 처리했습니다.");
-		verify(writeUseCase).markAsRead(1L);
+		verify(writeUseCase).markAsRead("dev-api-key-001", 1L);
 	}
 
 	@Test
 	@DisplayName("읽음 처리 대상이 없으면 NotificationException을 던진다")
 	void markAsRead_throwsWhenNotFound() {
-		when(writeUseCase.markAsRead(1L)).thenReturn(Optional.empty());
+		when(writeUseCase.markAsRead("dev-api-key-001", 1L)).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> controller.markAsRead(1L))
+		assertThatThrownBy(() -> controller.markAsRead("dev-api-key-001", 1L))
 			.isInstanceOf(NotificationException.class)
 			.extracting("errorCode")
 			.isEqualTo(ErrorCode.NOTIFICATION_NOT_FOUND);
@@ -230,10 +229,10 @@ class NotificationControllerTest {
 	@Test
 	@DisplayName("그룹 읽음 처리 성공 시 success 응답을 반환한다")
 	void markGroupAsRead_returnsSuccess() {
-		when(writeUseCase.markGroupAsRead(10L))
+		when(writeUseCase.markGroupAsRead("dev-api-key-001", 10L))
 			.thenReturn(Optional.of(new NotificationGroupReadResult(10L, 2, LocalDateTime.of(2026, 3, 8, 12, 0))));
 
-		ApiResponse<NotificationGroupReadResponse> response = controller.markGroupAsRead(10L);
+		ApiResponse<NotificationGroupReadResponse> response = controller.markGroupAsRead("dev-api-key-001", 10L);
 
 		assertThat(response.success()).isTrue();
 		assertThat(response.data()).isNotNull();
@@ -246,9 +245,9 @@ class NotificationControllerTest {
 	@Test
 	@DisplayName("그룹 읽음 처리 대상이 없으면 NotificationException을 던진다")
 	void markGroupAsRead_throwsWhenNotFound() {
-		when(writeUseCase.markGroupAsRead(10L)).thenReturn(Optional.empty());
+		when(writeUseCase.markGroupAsRead("dev-api-key-001", 10L)).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> controller.markGroupAsRead(10L))
+		assertThatThrownBy(() -> controller.markGroupAsRead("dev-api-key-001", 10L))
 			.isInstanceOf(NotificationException.class)
 			.extracting("errorCode")
 			.isEqualTo(ErrorCode.NOTIFICATION_GROUP_NOT_FOUND);

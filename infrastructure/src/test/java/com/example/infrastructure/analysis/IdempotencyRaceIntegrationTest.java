@@ -70,7 +70,8 @@ class IdempotencyRaceIntegrationTest extends IntegrationTestSupportNoTx {
 			"content",
 			ChannelType.EMAIL,
 			List.of("user1@test.com", "user2@test.com"),
-			IDEMPOTENCY_KEY
+			IDEMPOTENCY_KEY,
+			null
 		);
 
 		Callable<Object> task = () -> {
@@ -112,7 +113,8 @@ class IdempotencyRaceIntegrationTest extends IntegrationTestSupportNoTx {
 				"content",
 				ChannelType.EMAIL,
 				List.of("user1@test.com", "user2@test.com"),
-				idempotencyKey
+				idempotencyKey,
+				null
 			);
 
 			List<Object> results = executeConcurrently(buildTasks(command, requestCount), 15);

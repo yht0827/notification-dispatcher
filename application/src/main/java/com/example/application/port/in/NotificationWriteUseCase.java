@@ -11,7 +11,7 @@ public interface NotificationWriteUseCase {
 
 	NotificationCommandResult request(SendCommand command);
 
-	Optional<NotificationReadResult> markAsRead(Long notificationId);
+	Optional<NotificationReadResult> markAsRead(String clientId, Long notificationId);
 
-	Optional<NotificationGroupReadResult> markGroupAsRead(Long groupId);
+	Optional<NotificationGroupReadResult> markGroupAsRead(String clientId, Long groupId);
 }
