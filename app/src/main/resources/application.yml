@@ -85,6 +85,21 @@ resilience4j:
         base-config: channel
       kakao-api:
         base-config: channel
+  ratelimiter:
+    configs:
+      channel:
+        limit-refresh-period: 1s
+        timeout-duration: 0s         # 대기 없이 즉시 실패
+    instances:
+      email-api:
+        base-config: channel
+        limit-for-period: 100
+      sms-api:
+        base-config: channel
+        limit-for-period: 50
+      kakao-api:
+        base-config: channel
+        limit-for-period: 30
 # ─────────────────────────────────────────
 # Actuator / Metrics
 # ─────────────────────────────────────────

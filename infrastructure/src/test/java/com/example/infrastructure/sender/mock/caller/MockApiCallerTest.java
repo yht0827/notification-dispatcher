@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
 import java.util.Map;
 
 import org.junit.jupiter.api.DisplayName;
@@ -25,6 +26,8 @@ import feign.RequestTemplate;
 import feign.RetryableException;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.ratelimiter.RateLimiterConfig;
+import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import io.github.resilience4j.retry.RetryConfig;
 import io.github.resilience4j.retry.RetryRegistry;
 
@@ -58,7 +61,18 @@ class MockApiCallerTest {
 		retryRegistry.retry("sms-api");
 		retryRegistry.retry("kakao-api");
 
-		mockApiCaller = new MockApiCaller(mockApiClient, circuitBreakerRegistry, retryRegistry);
+		RateLimiterRegistry rateLimiterRegistry = RateLimiterRegistry.of(
+			RateLimiterConfig.custom()
+				.limitForPeriod(Integer.MAX_VALUE)
+				.limitRefreshPeriod(Duration.ofSeconds(1))
+				.timeoutDuration(Duration.ZERO)
+				.build()
+		);
+		rateLimiterRegistry.rateLimiter("email-api");
+		rateLimiterRegistry.rateLimiter("sms-api");
+		rateLimiterRegistry.rateLimiter("kakao-api");
+
+		mockApiCaller = new MockApiCaller(mockApiClient, circuitBreakerRegistry, retryRegistry, rateLimiterRegistry);
 	}
 
 	@Test
@@ -135,5 +149,31 @@ class MockApiCallerTest {
 		assertThatThrownBy(() -> mockApiCaller.call(request))
 			.isInstanceOf(MockApiRetryableException.class)
 			.hasMessageContaining("외부 API 호출 오류");
+	}
+
+	@Test
+	@DisplayName("발신 처리율 초과 시 retryable 실패 결과를 반환한다")
+	void call_returnsRetryable_whenRateLimitExceeded() {
+		RateLimiterRegistry limitedRegistry = RateLimiterRegistry.of(
+			RateLimiterConfig.custom()
+				.limitForPeriod(1)
+				.limitRefreshPeriod(Duration.ofHours(1))
+				.timeoutDuration(Duration.ZERO)
+				.build()
+		);
+		limitedRegistry.rateLimiter("email-api");
+		CircuitBreakerRegistry cbRegistry = CircuitBreakerRegistry.ofDefaults();
+		RetryRegistry retryReg = RetryRegistry.of(RetryConfig.custom().maxAttempts(1).build());
+		MockApiCaller limitedCaller = new MockApiCaller(mockApiClient, cbRegistry, retryReg, limitedRegistry);
+
+		MockApiSendRequest first = new MockApiSendRequest("req-rl-0", "EMAIL", "a@b.com", "hi", null);
+		MockApiSendSuccessResponse body = new MockApiSendSuccessResponse("SUCCESS", "req-rl-0", "EMAIL", "2026-03-04T00:00:00Z", 10L);
+		when(mockApiClient.sendEmail(first)).thenReturn(ResponseEntity.ok(body));
+		limitedCaller.call(first);  // 첫 번째 호출로 permit 소진
+
+		MockApiSendRequest request = new MockApiSendRequest("req-rl-1", "EMAIL", "a@b.com", "hi", null);
+		SendResult result = limitedCaller.call(request);
+
+		assertThat(result.isSuccess()).isFalse();
 	}
 }
