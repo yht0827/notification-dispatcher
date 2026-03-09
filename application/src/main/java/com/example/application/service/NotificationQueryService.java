@@ -15,6 +15,7 @@ import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.application.port.in.result.NotificationResult;
 import com.example.application.port.in.result.NotificationUnreadCountResult;
+import com.example.application.port.out.cache.NotificationDetailCacheRepository;
 import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
 import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
@@ -31,6 +32,7 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 	private final NotificationGroupRepository groupRepository;
 	private final NotificationRepository notificationRepository;
 	private final NotificationReadStatusRepository notificationReadStatusRepository;
+	private final NotificationDetailCacheRepository notificationDetailCacheRepository;
 	private final NotificationGroupDetailCacheRepository groupDetailCacheRepository;
 	private final NotificationUnreadCountCacheRepository unreadCountCacheRepository;
 	private final NotificationResultMapper mapper;
@@ -79,13 +81,23 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 	@Override
 	public Optional<NotificationResult> getNotification(Long notificationId) {
 		LocalDateTime from = detailFrom();
+		Optional<NotificationResult> cached = notificationDetailCacheRepository.get(notificationId)
+			.filter(detail -> NotificationDetailRetentionPolicy.isWithinRetention(detail.createdAt(), from));
+		if (cached.isPresent()) {
+			return cached;
+		}
+		notificationDetailCacheRepository.evict(notificationId);
 		return notificationRepository.findById(notificationId)
 			.filter(
 				notification -> NotificationDetailRetentionPolicy.isWithinRetention(notification.getCreatedAt(), from))
-			.map(notification -> mapper.toNotificationResult(
-				notification,
-				notificationReadStatusRepository.findReadAtByNotificationId(notification.getId())
-			));
+			.map(notification -> {
+				NotificationResult detail = mapper.toNotificationResult(
+					notification,
+					notificationReadStatusRepository.findReadAtByNotificationId(notification.getId())
+				);
+				notificationDetailCacheRepository.put(notificationId, detail);
+				return detail;
+			});
 	}
 
 	@Override

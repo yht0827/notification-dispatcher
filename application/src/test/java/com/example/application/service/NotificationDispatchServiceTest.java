@@ -25,6 +25,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.example.application.port.in.result.BatchDispatchResult;
 import com.example.application.port.in.result.NotificationDispatchResult;
+import com.example.application.port.out.cache.NotificationDetailCacheRepository;
 import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationRepository;
@@ -49,6 +50,9 @@ class NotificationDispatchServiceTest {
 
 	@Mock
 	private TransactionTemplate transactionTemplate;
+
+	@Mock
+	private NotificationDetailCacheRepository notificationDetailCacheRepository;
 
 	@Mock
 	private NotificationGroupDetailCacheRepository groupDetailCacheRepository;
@@ -83,7 +87,7 @@ class NotificationDispatchServiceTest {
 	@DisplayName("정상 발송하고 상태를 저장한다")
 	void dispatch_sendsAndPersists() {
 		// given
-		Notification notification = createNotification();
+		Notification notification = createNotification(1L, "user@example.com");
 		when(notificationRepository.save(notification)).thenReturn(notification);
 		when(notificationSender.send(notification)).thenReturn(SendResult.success());
 
@@ -95,6 +99,7 @@ class NotificationDispatchServiceTest {
 		assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
 		verify(notificationSender).send(notification);
 		verify(notificationRepository, times(2)).save(notification);
+		verify(notificationDetailCacheRepository).evict(notification.getId());
 		verify(groupDetailCacheRepository).evict(notification.getGroup().getId());
 	}
 
@@ -144,7 +149,7 @@ class NotificationDispatchServiceTest {
 	@DisplayName("발송 실패 시 실패 결과를 반환한다")
 	void dispatch_returnsFailureWhenSendFails() {
 		// given
-		Notification notification = createNotification();
+		Notification notification = createNotification(1L, "user@example.com");
 		when(notificationRepository.save(notification)).thenReturn(notification);
 		when(notificationSender.send(notification)).thenReturn(SendResult.fail("발송 실패"));
 
@@ -158,6 +163,7 @@ class NotificationDispatchServiceTest {
 		assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENDING);
 		verify(notificationSender).send(notification);
 		verify(notificationRepository).save(notification);
+		verify(notificationDetailCacheRepository).evict(notification.getId());
 		verify(groupDetailCacheRepository).evict(notification.getGroup().getId());
 	}
 
@@ -196,6 +202,7 @@ class NotificationDispatchServiceTest {
 		verify(notificationRepository).bulkMarkAsSent(eq(List.of(1L, 2L)), any(), any());
 		verify(notificationSender, times(2)).send(any(Notification.class));
 		verify(notificationGroupRepository).bulkApplyDispatchCounts(anyList());
+		verify(notificationDetailCacheRepository, times(4)).evict(any(Long.class));
 		verify(groupDetailCacheRepository, times(4)).evict(any(Long.class));
 	}
 
@@ -231,6 +238,7 @@ class NotificationDispatchServiceTest {
 		});
 		verify(notificationRepository).bulkStartSending(eq(List.of(10L)), any());
 		verify(notificationRepository).bulkMarkAsFailed(anyList(), any());
+		verify(notificationDetailCacheRepository, times(2)).evict(pending.getId());
 		verify(groupDetailCacheRepository, times(2)).evict(pending.getGroup().getId());
 	}
 

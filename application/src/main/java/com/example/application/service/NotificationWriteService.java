@@ -13,6 +13,7 @@ import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.in.result.NotificationGroupReadResult;
 import com.example.application.port.in.result.NotificationReadResult;
+import com.example.application.port.out.cache.NotificationDetailCacheRepository;
 import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
 import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
@@ -33,6 +34,7 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 	private final NotificationReadStatusRepository notificationReadStatusRepository;
 	private final NotificationIdempotencyLookupService idempotencyLookupService;
 	private final NotificationWriteExecutor notificationWriteExecutor;
+	private final NotificationDetailCacheRepository notificationDetailCacheRepository;
 	private final NotificationGroupDetailCacheRepository groupDetailCacheRepository;
 	private final NotificationUnreadCountCacheRepository unreadCountCacheRepository;
 
@@ -80,6 +82,7 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 					throw new AccessDeniedException("해당 알림에 대한 접근 권한이 없습니다.");
 				}
 				notificationReadStatusRepository.markAsRead(notificationId, now);
+				evictNotificationDetail(notificationId);
 				evictGroupDetail(notification.getGroup().getId());
 				evictUnreadCount(clientId, notification.getReceiver());
 				LocalDateTime readAt = notificationReadStatusRepository.findReadAtByNotificationId(notificationId);
@@ -102,6 +105,7 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 					.map(com.example.domain.notification.Notification::getId)
 					.toList();
 				int readCount = notificationReadStatusRepository.markAllAsRead(notificationIds, now);
+				evictNotificationDetails(notificationIds);
 				evictGroupDetail(groupId);
 				evictUnreadCount(
 					clientId,
@@ -133,6 +137,23 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 			return;
 		}
 		groupDetailCacheRepository.evict(groupId);
+	}
+
+	private void evictNotificationDetail(Long notificationId) {
+		if (notificationId == null) {
+			return;
+		}
+		notificationDetailCacheRepository.evict(notificationId);
+	}
+
+	private void evictNotificationDetails(List<Long> notificationIds) {
+		if (notificationIds == null || notificationIds.isEmpty()) {
+			return;
+		}
+		notificationIds.stream()
+			.filter(java.util.Objects::nonNull)
+			.distinct()
+			.forEach(notificationDetailCacheRepository::evict);
 	}
 
 	private String normalizeIdempotencyKey(String idempotencyKey) {

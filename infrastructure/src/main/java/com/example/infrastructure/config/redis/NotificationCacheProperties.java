@@ -7,7 +7,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "notification.cache")
 public record NotificationCacheProperties(
 	Duration unreadCountTtl,
-	Duration groupDetailTtl
+	Duration groupDetailTtl,
+	Duration notificationDetailTtl
 ) {
 
 	public NotificationCacheProperties {
@@ -16,6 +17,9 @@ public record NotificationCacheProperties(
 		}
 		if (groupDetailTtl == null) {
 			groupDetailTtl = Duration.ofSeconds(30);
+		}
+		if (notificationDetailTtl == null) {
+			notificationDetailTtl = Duration.ofSeconds(30);
 		}
 	}
 }
