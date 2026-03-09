@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,6 +24,7 @@ import com.example.api.dto.response.NotificationGroupSliceResponse;
 import com.example.api.dto.response.NotificationReadResponse;
 import com.example.api.dto.response.NotificationResponse;
 import com.example.api.dto.response.NotificationSendResponse;
+import com.example.api.dto.response.NotificationUnreadCountResponse;
 import com.example.api.exception.ErrorCode;
 import com.example.api.exception.NotificationException;
 import com.example.application.port.in.NotificationQueryUseCase;
@@ -31,6 +33,7 @@ import com.example.application.port.in.result.NotificationCommandResult;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -72,6 +75,16 @@ public class NotificationController {
 				queryUseCase.getGroupsByClientId(clientId, request.cursorId(), request.resolveSize())
 			)
 		);
+	}
+
+	@Operation(summary = "수신자별 읽지 않은 알림 개수 조회 (최근 7일)")
+	@GetMapping("/unread-count")
+	public ApiResponse<NotificationUnreadCountResponse> getUnreadCount(
+		@RequestHeader(ApiKeyAuthFilter.HEADER_API_KEY) String clientId,
+		@RequestParam @NotBlank(message = "receiver는 비어 있을 수 없습니다.") String receiver) {
+		return ApiResponse.ok(NotificationUnreadCountResponse.from(
+			queryUseCase.getUnreadCount(clientId, receiver)
+		));
 	}
 
 	@Operation(summary = "알림 발송", description = "단일 또는 대량 알림을 발송합니다.")

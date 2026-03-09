@@ -17,6 +17,8 @@ public interface NotificationRepository {
 
 	List<Notification> findAllByIdIn(List<Long> ids);
 
+	long countUnreadByClientIdAndReceiver(String clientId, String receiver, LocalDateTime from);
+
 	List<Notification> findByStatus(NotificationStatus status);
 
 	List<Notification> findByStatusAndCreatedAtBefore(NotificationStatus status, LocalDateTime threshold, int limit);

@@ -22,6 +22,7 @@ import com.example.application.port.in.result.CursorSlice;
 import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.application.port.in.result.NotificationResult;
+import com.example.application.port.in.result.NotificationUnreadCountResult;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationReadStatusRepository;
 import com.example.application.port.out.repository.NotificationRepository;
@@ -212,6 +213,26 @@ class NotificationQueryServiceTest {
 
 		assertThat(result).isEmpty();
 		verify(notificationRepository).findById(1L);
+	}
+
+	@Test
+	@DisplayName("읽지 않은 알림 개수는 최근 7일 + clientId + receiver 기준으로 조회한다")
+	void getUnreadCount_returnsCount() {
+		when(notificationRepository.countUnreadByClientIdAndReceiver(
+			org.mockito.ArgumentMatchers.eq("client-1"),
+			org.mockito.ArgumentMatchers.eq("user@example.com"),
+			any(LocalDateTime.class)
+		)).thenReturn(7L);
+
+		NotificationUnreadCountResult result = queryService.getUnreadCount("client-1", "user@example.com");
+
+		assertThat(result.receiver()).isEqualTo("user@example.com");
+		assertThat(result.unreadCount()).isEqualTo(7L);
+		verify(notificationRepository).countUnreadByClientIdAndReceiver(
+			org.mockito.ArgumentMatchers.eq("client-1"),
+			org.mockito.ArgumentMatchers.eq("user@example.com"),
+			any(LocalDateTime.class)
+		);
 	}
 
 }

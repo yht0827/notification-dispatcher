@@ -52,6 +52,11 @@ public class NotificationRepositoryImpl implements NotificationRepository {
 	}
 
 	@Override
+	public long countUnreadByClientIdAndReceiver(String clientId, String receiver, LocalDateTime from) {
+		return jpaRepository.countUnreadByClientIdAndReceiver(clientId, receiver, from);
+	}
+
+	@Override
 	public List<Notification> findByStatus(NotificationStatus status) {
 		return jpaRepository.findByStatus(status);
 	}

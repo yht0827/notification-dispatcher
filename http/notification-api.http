@@ -160,11 +160,14 @@ GET {{host}}/api/v1/notifications/groups?clientId=marketing-service&cursorId={{c
 GET {{host}}/api/v1/notifications/groups/{{groupId}}
 
 ### ==================================================
-### 3) 개별 알림 조회 / 읽음 처리
+### 3) 개별 알림 조회 / 읽음 처리 / 안읽은 개수
 ### ==================================================
 
 ### 알림 ID 조회
 GET {{host}}/api/v1/notifications/{{notificationId}}
+
+### 수신자별 읽지 않은 알림 개수 조회 (최근 7일, clientId + receiver 기준)
+GET {{host}}/api/v1/notifications/unread-count?receiver=user@example.com
 
 ### 개별 알림 읽음 처리
 PATCH {{host}}/api/v1/notifications/{{notificationId}}/read
