@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.example.application.port.out.cache.NotificationDetailCacheRepository;
 import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
 
 @Configuration
@@ -21,6 +22,7 @@ public class ArchiveConfig {
 		NamedParameterJdbcTemplate namedParameterJdbcTemplate,
 		ArchiveProperties archiveProperties,
 		TransactionTemplate transactionTemplate,
+		NotificationDetailCacheRepository notificationDetailCacheRepository,
 		NotificationGroupDetailCacheRepository groupDetailCacheRepository
 	) {
 		return new NotificationArchiveService(
@@ -28,6 +30,7 @@ public class ArchiveConfig {
 			namedParameterJdbcTemplate,
 			archiveProperties,
 			transactionTemplate,
+			notificationDetailCacheRepository,
 			groupDetailCacheRepository
 		);
 	}

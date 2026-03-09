@@ -25,6 +25,7 @@ import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.application.port.in.result.NotificationResult;
 import com.example.application.port.in.result.NotificationUnreadCountResult;
+import com.example.application.port.out.cache.NotificationDetailCacheRepository;
 import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
 import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
@@ -50,6 +51,9 @@ class NotificationQueryServiceTest {
 
 	@Mock
 	private NotificationUnreadCountCacheRepository unreadCountCacheRepository;
+
+	@Mock
+	private NotificationDetailCacheRepository notificationDetailCacheRepository;
 
 	@Mock
 	private NotificationGroupDetailCacheRepository groupDetailCacheRepository;
@@ -228,6 +232,7 @@ class NotificationQueryServiceTest {
 		when(notification.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(1));
 		when(notification.getGroup()).thenReturn(group);
 		when(notificationRepository.findById(1L)).thenReturn(Optional.of(notification));
+		when(notificationDetailCacheRepository.get(1L)).thenReturn(Optional.empty());
 		when(notificationReadStatusRepository.findReadAtByNotificationId(1L))
 			.thenReturn(LocalDateTime.of(2026, 3, 8, 12, 0));
 
@@ -239,6 +244,32 @@ class NotificationQueryServiceTest {
 		assertThat(result.orElseThrow().isRead()).isTrue();
 		assertThat(result.orElseThrow().readAt()).isEqualTo(LocalDateTime.of(2026, 3, 8, 12, 0));
 		verify(notificationRepository).findById(1L);
+		verify(notificationDetailCacheRepository).put(eq(1L), any(NotificationResult.class));
+	}
+
+	@Test
+	@DisplayName("알림 단건 조회는 캐시 hit면 DB 조회 없이 반환한다")
+	void getNotification_returnsCachedDetail() {
+		NotificationResult cached = new NotificationResult(
+			1L,
+			20L,
+			"01012345678",
+			"sender",
+			"title",
+			ChannelType.SMS,
+			NotificationStatus.SENT,
+			null,
+			null,
+			LocalDateTime.now().minusDays(1),
+			true,
+			LocalDateTime.of(2026, 3, 8, 12, 0)
+		);
+		when(notificationDetailCacheRepository.get(1L)).thenReturn(Optional.of(cached));
+
+		Optional<NotificationResult> result = queryService.getNotification(1L);
+
+		assertThat(result).contains(cached);
+		verify(notificationRepository, never()).findById(any());
 	}
 
 	@Test
@@ -246,6 +277,7 @@ class NotificationQueryServiceTest {
 	void getNotification_returnsEmptyWhenOlderThanSevenDays() {
 		Notification notification = org.mockito.Mockito.mock(Notification.class);
 		when(notification.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(8));
+		when(notificationDetailCacheRepository.get(1L)).thenReturn(Optional.empty());
 		when(notificationRepository.findById(1L)).thenReturn(Optional.of(notification));
 
 		Optional<NotificationResult> result = queryService.getNotification(1L);

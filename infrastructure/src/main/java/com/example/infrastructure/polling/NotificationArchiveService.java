@@ -10,6 +10,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.example.application.port.out.cache.NotificationDetailCacheRepository;
 import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class NotificationArchiveService {
 	private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 	private final ArchiveProperties archiveProperties;
 	private final TransactionTemplate transactionTemplate;
+	private final NotificationDetailCacheRepository notificationDetailCacheRepository;
 	private final NotificationGroupDetailCacheRepository groupDetailCacheRepository;
 
 	public ArchiveRunResult archiveExpiredData() {
@@ -188,6 +190,7 @@ public class NotificationArchiveService {
 			"DELETE FROM notification WHERE id IN (:ids)",
 			new MapSqlParameterSource().addValue("ids", ids)
 		);
+		ids.forEach(notificationDetailCacheRepository::evict);
 	}
 
 	private void deleteNotificationReadStatuses(List<Long> ids) {

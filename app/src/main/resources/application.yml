@@ -33,6 +33,7 @@ notification:
   cache:
     unread-count-ttl: 30s
     group-detail-ttl: 30s
+    notification-detail-ttl: 30s
   rabbitmq:
     listener-virtual-threads: false
   external:

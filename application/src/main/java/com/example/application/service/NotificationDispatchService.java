@@ -12,6 +12,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.example.application.port.in.NotificationDispatchUseCase;
 import com.example.application.port.in.result.BatchDispatchResult;
 import com.example.application.port.in.result.NotificationDispatchResult;
+import com.example.application.port.out.cache.NotificationDetailCacheRepository;
 import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
 import com.example.application.port.out.repository.NotificationFailureUpdate;
 import com.example.application.port.out.repository.NotificationGroupCountUpdate;
@@ -34,6 +35,7 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 	private final NotificationGroupRepository notificationGroupRepository;
 	private final NotificationSender notificationSender;
 	private final TransactionTemplate transactionTemplate;
+	private final NotificationDetailCacheRepository notificationDetailCacheRepository;
 	private final NotificationGroupDetailCacheRepository groupDetailCacheRepository;
 
 	@Override
@@ -57,11 +59,13 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 			// SENDING → SENT
 			managedNotification.markAsSent();
 			notificationRepository.save(managedNotification);
+			evictNotificationDetail(managedNotification);
 			evictGroupDetail(managedNotification);
 			log.info("알림 발송 성공: id={}, receiver={}", managedNotification.getId(), managedNotification.getReceiver());
 			return NotificationDispatchResult.success();
 		} else {
 			log.warn("알림 발송 실패: id={}, reason={}", managedNotification.getId(), sendResult.failReason());
+			evictNotificationDetail(managedNotification);
 			evictGroupDetail(managedNotification);
 			if (sendResult.isNonRetryableFailure()) {
 				return NotificationDispatchResult.failNonRetryable(sendResult.failReason());
@@ -103,6 +107,7 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 		notificationRepository.findById(notificationId).ifPresent(notification -> {
 			notification.markAsFailed(reason);
 			notificationRepository.save(notification);
+			evictNotificationDetail(notification);
 			evictGroupDetail(notification);
 			log.error("알림 최종 실패: id={}, reason={}", notificationId, reason);
 		});
@@ -121,6 +126,7 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 				preparedById.put(notification.getId(), notification);
 			}
 			notificationRepository.bulkStartSending(notificationIds, java.time.LocalDateTime.now());
+			evictNotificationDetails(preparedById.values());
 			evictGroupDetails(preparedById.values());
 			return preparedById;
 		});
@@ -182,6 +188,7 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 			if (!groupCountUpdates.isEmpty()) {
 				notificationGroupRepository.bulkApplyDispatchCounts(List.copyOf(groupCountUpdates.values()));
 			}
+			evictNotificationDetails(preparedById.values());
 			evictGroupDetails(preparedById.values());
 			return results;
 		});
@@ -211,6 +218,24 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 			return;
 		}
 		groupDetailCacheRepository.evict(notification.getGroup().getId());
+	}
+
+	private void evictNotificationDetail(Notification notification) {
+		if (notification == null || notification.getId() == null) {
+			return;
+		}
+		notificationDetailCacheRepository.evict(notification.getId());
+	}
+
+	private void evictNotificationDetails(Iterable<Notification> notifications) {
+		java.util.Set<Long> notificationIds = new java.util.LinkedHashSet<>();
+		for (Notification notification : notifications) {
+			if (notification.getId() == null) {
+				continue;
+			}
+			notificationIds.add(notification.getId());
+		}
+		notificationIds.forEach(notificationDetailCacheRepository::evict);
 	}
 
 	private void evictGroupDetails(Iterable<Notification> notifications) {
