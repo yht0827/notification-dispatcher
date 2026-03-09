@@ -2,6 +2,7 @@ package com.example.application.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -24,6 +25,7 @@ import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.application.port.in.result.NotificationResult;
 import com.example.application.port.in.result.NotificationUnreadCountResult;
+import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
 import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationReadStatusRepository;
@@ -48,6 +50,9 @@ class NotificationQueryServiceTest {
 
 	@Mock
 	private NotificationUnreadCountCacheRepository unreadCountCacheRepository;
+
+	@Mock
+	private NotificationGroupDetailCacheRepository groupDetailCacheRepository;
 
 	@Spy
 	private NotificationResultMapper mapper;
@@ -154,6 +159,7 @@ class NotificationQueryServiceTest {
 		when(groupRepository.findByIdWithNotifications(10L)).thenReturn(Optional.of(group));
 		when(notificationReadStatusRepository.findReadAtByNotificationIds(List.of(101L)))
 			.thenReturn(java.util.Map.of(101L, LocalDateTime.of(2026, 3, 8, 12, 0)));
+		when(groupDetailCacheRepository.get(10L)).thenReturn(Optional.empty());
 
 		Optional<NotificationGroupDetailResult> result = queryService.getGroupDetail(10L);
 
@@ -164,6 +170,34 @@ class NotificationQueryServiceTest {
 		assertThat(result.orElseThrow().notifications().getFirst().readAt())
 			.isEqualTo(LocalDateTime.of(2026, 3, 8, 12, 0));
 		verify(groupRepository).findByIdWithNotifications(10L);
+		verify(groupDetailCacheRepository).put(eq(10L), any(NotificationGroupDetailResult.class));
+	}
+
+	@Test
+	@DisplayName("그룹 상세 조회는 캐시 hit면 DB 조회 없이 반환한다")
+	void getGroupDetail_returnsCachedDetail() {
+		NotificationGroupDetailResult cached = new NotificationGroupDetailResult(
+			10L,
+			"client-1",
+			"sender",
+			"title",
+			"content",
+			GroupType.BULK,
+			ChannelType.EMAIL,
+			1,
+			0,
+			0,
+			1,
+			false,
+			LocalDateTime.now().minusDays(1),
+			List.of()
+		);
+		when(groupDetailCacheRepository.get(10L)).thenReturn(Optional.of(cached));
+
+		Optional<NotificationGroupDetailResult> result = queryService.getGroupDetail(10L);
+
+		assertThat(result).contains(cached);
+		verify(groupRepository, never()).findByIdWithNotifications(any());
 	}
 
 	@Test

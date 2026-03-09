@@ -13,6 +13,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
@@ -41,7 +42,21 @@ class NotificationArchiveServiceIntegrationTest extends IntegrationTestSupportNo
 			jdbcTemplate,
 			namedParameterJdbcTemplate,
 			new ArchiveProperties(true, false, 1000, 7, null, null),
-			new TransactionTemplate(transactionManager)
+			new TransactionTemplate(transactionManager),
+			new NotificationGroupDetailCacheRepository() {
+				@Override
+				public java.util.Optional<com.example.application.port.in.result.NotificationGroupDetailResult> get(Long groupId) {
+					return java.util.Optional.empty();
+				}
+
+				@Override
+				public void put(Long groupId, com.example.application.port.in.result.NotificationGroupDetailResult detail) {
+				}
+
+				@Override
+				public void evict(Long groupId) {
+				}
+			}
 		);
 
 		jdbcTemplate.execute("DROP TABLE IF EXISTS notification_archive");

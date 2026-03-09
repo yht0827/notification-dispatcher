@@ -15,6 +15,8 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
+
 @ExtendWith(MockitoExtension.class)
 class NotificationArchiveServiceTest {
 
@@ -27,6 +29,9 @@ class NotificationArchiveServiceTest {
 	@Mock
 	private PlatformTransactionManager transactionManager;
 
+	@Mock
+	private NotificationGroupDetailCacheRepository groupDetailCacheRepository;
+
 	private NotificationArchiveService archiveService;
 
 	@BeforeEach
@@ -35,7 +40,8 @@ class NotificationArchiveServiceTest {
 			jdbcTemplate,
 			namedParameterJdbcTemplate,
 			new ArchiveProperties(true, false, 1000, 7, null, null),
-			new TransactionTemplate(transactionManager)
+			new TransactionTemplate(transactionManager),
+			groupDetailCacheRepository
 		);
 	}
 

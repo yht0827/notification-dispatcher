@@ -27,6 +27,7 @@ import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.in.result.NotificationGroupReadResult;
 import com.example.application.port.in.result.NotificationReadResult;
+import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
 import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationReadStatusRepository;
@@ -56,6 +57,9 @@ class NotificationWriteServiceTest {
 	@Mock
 	private NotificationUnreadCountCacheRepository unreadCountCacheRepository;
 
+	@Mock
+	private NotificationGroupDetailCacheRepository groupDetailCacheRepository;
+
 	private NotificationWriteService commandService;
 
 	@BeforeEach
@@ -66,6 +70,7 @@ class NotificationWriteServiceTest {
 			notificationReadStatusRepository,
 			idempotencyLookupService,
 			notificationWriteExecutor,
+			groupDetailCacheRepository,
 			unreadCountCacheRepository
 		);
 	}
@@ -244,6 +249,7 @@ class NotificationWriteServiceTest {
 	void markAsRead_marksRecentNotification() {
 		NotificationGroup group = org.mockito.Mockito.mock(NotificationGroup.class);
 		when(group.getClientId()).thenReturn("clientId");
+		when(group.getId()).thenReturn(10L);
 		Notification notification = org.mockito.Mockito.mock(Notification.class);
 		when(notification.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(1));
 		when(notification.getGroup()).thenReturn(group);
@@ -258,6 +264,7 @@ class NotificationWriteServiceTest {
 		assertThat(result.orElseThrow().notificationId()).isEqualTo(1L);
 		assertThat(result.orElseThrow().readAt()).isEqualTo(LocalDateTime.of(2026, 3, 8, 12, 0));
 		verify(notificationReadStatusRepository).markAsRead(eq(1L), any(LocalDateTime.class));
+		verify(groupDetailCacheRepository).evict(10L);
 		verify(unreadCountCacheRepository).evict("clientId", "receiver@example.com");
 	}
 
@@ -307,6 +314,7 @@ class NotificationWriteServiceTest {
 		assertThat(result).isPresent();
 		assertThat(result.orElseThrow().groupId()).isEqualTo(10L);
 		assertThat(result.orElseThrow().readCount()).isEqualTo(2);
+		verify(groupDetailCacheRepository).evict(10L);
 		verify(unreadCountCacheRepository).evict("clientId", "a@example.com");
 		verify(unreadCountCacheRepository).evict("clientId", "b@example.com");
 	}
@@ -333,6 +341,7 @@ class NotificationWriteServiceTest {
 		assertThat(result).isPresent();
 		assertThat(result.orElseThrow().groupId()).isEqualTo(10L);
 		assertThat(result.orElseThrow().readCount()).isZero();
+		verify(groupDetailCacheRepository).evict(10L);
 		verify(unreadCountCacheRepository).evict("clientId", "a@example.com");
 		verify(unreadCountCacheRepository).evict("clientId", "b@example.com");
 	}
