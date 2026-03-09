@@ -47,7 +47,7 @@ class OutboxPollerTest {
 
 	@BeforeEach
 	void setUp() {
-		lenient().when(meterRegistry.counter(anyString())).thenReturn(counter);
+		when(meterRegistry.counter(anyString())).thenReturn(counter);
 		outboxPoller = new OutboxPoller(outboxRepository, eventPublisher, new OutboxProperties(BATCH_SIZE), meterRegistry);
 	}
 

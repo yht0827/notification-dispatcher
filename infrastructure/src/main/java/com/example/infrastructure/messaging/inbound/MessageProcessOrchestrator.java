@@ -11,6 +11,7 @@ import com.example.infrastructure.messaging.payload.NotificationMessagePayload;
 import com.example.infrastructure.messaging.port.DeadLetterPublisher;
 import com.example.infrastructure.messaging.port.WaitPublisher;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -18,14 +19,18 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class MessageProcessOrchestrator {
 
+	private static final String METRIC_DISPATCH_RESULT = "notification.dispatch.result";
+	private static final String TAG_OUTCOME = "outcome";
+
 	private final RabbitMQRecordHandler recordHandler;
 	private final DeadLetterPublisher dlqPublisher;
 	private final WaitPublisher waitPublisher;
+	private final MeterRegistry meterRegistry;
 
 	public MessageProcessDecision process(MessageProcessContext context) {
 		if (context.isInvalid()) {
 			publishToDeadLetter(context.sourceRecordId(), context.payload(), null, context.invalidReason());
-			return MessageProcessDecision.ack(context.deliveryTag());
+			return ackWith(context.deliveryTag(), "dlq");
 		}
 
 		NotificationMessagePayload payload = context.payload();
@@ -37,19 +42,19 @@ public class MessageProcessOrchestrator {
 			retryCount = payload.getRetryCount();
 			recordHandler.process(notificationId, retryCount);
 			log.debug("메시지 ACK 완료: notificationId={}, retryCount={}", notificationId, retryCount);
-			return MessageProcessDecision.ack(context.deliveryTag());
+			return ackWith(context.deliveryTag(), "success");
 		} catch (NonRetryableMessageException exception) {
 			publishToDeadLetter(context.sourceRecordId(), payload, notificationId, exception.getMessage());
 			log.warn("재시도 불필요 메시지 DLQ 전송: notificationId={}, reason={}", notificationId, exception.getMessage());
-			return MessageProcessDecision.ack(context.deliveryTag());
+			return ackWith(context.deliveryTag(), "dlq");
 		} catch (RetryableMessageException exception) {
 			publishToWait(notificationId, retryCount, exception.getMessage(), exception.retryDelayMillis());
 			log.info("WAIT 큐 이동: notificationId={}, retryCount={}, reason={}",
 				notificationId, retryCount, exception.getMessage());
-			return MessageProcessDecision.ack(context.deliveryTag());
+			return ackWith(context.deliveryTag(), "wait");
 		} catch (RuntimeException exception) {
 			log.error("예상치 못한 예외: notificationId={}, reason={}", notificationId, exception.getMessage(), exception);
-			return MessageProcessDecision.nack(context.deliveryTag());
+			return nackWith(context.deliveryTag());
 		}
 	}
 
@@ -109,17 +114,27 @@ public class MessageProcessOrchestrator {
 
 	private MessageProcessDecision toDecision(MessageProcessContext context, RecordProcessResult result) {
 		if (result.isSuccess() || result.isSkipped()) {
-			return MessageProcessDecision.ack(context.deliveryTag());
+			return ackWith(context.deliveryTag(), "success");
 		}
 		if (result.isNonRetryableFailure()) {
 			publishToDeadLetter(context.sourceRecordId(), context.payload(), result.notificationId(), result.reason());
-			return MessageProcessDecision.ack(context.deliveryTag());
+			return ackWith(context.deliveryTag(), "dlq");
 		}
 		if (result.isRetryableFailure()) {
 			publishToWait(result.notificationId(), result.retryCount(), result.reason(), result.retryDelayMillis());
-			return MessageProcessDecision.ack(context.deliveryTag());
+			return ackWith(context.deliveryTag(), "wait");
 		}
-		return MessageProcessDecision.nack(context.deliveryTag());
+		return nackWith(context.deliveryTag());
+	}
+
+	private MessageProcessDecision ackWith(long deliveryTag, String outcome) {
+		meterRegistry.counter(METRIC_DISPATCH_RESULT, TAG_OUTCOME, outcome).increment();
+		return MessageProcessDecision.ack(deliveryTag);
+	}
+
+	private MessageProcessDecision nackWith(long deliveryTag) {
+		meterRegistry.counter(METRIC_DISPATCH_RESULT, TAG_OUTCOME, "nack").increment();
+		return MessageProcessDecision.nack(deliveryTag);
 	}
 
 	private Long validatePayload(NotificationMessagePayload payload) {
