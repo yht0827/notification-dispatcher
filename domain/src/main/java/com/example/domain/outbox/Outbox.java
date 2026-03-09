@@ -47,22 +47,30 @@ public class Outbox extends BaseEntity {
 
 	private LocalDateTime processedAt;
 
-	private Outbox(OutboxAggregateType aggregateType, Long aggregateId, OutboxEventType eventType, String payload) {
+	private LocalDateTime scheduledAt;
+
+	private Outbox(OutboxAggregateType aggregateType, Long aggregateId, OutboxEventType eventType, String payload,
+		LocalDateTime scheduledAt) {
 		this.aggregateType = aggregateType;
 		this.aggregateId = aggregateId;
 		this.eventType = eventType;
 		this.payload = payload;
 		this.status = OutboxStatus.PENDING;
+		this.scheduledAt = scheduledAt;
 	}
 
 	public static Outbox create(OutboxAggregateType aggregateType, Long aggregateId, OutboxEventType eventType,
 		String payload) {
-		return new Outbox(aggregateType, aggregateId, eventType, payload);
+		return new Outbox(aggregateType, aggregateId, eventType, payload, null);
 	}
 
 	public static Outbox createNotificationEvent(Long notificationId) {
+		return createNotificationEvent(notificationId, null);
+	}
+
+	public static Outbox createNotificationEvent(Long notificationId, LocalDateTime scheduledAt) {
 		return new Outbox(OutboxAggregateType.NOTIFICATION, notificationId, OutboxEventType.NOTIFICATION_CREATED,
-			null);
+			null, scheduledAt);
 	}
 
 	public void markAsProcessed() {
