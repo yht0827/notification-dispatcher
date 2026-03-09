@@ -10,7 +10,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import com.example.infrastructure.polling.OutboxProperties;
 
 @Configuration
-@EnableConfigurationProperties(OutboxProperties.class)
+@EnableConfigurationProperties({OutboxProperties.class, NotificationCacheProperties.class})
 public class RedisConfig {
 
 	@Bean
