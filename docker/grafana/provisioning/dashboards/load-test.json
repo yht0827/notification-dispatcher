@@ -23,7 +23,7 @@
       "gridPos": {
         "x": 0,
         "y": 1,
-        "w": 12,
+        "w": 8,
         "h": 8
       },
       "fieldConfig": {
@@ -63,9 +63,9 @@
       "type": "timeseries",
       "title": "JVM Memory (Heap)",
       "gridPos": {
-        "x": 12,
+        "x": 8,
         "y": 1,
-        "w": 12,
+        "w": 8,
         "h": 8
       },
       "fieldConfig": {
@@ -99,6 +99,46 @@
         {
           "expr": "jvm_memory_max_bytes{application=\"notification-dispatcher\", area=\"heap\"}",
           "legendFormat": "Heap Max"
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "type": "timeseries",
+      "title": "JVM Threads",
+      "gridPos": {
+        "x": 16,
+        "y": 1,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "jvm_threads_live_threads{application=\"notification-dispatcher\"}",
+          "legendFormat": "Live Threads"
+        },
+        {
+          "expr": "jvm_threads_daemon_threads{application=\"notification-dispatcher\"}",
+          "legendFormat": "Daemon Threads"
         }
       ]
     },
@@ -426,7 +466,7 @@
       "gridPos": {
         "x": 0,
         "y": 23,
-        "w": 5,
+        "w": 4,
         "h": 4
       },
       "fieldConfig": {
@@ -458,17 +498,17 @@
     {
       "id": 22,
       "type": "stat",
-      "title": "Peak TPS",
-      "description": "테스트 구간 내 최고 TPS (최근 30분)",
+      "title": "Request Count (1m)",
+      "description": "최근 1분 총 요청 수",
       "gridPos": {
-        "x": 5,
+        "x": 4,
         "y": 23,
-        "w": 5,
+        "w": 4,
         "h": 4
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps",
+          "unit": "short",
           "decimals": 1,
           "color": {
             "fixedColor": "blue",
@@ -497,17 +537,17 @@
       },
       "targets": [
         {
-          "expr": "max_over_time(sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))[30m:1m])",
-          "legendFormat": "Peak TPS"
+          "expr": "increase(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m])",
+          "legendFormat": "Request Count"
         }
       ]
     },
     {
       "id": 19,
       "type": "stat",
-      "title": "P95 응답시간",
+      "title": "Avg 응답시간",
       "gridPos": {
-        "x": 10,
+        "x": 8,
         "y": 23,
         "w": 4,
         "h": 4
@@ -549,19 +589,71 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
-          "legendFormat": "P95"
+          "expr": "sum(rate(http_server_requests_seconds_sum{application=\"notification-dispatcher\"}[1m])) / sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))",
+          "legendFormat": "Avg"
         }
       ]
     },
     {
       "id": 21,
       "type": "stat",
+      "title": "P95 응답시간",
+      "gridPos": {
+        "x": 12,
+        "y": 23,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 1.0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
+          "legendFormat": "P95"
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "type": "stat",
       "title": "P99 응답시간",
       "gridPos": {
-        "x": 14,
+        "x": 16,
         "y": 23,
-        "w": 5,
+        "w": 4,
         "h": 4
       },
       "fieldConfig": {
@@ -611,9 +703,9 @@
       "type": "stat",
       "title": "에러율",
       "gridPos": {
-        "x": 19,
+        "x": 20,
         "y": 23,
-        "w": 5,
+        "w": 4,
         "h": 4
       },
       "fieldConfig": {
@@ -661,11 +753,11 @@
     {
       "id": 9,
       "type": "timeseries",
-      "title": "HTTP Response Time (P50 / P95 / P99)",
+      "title": "HTTP Response Time (Avg / P95 / P99 / Max)",
       "gridPos": {
         "x": 0,
         "y": 27,
-        "w": 12,
+        "w": 8,
         "h": 8
       },
       "fieldConfig": {
@@ -689,8 +781,8 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
-          "legendFormat": "P50"
+          "expr": "sum(rate(http_server_requests_seconds_sum{application=\"notification-dispatcher\"}[1m])) / sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))",
+          "legendFormat": "Avg"
         },
         {
           "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
@@ -699,44 +791,31 @@
         {
           "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
           "legendFormat": "P99"
+        },
+        {
+          "expr": "max(http_server_requests_seconds_max{application=\"notification-dispatcher\"})",
+          "legendFormat": "Max"
         }
       ]
     },
     {
       "id": 10,
       "type": "timeseries",
-      "title": "HTTP Request Rate & Error Rate",
+      "title": "HTTP Request Count / Success / Fail (1m)",
       "gridPos": {
-        "x": 12,
+        "x": 8,
         "y": 27,
-        "w": 12,
+        "w": 8,
         "h": 8
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps",
+          "unit": "short",
           "custom": {
             "lineWidth": 2
           }
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Error Rate"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "percentunit"
-              },
-              {
-                "id": "custom.axisPlacement",
-                "value": "right"
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "options": {
         "tooltip": {
@@ -750,16 +829,20 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))",
-          "legendFormat": "Total RPS"
+          "expr": "increase(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m])",
+          "legendFormat": "Total"
         },
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\", status=~\"5..\"}[1m]))",
-          "legendFormat": "5xx RPS"
+          "expr": "increase(http_server_requests_seconds_count{application=\"notification-dispatcher\", status!~\"4..|5..\"}[1m])",
+          "legendFormat": "Success"
         },
         {
-          "expr": "(sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\", status=~\"5..\"}[1m])) or vector(0)) / sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))",
-          "legendFormat": "Error Rate"
+          "expr": "increase(http_server_requests_seconds_count{application=\"notification-dispatcher\", status=~\"4..\"}[1m]) or vector(0)",
+          "legendFormat": "4xx"
+        },
+        {
+          "expr": "increase(http_server_requests_seconds_count{application=\"notification-dispatcher\", status=~\"5..\"}[1m]) or vector(0)",
+          "legendFormat": "5xx"
         }
       ]
     },
@@ -768,9 +851,9 @@
       "type": "timeseries",
       "title": "HTTP Response Time by URI (P95)",
       "gridPos": {
-        "x": 0,
+        "x": 16,
         "y": 35,
-        "w": 24,
+        "w": 8,
         "h": 8
       },
       "fieldConfig": {
