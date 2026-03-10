@@ -62,7 +62,7 @@ public class GlobalExceptionHandler {
         mockSendService.logFailure(
                 new MockFailureLog(
                         body.requestId(),
-                        body.channelType(),
+                        ex.getChannelType(),
                         ex.getReceiver(),
                         ex.getMessageLength(),
                         ex.getStatus().value(),

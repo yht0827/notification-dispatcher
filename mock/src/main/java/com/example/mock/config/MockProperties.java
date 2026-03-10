@@ -31,12 +31,16 @@ public class MockProperties {
 	@Valid
 	private final Failure failure = new Failure();
 	@Valid
+	private final RateLimit rateLimit = new RateLimit();
+	@Valid
 	private final Log log = new Log();
 
 	@Getter
 	@Setter
 	public static class ChannelConfig {
 		private MockMode mode;  // null이면 전역 mode 사용
+		@Min(0)
+		private Integer rateLimitPerSecond;
 	}
 
 	@Getter
@@ -58,6 +62,16 @@ public class MockProperties {
 		private List<Integer> types = new ArrayList<>(List.of(500, 503, 429));
 		@Min(1)
 		private int retryAfterSeconds = 15;
+	}
+
+	@Getter
+	@Setter
+	public static class RateLimit {
+		private boolean enabled = false;
+		@Min(0)
+		private int defaultPerSecond = 0;
+		@Min(1)
+		private int retryAfterSeconds = 1;
 	}
 
 	@Getter

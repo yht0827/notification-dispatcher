@@ -2,6 +2,8 @@ package com.example.mock.service;
 
 import org.springframework.http.HttpStatus;
 
+import com.example.mock.api.ChannelType;
+
 import lombok.Getter;
 
 @Getter
@@ -10,7 +12,7 @@ public class MockFailureException extends RuntimeException {
 	private final HttpStatus status;
 	private final String errorCode;
 	private final String requestId;
-	private final String channelType;
+	private final ChannelType channelType;
 	private final String receiver;
 	private final int messageLength;
 	private final long startedAtMillis;
@@ -21,7 +23,7 @@ public class MockFailureException extends RuntimeException {
 		String errorCode,
 		String message,
 		String requestId,
-		String channelType,
+		ChannelType channelType,
 		String receiver,
 		int messageLength,
 		long startedAtMillis,

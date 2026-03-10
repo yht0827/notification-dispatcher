@@ -29,6 +29,10 @@ mock:
     probability: 0.10
     types: [ 500, 503, 429 ]
     retry-after-seconds: 15
+  rate-limit:
+    enabled: false
+    default-per-second: 0
+    retry-after-seconds: 1
   log:
     include-masked-message-preview: false
     message-preview-length: 20

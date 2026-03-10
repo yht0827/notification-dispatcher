@@ -8,7 +8,7 @@ import com.example.domain.notification.Notification;
 
 public record MockApiSendRequest(
 	String requestId,
-	String channelType,
+	ChannelType channelType,
 	String receiver,
 	String message,
 	Map<String, Object> metadata
@@ -27,7 +27,7 @@ public record MockApiSendRequest(
 
 		return new MockApiSendRequest(
 			requestId,
-			channelType.name(),
+			channelType,
 			notification.getReceiver(),
 			notification.getGroup() == null ? "" : notification.getGroup().getContent(),
 			metadata

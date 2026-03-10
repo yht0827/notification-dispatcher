@@ -1,16 +1,16 @@
 package com.example.mock.service.dto;
 
+import com.example.mock.api.ChannelType;
+
 public record MockFailResult(
 	String requestId,
-	String channelType,
+	ChannelType channelType,
 	String errorCode,
 	String message,
 	long startedAtMillis
 ) {
 
-	private static final String UNKNOWN = "UNKNOWN";
-
 	public static MockFailResult unknown(String errorCode, String message, long startedAtMillis) {
-		return new MockFailResult(UNKNOWN, UNKNOWN, errorCode, message, startedAtMillis);
+		return new MockFailResult("UNKNOWN", ChannelType.UNKNOWN, errorCode, message, startedAtMillis);
 	}
 }

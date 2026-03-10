@@ -103,7 +103,7 @@ resilience4j:
     instances:
       email-api:
         base-config: channel
-        limit-for-period: 100
+        limit-for-period: 30
       sms-api:
         base-config: channel
         limit-for-period: 50
