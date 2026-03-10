@@ -18,18 +18,8 @@ public class MockSendController {
         this.mockSendService = mockSendService;
     }
 
-    @PostMapping("/email/send")
-    public ResponseEntity<MockSendSuccessResponse> sendEmail(@Valid @RequestBody MockSendRequest request) {
-        return ResponseEntity.ok(mockSendService.handleSend(request));
-    }
-
-    @PostMapping("/sms/send")
-    public ResponseEntity<MockSendSuccessResponse> sendSms(@Valid @RequestBody MockSendRequest request) {
-        return ResponseEntity.ok(mockSendService.handleSend(request));
-    }
-
-    @PostMapping("/kakao/send")
-    public ResponseEntity<MockSendSuccessResponse> sendKakao(@Valid @RequestBody MockSendRequest request) {
+    @PostMapping("/send")
+    public ResponseEntity<MockSendSuccessResponse> send(@Valid @RequestBody MockSendRequest request) {
         return ResponseEntity.ok(mockSendService.handleSend(request));
     }
 }

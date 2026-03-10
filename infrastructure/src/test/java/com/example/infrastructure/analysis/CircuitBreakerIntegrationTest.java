@@ -18,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import com.example.domain.notification.ChannelType;
 import com.example.infrastructure.TestApplication;
 import com.example.infrastructure.config.MockMessagingConfig;
 import com.example.infrastructure.config.TestcontainersConfig;
@@ -62,7 +63,7 @@ class CircuitBreakerIntegrationTest {
 	private CircuitBreakerRegistry circuitBreakerRegistry;
 
 	private static final MockApiSendRequest TEST_REQUEST =
-		new MockApiSendRequest("cb-test", "EMAIL", "test@example.com", "hello", null);
+		new MockApiSendRequest("cb-test", ChannelType.EMAIL, "test@example.com", "hello", null);
 
 	private static final MockApiSendSuccessResponse SUCCESS_RESPONSE =
 		new MockApiSendSuccessResponse("SUCCESS", "cb-test", "EMAIL", "2026-01-01T00:00:00Z", 10L);
@@ -79,7 +80,7 @@ class CircuitBreakerIntegrationTest {
 		CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("email-api");
 		assertThat(cb.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
 
-		when(mockApiClient.sendEmail(any())).thenThrow(new RuntimeException("upstream 503"));
+		when(mockApiClient.send(any())).thenThrow(new RuntimeException("upstream 503"));
 
 		for (int i = 0; i < 5; i++) {
 			try {
@@ -94,7 +95,7 @@ class CircuitBreakerIntegrationTest {
 	@Test
 	@DisplayName("OPEN 상태에서는 Feign 클라이언트에 도달하지 않고 fallback이 즉시 반환된다")
 	void circuitBreaker_shortCircuits_whenOpen() {
-		when(mockApiClient.sendEmail(any())).thenThrow(new RuntimeException("upstream 503"));
+		when(mockApiClient.send(any())).thenThrow(new RuntimeException("upstream 503"));
 
 		for (int i = 0; i < 5; i++) {
 			try {
@@ -107,7 +108,7 @@ class CircuitBreakerIntegrationTest {
 
 		var result = mockApiCaller.call(TEST_REQUEST);
 
-		verify(mockApiClient, never()).sendEmail(any());
+		verify(mockApiClient, never()).send(any());
 		assertThat(result.isSuccess()).isFalse();
 	}
 
@@ -116,7 +117,7 @@ class CircuitBreakerIntegrationTest {
 	void circuitBreaker_recovers_afterWaitDuration() throws InterruptedException {
 		CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("email-api");
 
-		when(mockApiClient.sendEmail(any())).thenThrow(new RuntimeException("upstream 503"));
+		when(mockApiClient.send(any())).thenThrow(new RuntimeException("upstream 503"));
 		for (int i = 0; i < 5; i++) {
 			try {
 				mockApiCaller.call(TEST_REQUEST);
@@ -128,7 +129,7 @@ class CircuitBreakerIntegrationTest {
 		Thread.sleep(2_500);
 
 		reset(mockApiClient);
-		when(mockApiClient.sendEmail(any())).thenReturn(ResponseEntity.ok(SUCCESS_RESPONSE));
+		when(mockApiClient.send(any())).thenReturn(ResponseEntity.ok(SUCCESS_RESPONSE));
 		var result = mockApiCaller.call(TEST_REQUEST);
 
 		assertThat(result.isSuccess()).isTrue();
