@@ -31,7 +31,6 @@ import com.example.application.port.out.DispatchLockManager;
 import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.repository.NotificationRepository;
 import com.example.infrastructure.messaging.inbound.RabbitMQBatchConsumer;
-import com.example.infrastructure.messaging.inbound.RabbitMQConsumer;
 import com.example.infrastructure.messaging.inbound.MessageProcessOrchestrator;
 import com.example.infrastructure.messaging.inbound.RabbitMQRecordHandler;
 import com.example.infrastructure.messaging.outbound.RabbitMQDlqPublisher;
@@ -60,16 +59,6 @@ public class NotificationRabbitConfig {
 		RabbitTemplate template = new RabbitTemplate(cf);
 		template.setMessageConverter(mc);
 		return template;
-	}
-
-	@Bean(name = RabbitBeanNames.LISTENER_CONTAINER_FACTORY)
-	public SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
-		ConnectionFactory cf,
-		MessageConverter mc,
-		NotificationRabbitProperties p,
-		@Qualifier(RabbitBeanNames.LISTENER_TASK_EXECUTOR) Executor listenerTaskExecutor
-	) {
-		return createBaseListenerContainerFactory(cf, mc, p, listenerTaskExecutor);
 	}
 
 	@Bean(name = RabbitBeanNames.BATCH_LISTENER_CONTAINER_FACTORY)
@@ -276,23 +265,6 @@ public class NotificationRabbitConfig {
 	}
 
 	@Bean
-	@ConditionalOnProperty(
-		prefix = "notification.rabbitmq",
-		name = "batch-listener-enabled",
-		havingValue = "false",
-		matchIfMissing = true
-	)
-	public RabbitMQConsumer rabbitMQConsumer(
-		MessageProcessOrchestrator orchestrator) {
-		return new RabbitMQConsumer(orchestrator);
-	}
-
-	@Bean
-	@ConditionalOnProperty(
-		prefix = "notification.rabbitmq",
-		name = "batch-listener-enabled",
-		havingValue = "true"
-	)
 	public RabbitMQBatchConsumer rabbitMQBatchConsumer(
 		MessageProcessOrchestrator orchestrator,
 		MessageConverter messageConverter) {

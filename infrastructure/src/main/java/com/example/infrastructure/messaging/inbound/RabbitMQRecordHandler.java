@@ -9,7 +9,6 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 import com.example.application.port.in.NotificationDispatchUseCase;
 import com.example.application.port.in.result.BatchDispatchResult;
-import com.example.application.port.in.result.NotificationDispatchResult;
 import com.example.application.port.out.DispatchLockManager;
 import com.example.application.port.out.repository.NotificationRepository;
 import com.example.domain.exception.InvalidStatusTransitionException;
@@ -44,8 +43,9 @@ public class RabbitMQRecordHandler {
 
 		try {
 			Notification notification = loadNotification(notificationId);
-			NotificationDispatchResult dispatchResult = dispatchService.dispatch(notification);
-			if (dispatchResult.isFailure()) {
+			List<BatchDispatchResult> results = dispatchService.dispatchBatch(List.of(notification));
+			BatchDispatchResult dispatchResult = results.isEmpty() ? null : results.get(0);
+			if (dispatchResult == null || dispatchResult.isFailure()) {
 				throw toDispatchFailureException(notificationId, retryCount, dispatchResult);
 			}
 			lockManager.release(notificationId);
@@ -220,9 +220,9 @@ public class RabbitMQRecordHandler {
 	}
 
 	private RuntimeException toDispatchFailureException(Long notificationId, int retryCount,
-		NotificationDispatchResult dispatchResult) {
-		String failureReason = normalizeReason(dispatchResult.failReason());
-		if (dispatchResult.isNonRetryableFailure()) {
+		BatchDispatchResult dispatchResult) {
+		String failureReason = normalizeReason(dispatchResult != null ? dispatchResult.failReason() : null);
+		if (dispatchResult == null || dispatchResult.isNonRetryableFailure()) {
 			return toNonRetryableAfterMarkFailed(
 				notificationId,
 				failureReason,

@@ -3,8 +3,8 @@ package com.example.application.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -73,6 +73,7 @@ class NotificationWriteServiceTest {
 			groupListCacheRepository,
 			unreadCountCacheRepository
 		);
+		lenient().when(unreadCountCacheRepository.enabled()).thenReturn(true);
 	}
 
 	@Test
@@ -142,8 +143,8 @@ class NotificationWriteServiceTest {
 		assertThat(result.totalCount()).isEqualTo(2);
 		verify(notificationWriteExecutor).createAndPublish(command, "idem-order-2001");
 		verify(groupListCacheRepository).evictLatest("order-service");
-		verify(unreadCountCacheRepository).evict("order-service", "user1@example.com");
-		verify(unreadCountCacheRepository).evict("order-service", "user2@example.com");
+		verify(unreadCountCacheRepository).increment("order-service", "user1@example.com");
+		verify(unreadCountCacheRepository).increment("order-service", "user2@example.com");
 	}
 
 	@Test
@@ -173,7 +174,7 @@ class NotificationWriteServiceTest {
 		verify(idempotencyLookupService, never()).findExistingResultAfterCollision(any(), any());
 		verify(notificationWriteExecutor).createAndPublish(command, null);
 		verify(groupListCacheRepository).evictLatest("order-service");
-		verify(unreadCountCacheRepository).evict("order-service", "user1@example.com");
+		verify(unreadCountCacheRepository).increment("order-service", "user1@example.com");
 	}
 
 	@Test
@@ -216,7 +217,7 @@ class NotificationWriteServiceTest {
 		verify(idempotencyLookupService)
 			.findExistingResultAfterCollision("order-service", "idem-order-3001");
 		verify(groupListCacheRepository, never()).evictLatest(any());
-		verify(unreadCountCacheRepository, never()).evict(any(), any());
+		verify(unreadCountCacheRepository, never()).increment(any(), any());
 	}
 
 	@Test
@@ -266,7 +267,7 @@ class NotificationWriteServiceTest {
 		assertThat(result.orElseThrow().notificationId()).isEqualTo(1L);
 		assertThat(result.orElseThrow().readAt()).isEqualTo(LocalDateTime.of(2026, 3, 8, 12, 0));
 		verify(notificationReadStatusRepository).markAsRead(eq(1L), any(LocalDateTime.class));
-		verify(unreadCountCacheRepository).evict("clientId", "receiver@example.com");
+		verify(unreadCountCacheRepository).decrement("clientId", "receiver@example.com");
 		verify(groupListCacheRepository).evictLatest("clientId");
 	}
 
@@ -316,8 +317,8 @@ class NotificationWriteServiceTest {
 		assertThat(result).isPresent();
 		assertThat(result.orElseThrow().groupId()).isEqualTo(10L);
 		assertThat(result.orElseThrow().readCount()).isEqualTo(2);
-		verify(unreadCountCacheRepository).evict("clientId", "a@example.com");
-		verify(unreadCountCacheRepository).evict("clientId", "b@example.com");
+		verify(unreadCountCacheRepository).decrement("clientId", "a@example.com");
+		verify(unreadCountCacheRepository).decrement("clientId", "b@example.com");
 		verify(groupListCacheRepository).evictLatest("clientId");
 	}
 
@@ -343,8 +344,8 @@ class NotificationWriteServiceTest {
 		assertThat(result).isPresent();
 		assertThat(result.orElseThrow().groupId()).isEqualTo(10L);
 		assertThat(result.orElseThrow().readCount()).isZero();
-		verify(unreadCountCacheRepository).evict("clientId", "a@example.com");
-		verify(unreadCountCacheRepository).evict("clientId", "b@example.com");
+		verify(unreadCountCacheRepository).decrement("clientId", "a@example.com");
+		verify(unreadCountCacheRepository).decrement("clientId", "b@example.com");
 		verify(groupListCacheRepository).evictLatest("clientId");
 	}
 

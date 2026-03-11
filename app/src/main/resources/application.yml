@@ -206,7 +206,6 @@ notification:
     concurrency: 2
     max-concurrency: 2
     prefetch: 5
-    batch-listener-enabled: true               # 배치 리스너 활성화
     batch-size: 50                             # 배치 수집 크기
     batch-receive-timeout-millis: 200          # 배치 수집 대기(ms)
   external:
