@@ -11,4 +11,8 @@ public interface NotificationUnreadCountCacheRepository {
 	void put(String clientId, String receiver, long unreadCount);
 
 	void evict(String clientId, String receiver);
+
+	void increment(String clientId, String receiver);
+
+	void decrement(String clientId, String receiver);
 }

@@ -80,7 +80,9 @@ class DispatchPathTransactionBoundaryIntegrationTest extends IntegrationTestSupp
 
 		for (Long notificationId : notificationIds) {
 			Notification detached = notificationRepository.findById(notificationId).orElseThrow();
-			assertThat(dispatchService.dispatch(detached).isSuccess()).isTrue();
+			List<com.example.application.port.in.result.BatchDispatchResult> results =
+				dispatchService.dispatchBatch(List.of(detached));
+			assertThat(results).singleElement().satisfies(r -> assertThat(r.isSuccess()).isTrue());
 		}
 
 		assertEntityStats(Notification.class, 0, 3, 0);

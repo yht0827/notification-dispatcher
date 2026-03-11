@@ -442,14 +442,18 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 	private Callable<Object> optimisticDispatchTask(Long notificationId) {
 		return () -> captureResult(() -> {
 			Notification detached = notificationRepository.findById(notificationId).orElseThrow();
-			return dispatchService.dispatch(detached);
+			List<com.example.application.port.in.result.BatchDispatchResult> results =
+				dispatchService.dispatchBatch(List.of(detached));
+			return results.isEmpty() ? null : results.get(0);
 		});
 	}
 
 	private Callable<Object> pessimisticDispatchTask(Long notificationId) {
 		return () -> captureResult(() -> transactionTemplate.execute(status -> {
 			Notification locked = notificationJpaRepository.findByIdWithPessimisticLock(notificationId).orElseThrow();
-			return dispatchService.dispatch(locked);
+			List<com.example.application.port.in.result.BatchDispatchResult> results =
+				dispatchService.dispatchBatch(List.of(locked));
+			return results.isEmpty() ? null : results.get(0);
 		}));
 	}
 
@@ -459,7 +463,9 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 			.<Callable<Object>>map(notificationId -> () -> captureResult(() -> {
 				Notification detached = notificationRepository.findById(notificationId).orElseThrow();
 				arriveAndAwait(loadedLatch);
-				return dispatchService.dispatch(detached);
+				List<com.example.application.port.in.result.BatchDispatchResult> results =
+					dispatchService.dispatchBatch(List.of(detached));
+				return results.isEmpty() ? null : results.get(0);
 			}))
 			.toList();
 		return executeConcurrently(tasks);
@@ -551,7 +557,7 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 		}
 
 		private static boolean isDispatchSuccess(Object value) {
-			return value instanceof com.example.application.port.in.result.NotificationDispatchResult result
+			return value instanceof com.example.application.port.in.result.BatchDispatchResult result
 				&& result.isSuccess();
 		}
 

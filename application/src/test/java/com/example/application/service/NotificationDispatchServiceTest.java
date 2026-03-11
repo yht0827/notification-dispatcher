@@ -2,18 +2,16 @@ package com.example.application.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,9 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import com.example.application.mapper.NotificationResultMapper;
 import com.example.application.port.in.result.BatchDispatchResult;
-import com.example.application.port.in.result.NotificationDispatchResult;
 import com.example.application.port.out.cache.NotificationGroupListCacheRepository;
 import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
@@ -37,7 +33,6 @@ import com.example.application.port.out.result.SendResult;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
-import com.example.domain.notification.NotificationStatus;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationDispatchServiceTest {
@@ -60,9 +55,6 @@ class NotificationDispatchServiceTest {
 	@Mock
 	private NotificationUnreadCountCacheRepository unreadCountCacheRepository;
 
-	@Mock
-	private NotificationResultMapper mapper;
-
 	@InjectMocks
 	private NotificationDispatchService dispatchService;
 
@@ -73,128 +65,6 @@ class NotificationDispatchServiceTest {
 		lenient().when(notificationRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 		lenient().when(unreadCountCacheRepository.enabled()).thenReturn(true);
 		lenient().when(groupListCacheRepository.enabled()).thenReturn(true);
-		lenient().when(groupListCacheRepository.latestLimit()).thenReturn(60);
-		lenient().when(notificationGroupRepository.findByClientIdWithCursor(any(), any(), any(), anyInt()))
-			.thenReturn(List.of());
-		lenient().when(notificationRepository.countUnreadByClientIdAndReceiver(any(), any(), any())).thenReturn(0L);
-	}
-
-	@Test
-	@DisplayName("이미 종결 상태인 알림은 발송을 생략한다")
-	void dispatch_skipsWhenNotificationAlreadyTerminal() {
-		// given
-		Notification notification = createNotification();
-		notification.startSending();
-		notification.markAsSent();
-
-		// when
-		dispatchService.dispatch(notification);
-
-		// then
-		verifyNoInteractions(notificationSender);
-		verify(notificationRepository, never()).save(any(Notification.class));
-	}
-
-	@Test
-	@DisplayName("정상 발송하고 상태를 저장한다")
-	void dispatch_sendsAndPersists() {
-		// given
-		Notification notification = createNotification(1L, "user@example.com");
-		when(notificationRepository.save(notification)).thenReturn(notification);
-		when(notificationSender.send(notification)).thenReturn(SendResult.success());
-
-		// when
-		NotificationDispatchResult result = dispatchService.dispatch(notification);
-
-		// then
-		assertThat(result.isSuccess()).isTrue();
-		assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
-		verify(notificationSender).send(notification);
-		verify(notificationRepository, times(2)).save(notification);
-		verify(unreadCountCacheRepository).put(eq("dispatch-service"), eq("user@example.com"), anyLong());
-		verify(groupListCacheRepository).putLatest(eq("dispatch-service"), anyList());
-	}
-
-	@Test
-	@DisplayName("save가 반환한 관리 엔티티를 사용해 발송한다")
-	void dispatch_usesManagedEntityReturnedFromSave() {
-		// given
-		Notification detached = createNotification();
-		Notification managed = createNotification();
-		managed.startSending();
-
-		when(notificationRepository.save(detached)).thenReturn(managed);
-		when(notificationRepository.save(managed)).thenReturn(managed);
-		when(notificationSender.send(managed)).thenReturn(SendResult.success());
-
-		// when
-		NotificationDispatchResult result = dispatchService.dispatch(detached);
-
-		// then
-		assertThat(result.isSuccess()).isTrue();
-		verify(notificationRepository).save(detached);
-		verify(notificationSender).send(managed);
-		verify(notificationRepository).save(managed);
-	}
-
-	@Test
-	@DisplayName("SENDING 상태 재시도에서도 발송을 계속 진행한다")
-	void dispatch_continuesWhenAlreadySendingForRetry() {
-		// given
-		Notification notification = createNotification();
-		notification.startSending();
-		when(notificationRepository.save(notification)).thenReturn(notification);
-		when(notificationSender.send(notification)).thenReturn(SendResult.success());
-
-		// when
-		NotificationDispatchResult result = dispatchService.dispatch(notification);
-
-		// then
-		assertThat(result.isSuccess()).isTrue();
-		assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
-		assertThat(notification.getAttemptCount()).isEqualTo(2);
-		verify(notificationSender).send(notification);
-		verify(notificationRepository, times(2)).save(notification);
-	}
-
-	@Test
-	@DisplayName("발송 실패 시 실패 결과를 반환한다")
-	void dispatch_returnsFailureWhenSendFails() {
-		// given
-		Notification notification = createNotification(1L, "user@example.com");
-		when(notificationRepository.save(notification)).thenReturn(notification);
-		when(notificationSender.send(notification)).thenReturn(SendResult.fail("발송 실패"));
-
-		// when
-		NotificationDispatchResult result = dispatchService.dispatch(notification);
-
-		// then
-		assertThat(result.isFailure()).isTrue();
-		assertThat(result.isRetryableFailure()).isTrue();
-		assertThat(result.failReason()).isEqualTo("발송 실패");
-		assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENDING);
-		verify(notificationSender).send(notification);
-		verify(notificationRepository).save(notification);
-		verify(groupListCacheRepository).evictLatest(notification.getGroup().getClientId());
-	}
-
-	@Test
-	@DisplayName("재시도 불가 실패는 non-retryable 결과를 반환한다")
-	void dispatch_returnsNonRetryableFailureWhenSendFailsNonRetryable() {
-		// given
-		Notification notification = createNotification();
-		when(notificationRepository.save(notification)).thenReturn(notification);
-		when(notificationSender.send(notification)).thenReturn(SendResult.failNonRetryable("수신자 주소 오류"));
-
-		// when
-		NotificationDispatchResult result = dispatchService.dispatch(notification);
-
-		// then
-		assertThat(result.isFailure()).isTrue();
-		assertThat(result.isNonRetryableFailure()).isTrue();
-		assertThat(result.failReason()).isEqualTo("수신자 주소 오류");
-		verify(notificationSender).send(notification);
-		verify(notificationRepository).save(notification);
 	}
 
 	@Test
@@ -214,8 +84,7 @@ class NotificationDispatchServiceTest {
 		verify(notificationSender, times(2)).send(any(Notification.class));
 		verify(notificationGroupRepository).bulkApplyDispatchCounts(anyList());
 		verify(groupListCacheRepository, times(2)).evictLatest("dispatch-service");
-		verify(unreadCountCacheRepository).evict("dispatch-service", "first@example.com");
-		verify(unreadCountCacheRepository).evict("dispatch-service", "second@example.com");
+		verify(unreadCountCacheRepository, never()).evict(any(), any());
 	}
 
 	@Test
@@ -252,8 +121,33 @@ class NotificationDispatchServiceTest {
 		verify(notificationRepository).bulkMarkAsFailed(anyList(), any());
 	}
 
-	private Notification createNotification() {
-		return createNotification(null, "user@example.com");
+	@Test
+	@DisplayName("markAsFailed는 알림 상태를 FAILED로 전환하고 unread count를 decrement한다")
+	void markAsFailed_decrementsUnreadCount() {
+		Notification notification = createNotification(5L, "user@example.com");
+		notification.startSending();
+		when(notificationRepository.findById(5L)).thenReturn(Optional.of(notification));
+		when(notificationRepository.save(notification)).thenReturn(notification);
+
+		dispatchService.markAsFailed(5L, "최종 실패 사유");
+
+		verify(notificationRepository).save(notification);
+		verify(groupListCacheRepository).evictLatest("dispatch-service");
+		verify(unreadCountCacheRepository).decrement("dispatch-service", "user@example.com");
+	}
+
+	@Test
+	@DisplayName("markAsFailed에서 캐시가 비활성화되어 있으면 decrement를 호출하지 않는다")
+	void markAsFailed_skipsDecrementWhenCacheDisabled() {
+		when(unreadCountCacheRepository.enabled()).thenReturn(false);
+		Notification notification = createNotification(6L, "user@example.com");
+		notification.startSending();
+		when(notificationRepository.findById(6L)).thenReturn(Optional.of(notification));
+		when(notificationRepository.save(notification)).thenReturn(notification);
+
+		dispatchService.markAsFailed(6L, "실패");
+
+		verify(unreadCountCacheRepository, never()).decrement(any(), any());
 	}
 
 	private Notification createNotification(Long id, String receiver) {
@@ -271,12 +165,6 @@ class NotificationDispatchServiceTest {
 		if (id != null) {
 			ReflectionTestUtils.setField(notification, "id", id);
 		}
-		return notification;
-	}
-
-	private Notification createSendingNotification(Long id, String receiver) {
-		Notification notification = createNotification(id, receiver);
-		notification.startSending();
 		return notification;
 	}
 }

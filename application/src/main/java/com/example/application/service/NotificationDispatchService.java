@@ -10,15 +10,10 @@ import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import com.example.application.mapper.NotificationResultMapper;
 import com.example.application.port.in.NotificationDispatchUseCase;
 import com.example.application.port.in.result.BatchDispatchResult;
-import com.example.application.port.in.result.NotificationDispatchResult;
-import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.application.port.out.NotificationSender;
 import com.example.application.port.out.cache.NotificationGroupListCacheRepository;
 import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
@@ -44,41 +39,6 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 	private final TransactionTemplate transactionTemplate;
 	private final NotificationGroupListCacheRepository groupListCacheRepository;
 	private final NotificationUnreadCountCacheRepository unreadCountCacheRepository;
-	private final NotificationResultMapper mapper;
-
-	@Override
-	@Transactional
-	public NotificationDispatchResult dispatch(Notification notification) {
-		// 메시지 중복 처리 방지
-		if (notification.isTerminal()) {
-			log.debug("이미 종결 상태인 알림 발송 생략: id={}, status={}",
-				notification.getId(), notification.getStatus());
-			return NotificationDispatchResult.success();
-		}
-
-		// PENDING → SENDING
-		notification.startSending();
-		Notification managedNotification = notificationRepository.save(notification);
-
-		// API 전송
-		SendResult sendResult = notificationSender.send(managedNotification);
-
-		if (sendResult.isSuccess()) {
-			// SENDING → SENT
-			managedNotification.markAsSent();
-			notificationRepository.save(managedNotification);
-			scheduleWriteThroughAfterCommit(managedNotification);
-			log.info("알림 발송 성공: id={}, receiver={}", managedNotification.getId(), managedNotification.getReceiver());
-			return NotificationDispatchResult.success();
-		} else {
-			log.warn("알림 발송 실패: id={}, reason={}", managedNotification.getId(), sendResult.failReason());
-			evictGroupList(managedNotification);
-			if (sendResult.isNonRetryableFailure()) {
-				return NotificationDispatchResult.failNonRetryable(sendResult.failReason());
-			}
-			return NotificationDispatchResult.failRetryable(sendResult.failReason(), sendResult.retryDelayMillis());
-		}
-	}
 
 	@Override
 	public List<BatchDispatchResult> dispatchBatch(List<Notification> notifications) {
@@ -114,6 +74,7 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 			notification.markAsFailed(reason);
 			notificationRepository.save(notification);
 			evictGroupList(notification);
+			decrementUnreadCount(notification);
 			log.error("알림 최종 실패: id={}, reason={}", notificationId, reason);
 		});
 	}
@@ -130,7 +91,7 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 				notificationIds.add(notification.getId());
 				preparedById.put(notification.getId(), notification);
 			}
-			notificationRepository.bulkStartSending(notificationIds, java.time.LocalDateTime.now());
+			notificationRepository.bulkStartSending(notificationIds, LocalDateTime.now());
 			evictGroupLists(preparedById.values());
 			return preparedById;
 		});
@@ -176,14 +137,6 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 					sentIds.add(notificationId);
 					accumulateGroupCount(groupCountUpdates, notification, 1, 0);
 					results.put(notificationId, BatchDispatchResult.success(notificationId));
-					// unread count evict for batch SENT
-					if (unreadCountCacheRepository.enabled()) {
-						String clientId = notification.getGroup() != null ? notification.getGroup().getClientId() : null;
-						String receiver = notification.getReceiver();
-						if (clientId != null && receiver != null) {
-							unreadCountCacheRepository.evict(clientId, receiver);
-						}
-					}
 				} else if (sendResult.isNonRetryableFailure()) {
 					failedUpdates.add(new NotificationFailureUpdate(notificationId, sendResult.failReason()));
 					accumulateGroupCount(groupCountUpdates, notification, 0, 1);
@@ -196,7 +149,7 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 				}
 			}
 
-			java.time.LocalDateTime updatedAt = java.time.LocalDateTime.now();
+			LocalDateTime updatedAt = LocalDateTime.now();
 			notificationRepository.bulkMarkAsSent(sentIds, updatedAt, updatedAt);
 			notificationRepository.bulkMarkAsFailed(failedUpdates, updatedAt);
 			if (!groupCountUpdates.isEmpty()) {
@@ -226,55 +179,19 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 		));
 	}
 
-	private void scheduleWriteThroughAfterCommit(Notification notification) {
-		String clientId = notification.getGroup() != null ? notification.getGroup().getClientId() : null;
-		String receiver = notification.getReceiver();
-		if (clientId == null) {
+	private void decrementUnreadCount(Notification notification) {
+		if (!unreadCountCacheRepository.enabled()) {
 			return;
 		}
-		if (TransactionSynchronizationManager.isSynchronizationActive()) {
-			TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-				@Override
-				public void afterCommit() {
-					writeThroughAfterSent(clientId, receiver);
-				}
-			});
-		} else {
-			writeThroughAfterSent(clientId, receiver);
-		}
-	}
-
-	private void writeThroughAfterSent(Notification notification) {
 		if (notification.getGroup() == null) {
 			return;
 		}
-		writeThroughAfterSent(notification.getGroup().getClientId(), notification.getReceiver());
-	}
-
-	private void writeThroughAfterSent(String clientId, String receiver) {
-		if (unreadCountCacheRepository.enabled()) {
-			try {
-				LocalDateTime from = LocalDateTime.now().minusDays(7);
-				long count = notificationRepository.countUnreadByClientIdAndReceiver(clientId, receiver, from);
-				unreadCountCacheRepository.put(clientId, receiver, count);
-			} catch (Exception e) {
-				log.warn("unread count cache write-through 실패: clientId={}, receiver={}", clientId, receiver, e);
-			}
+		String clientId = notification.getGroup().getClientId();
+		String receiver = notification.getReceiver();
+		if (clientId == null || receiver == null || receiver.isBlank()) {
+			return;
 		}
-
-		if (groupListCacheRepository.enabled()) {
-			try {
-				LocalDateTime from = LocalDateTime.now().minusDays(7);
-				List<NotificationGroupResult> groups = notificationGroupRepository
-					.findByClientIdWithCursor(clientId, from, null, groupListCacheRepository.latestLimit())
-					.stream()
-					.map(mapper::toGroupResult)
-					.toList();
-				groupListCacheRepository.putLatest(clientId, groups);
-			} catch (Exception e) {
-				log.warn("group list cache write-through 실패: clientId={}", clientId, e);
-			}
-		}
+		unreadCountCacheRepository.decrement(clientId, receiver);
 	}
 
 	private void evictGroupList(Notification notification) {

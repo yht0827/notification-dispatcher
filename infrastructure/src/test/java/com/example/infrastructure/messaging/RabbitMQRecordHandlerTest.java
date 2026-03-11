@@ -17,7 +17,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.example.application.port.in.NotificationDispatchUseCase;
 import com.example.application.port.in.result.BatchDispatchResult;
-import com.example.application.port.in.result.NotificationDispatchResult;
 import com.example.application.port.out.DispatchLockManager;
 import com.example.application.port.out.repository.NotificationRepository;
 import com.example.domain.exception.InvalidStatusTransitionException;
@@ -56,20 +55,21 @@ class RabbitMQRecordHandlerTest {
 	}
 
 	@Test
-	@DisplayName("종결 상태 알림도 dispatch 서비스에 위임한다")
+	@DisplayName("종결 상태 알림도 dispatchBatch 서비스에 위임한다")
 	void process_delegatesTerminalNotificationToDispatchService() {
 		// given
 		Notification notification = createNotification();
 		notification.startSending();
 		notification.markAsSent();
 		when(notificationRepository.findById(1L)).thenReturn(Optional.of(notification));
-		when(dispatchService.dispatch(notification)).thenReturn(NotificationDispatchResult.success());
+		when(dispatchService.dispatchBatch(List.of(notification)))
+			.thenReturn(List.of(BatchDispatchResult.success(notification.getId())));
 
 		// when
 		recordHandler.process(1L, 0);
 
 		// then
-		verify(dispatchService).dispatch(notification);
+		verify(dispatchService).dispatchBatch(List.of(notification));
 	}
 
 	@Test
@@ -79,7 +79,8 @@ class RabbitMQRecordHandlerTest {
 		Notification notification = createNotification();
 		when(notificationRepository.findById(1L)).thenReturn(Optional.of(notification));
 		when(properties.resolveMaxRetryCount()).thenReturn(3);
-		when(dispatchService.dispatch(notification)).thenReturn(NotificationDispatchResult.fail("발송 실패"));
+		when(dispatchService.dispatchBatch(List.of(notification)))
+			.thenReturn(List.of(BatchDispatchResult.failRetryable(notification.getId(), "발송 실패")));
 
 		// when & then
 		assertThatThrownBy(() -> recordHandler.process(1L, 0))
@@ -94,8 +95,8 @@ class RabbitMQRecordHandlerTest {
 		Notification notification = createNotification();
 		when(notificationRepository.findById(12L)).thenReturn(Optional.of(notification));
 		when(properties.resolveMaxRetryCount()).thenReturn(3);
-		when(dispatchService.dispatch(notification))
-			.thenReturn(NotificationDispatchResult.failRetryable("rate limit", 15_000L));
+		when(dispatchService.dispatchBatch(List.of(notification)))
+			.thenReturn(List.of(BatchDispatchResult.failRetryable(notification.getId(), "rate limit", 15_000L)));
 
 		assertThatThrownBy(() -> recordHandler.process(12L, 0))
 			.isInstanceOfSatisfying(RetryableMessageException.class,
@@ -110,7 +111,8 @@ class RabbitMQRecordHandlerTest {
 		// given
 		Notification notification = createNotification();
 		when(notificationRepository.findById(11L)).thenReturn(Optional.of(notification));
-		when(dispatchService.dispatch(notification)).thenReturn(NotificationDispatchResult.failNonRetryable("수신자 주소 오류"));
+		when(dispatchService.dispatchBatch(List.of(notification)))
+			.thenReturn(List.of(BatchDispatchResult.failNonRetryable(notification.getId(), "수신자 주소 오류")));
 
 		// when & then
 		assertThatThrownBy(() -> recordHandler.process(11L, 0))
@@ -128,7 +130,8 @@ class RabbitMQRecordHandlerTest {
 		Notification notification = createNotification();
 		when(notificationRepository.findById(2L)).thenReturn(Optional.of(notification));
 		when(properties.resolveMaxRetryCount()).thenReturn(3);
-		when(dispatchService.dispatch(notification)).thenReturn(NotificationDispatchResult.fail("발송 실패"));
+		when(dispatchService.dispatchBatch(List.of(notification)))
+			.thenReturn(List.of(BatchDispatchResult.failRetryable(notification.getId(), "발송 실패")));
 
 		// when & then
 		assertThatThrownBy(() -> recordHandler.process(2L, 3))
@@ -172,7 +175,7 @@ class RabbitMQRecordHandlerTest {
 	void process_wrapsUnexpectedExceptionAndReleasesLock() {
 		Notification notification = createNotification();
 		when(notificationRepository.findById(20L)).thenReturn(Optional.of(notification));
-		when(dispatchService.dispatch(notification)).thenThrow(new IllegalStateException("boom"));
+		when(dispatchService.dispatchBatch(List.of(notification))).thenThrow(new IllegalStateException("boom"));
 
 		assertThatThrownBy(() -> recordHandler.process(20L, 0))
 			.isInstanceOf(RetryableMessageException.class)
@@ -186,7 +189,7 @@ class RabbitMQRecordHandlerTest {
 	void process_convertsUnsupportedChannelToNonRetryable() {
 		Notification notification = createNotification();
 		when(notificationRepository.findById(3L)).thenReturn(Optional.of(notification));
-		when(dispatchService.dispatch(notification)).thenThrow(new UnsupportedChannelException(ChannelType.EMAIL));
+		when(dispatchService.dispatchBatch(List.of(notification))).thenThrow(new UnsupportedChannelException(ChannelType.EMAIL));
 
 		assertThatThrownBy(() -> recordHandler.process(3L, 0))
 			.isInstanceOf(NonRetryableMessageException.class)
@@ -200,7 +203,7 @@ class RabbitMQRecordHandlerTest {
 	void process_convertsInvalidStatusTransitionToNonRetryable() {
 		Notification notification = createNotification();
 		when(notificationRepository.findById(4L)).thenReturn(Optional.of(notification));
-		when(dispatchService.dispatch(notification)).thenThrow(
+		when(dispatchService.dispatchBatch(List.of(notification))).thenThrow(
 			new InvalidStatusTransitionException("invalid transition"));
 
 		assertThatThrownBy(() -> recordHandler.process(4L, 0))
