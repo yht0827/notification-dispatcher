@@ -13,8 +13,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import com.example.application.port.out.cache.NotificationDetailCacheRepository;
-import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
@@ -43,45 +41,7 @@ class NotificationArchiveServiceIntegrationTest extends IntegrationTestSupportNo
 			jdbcTemplate,
 			namedParameterJdbcTemplate,
 			new ArchiveProperties(true, false, 1000, 7, null, null),
-			new TransactionTemplate(transactionManager),
-			new NotificationDetailCacheRepository() {
-				@Override
-				public boolean enabled() {
-					return false;
-				}
-
-				@Override
-				public java.util.Optional<com.example.application.port.in.result.NotificationResult> get(Long notificationId) {
-					return java.util.Optional.empty();
-				}
-
-				@Override
-				public void put(Long notificationId, com.example.application.port.in.result.NotificationResult detail) {
-				}
-
-				@Override
-				public void evict(Long notificationId) {
-				}
-			},
-			new NotificationGroupDetailCacheRepository() {
-				@Override
-				public boolean enabled() {
-					return false;
-				}
-
-				@Override
-				public java.util.Optional<com.example.application.port.in.result.NotificationGroupDetailResult> get(Long groupId) {
-					return java.util.Optional.empty();
-				}
-
-				@Override
-				public void put(Long groupId, com.example.application.port.in.result.NotificationGroupDetailResult detail) {
-				}
-
-				@Override
-				public void evict(Long groupId) {
-				}
-			}
+			new TransactionTemplate(transactionManager)
 		);
 
 		jdbcTemplate.execute("DROP TABLE IF EXISTS notification_archive");

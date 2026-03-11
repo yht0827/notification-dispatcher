@@ -1,27 +1,31 @@
 package com.example.application.service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.example.application.mapper.NotificationResultMapper;
 import com.example.application.port.in.NotificationDispatchUseCase;
 import com.example.application.port.in.result.BatchDispatchResult;
 import com.example.application.port.in.result.NotificationDispatchResult;
-import com.example.application.port.out.cache.NotificationDetailCacheRepository;
-import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
+import com.example.application.port.in.result.NotificationGroupResult;
+import com.example.application.port.out.NotificationSender;
 import com.example.application.port.out.cache.NotificationGroupListCacheRepository;
+import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationFailureUpdate;
 import com.example.application.port.out.repository.NotificationGroupCountUpdate;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationRepository;
-import com.example.application.port.out.NotificationSender;
 import com.example.application.port.out.result.SendResult;
 import com.example.domain.exception.UnsupportedChannelException;
 import com.example.domain.notification.Notification;
@@ -38,9 +42,9 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 	private final NotificationGroupRepository notificationGroupRepository;
 	private final NotificationSender notificationSender;
 	private final TransactionTemplate transactionTemplate;
-	private final NotificationDetailCacheRepository notificationDetailCacheRepository;
-	private final NotificationGroupDetailCacheRepository groupDetailCacheRepository;
 	private final NotificationGroupListCacheRepository groupListCacheRepository;
+	private final NotificationUnreadCountCacheRepository unreadCountCacheRepository;
+	private final NotificationResultMapper mapper;
 
 	@Override
 	@Transactional
@@ -63,12 +67,12 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 			// SENDING → SENT
 			managedNotification.markAsSent();
 			notificationRepository.save(managedNotification);
-			evictCaches(managedNotification);
+			scheduleWriteThroughAfterCommit(managedNotification);
 			log.info("알림 발송 성공: id={}, receiver={}", managedNotification.getId(), managedNotification.getReceiver());
 			return NotificationDispatchResult.success();
 		} else {
 			log.warn("알림 발송 실패: id={}, reason={}", managedNotification.getId(), sendResult.failReason());
-			evictCaches(managedNotification);
+			evictGroupList(managedNotification);
 			if (sendResult.isNonRetryableFailure()) {
 				return NotificationDispatchResult.failNonRetryable(sendResult.failReason());
 			}
@@ -109,7 +113,7 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 		notificationRepository.findById(notificationId).ifPresent(notification -> {
 			notification.markAsFailed(reason);
 			notificationRepository.save(notification);
-			evictCaches(notification);
+			evictGroupList(notification);
 			log.error("알림 최종 실패: id={}, reason={}", notificationId, reason);
 		});
 	}
@@ -127,7 +131,7 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 				preparedById.put(notification.getId(), notification);
 			}
 			notificationRepository.bulkStartSending(notificationIds, java.time.LocalDateTime.now());
-			evictCaches(preparedById.values());
+			evictGroupLists(preparedById.values());
 			return preparedById;
 		});
 	}
@@ -172,13 +176,23 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 					sentIds.add(notificationId);
 					accumulateGroupCount(groupCountUpdates, notification, 1, 0);
 					results.put(notificationId, BatchDispatchResult.success(notificationId));
+					// unread count evict for batch SENT
+					if (unreadCountCacheRepository.enabled()) {
+						String clientId = notification.getGroup() != null ? notification.getGroup().getClientId() : null;
+						String receiver = notification.getReceiver();
+						if (clientId != null && receiver != null) {
+							unreadCountCacheRepository.evict(clientId, receiver);
+						}
+					}
 				} else if (sendResult.isNonRetryableFailure()) {
 					failedUpdates.add(new NotificationFailureUpdate(notificationId, sendResult.failReason()));
 					accumulateGroupCount(groupCountUpdates, notification, 0, 1);
-					results.put(notificationId, BatchDispatchResult.failNonRetryable(notificationId, sendResult.failReason()));
+					results.put(notificationId,
+						BatchDispatchResult.failNonRetryable(notificationId, sendResult.failReason()));
 				} else {
 					results.put(notificationId,
-						BatchDispatchResult.failRetryable(notificationId, sendResult.failReason(), sendResult.retryDelayMillis()));
+						BatchDispatchResult.failRetryable(notificationId, sendResult.failReason(),
+							sendResult.retryDelayMillis()));
 				}
 			}
 
@@ -188,7 +202,7 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 			if (!groupCountUpdates.isEmpty()) {
 				notificationGroupRepository.bulkApplyDispatchCounts(List.copyOf(groupCountUpdates.values()));
 			}
-			evictCaches(preparedById.values());
+			evictGroupLists(preparedById.values());
 			return results;
 		});
 	}
@@ -212,41 +226,66 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 		));
 	}
 
-	private void evictCaches(Notification notification) {
-		if (notification == null) {
+	private void scheduleWriteThroughAfterCommit(Notification notification) {
+		String clientId = notification.getGroup() != null ? notification.getGroup().getClientId() : null;
+		String receiver = notification.getReceiver();
+		if (clientId == null) {
 			return;
 		}
-		evictNotificationDetails(List.of(notification));
-		evictGroupDetails(List.of(notification));
-		evictGroupLists(List.of(notification));
-	}
-
-	private void evictCaches(Iterable<Notification> notifications) {
-		evictNotificationDetails(notifications);
-		evictGroupDetails(notifications);
-		evictGroupLists(notifications);
-	}
-
-	private void evictNotificationDetails(Iterable<Notification> notifications) {
-		Set<Long> notificationIds = new LinkedHashSet<>();
-		for (Notification notification : notifications) {
-			if (notification == null || notification.getId() == null) {
-				continue;
-			}
-			notificationIds.add(notification.getId());
+		if (TransactionSynchronizationManager.isSynchronizationActive()) {
+			TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+				@Override
+				public void afterCommit() {
+					writeThroughAfterSent(clientId, receiver);
+				}
+			});
+		} else {
+			writeThroughAfterSent(clientId, receiver);
 		}
-		notificationIds.forEach(notificationDetailCacheRepository::evict);
 	}
 
-	private void evictGroupDetails(Iterable<Notification> notifications) {
-		Set<Long> groupIds = new LinkedHashSet<>();
-		for (Notification notification : notifications) {
-			if (notification == null || notification.getGroup() == null || notification.getGroup().getId() == null) {
-				continue;
-			}
-			groupIds.add(notification.getGroup().getId());
+	private void writeThroughAfterSent(Notification notification) {
+		if (notification.getGroup() == null) {
+			return;
 		}
-		groupIds.forEach(groupDetailCacheRepository::evict);
+		writeThroughAfterSent(notification.getGroup().getClientId(), notification.getReceiver());
+	}
+
+	private void writeThroughAfterSent(String clientId, String receiver) {
+		if (unreadCountCacheRepository.enabled()) {
+			try {
+				LocalDateTime from = LocalDateTime.now().minusDays(7);
+				long count = notificationRepository.countUnreadByClientIdAndReceiver(clientId, receiver, from);
+				unreadCountCacheRepository.put(clientId, receiver, count);
+			} catch (Exception e) {
+				log.warn("unread count cache write-through 실패: clientId={}, receiver={}", clientId, receiver, e);
+			}
+		}
+
+		if (groupListCacheRepository.enabled()) {
+			try {
+				LocalDateTime from = LocalDateTime.now().minusDays(7);
+				List<NotificationGroupResult> groups = notificationGroupRepository
+					.findByClientIdWithCursor(clientId, from, null, groupListCacheRepository.latestLimit())
+					.stream()
+					.map(mapper::toGroupResult)
+					.toList();
+				groupListCacheRepository.putLatest(clientId, groups);
+			} catch (Exception e) {
+				log.warn("group list cache write-through 실패: clientId={}", clientId, e);
+			}
+		}
+	}
+
+	private void evictGroupList(Notification notification) {
+		if (notification == null || notification.getGroup() == null) {
+			return;
+		}
+		String clientId = notification.getGroup().getClientId();
+		if (clientId == null || clientId.isBlank()) {
+			return;
+		}
+		groupListCacheRepository.evictLatest(clientId);
 	}
 
 	private void evictGroupLists(Iterable<Notification> notifications) {

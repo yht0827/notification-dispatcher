@@ -15,8 +15,6 @@ import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.application.port.in.result.NotificationResult;
 import com.example.application.port.in.result.NotificationUnreadCountResult;
-import com.example.application.port.out.cache.NotificationDetailCacheRepository;
-import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
 import com.example.application.port.out.cache.NotificationGroupListCacheRepository;
 import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
@@ -33,8 +31,6 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 	private final NotificationGroupRepository groupRepository;
 	private final NotificationRepository notificationRepository;
 	private final NotificationReadStatusRepository notificationReadStatusRepository;
-	private final NotificationDetailCacheRepository notificationDetailCacheRepository;
-	private final NotificationGroupDetailCacheRepository groupDetailCacheRepository;
 	private final NotificationGroupListCacheRepository groupListCacheRepository;
 	private final NotificationUnreadCountCacheRepository unreadCountCacheRepository;
 	private final NotificationResultMapper mapper;
@@ -47,16 +43,9 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 	@Override
 	public Optional<NotificationGroupDetailResult> getGroupDetail(Long groupId) {
 		LocalDateTime from = detailFrom();
-		if (groupDetailCacheRepository.enabled()) {
-			Optional<NotificationGroupDetailResult> cached = getCachedGroupDetail(groupId, from);
-			if (cached.isPresent()) {
-				return cached;
-			}
-		}
 		return groupRepository.findByIdWithNotifications(groupId)
 			.filter(group -> isWithinRetention(group.getCreatedAt(), from))
-			.map(this::toGroupDetail)
-			.map(detail -> groupDetailCacheRepository.enabled() ? cacheGroupDetail(groupId, detail) : detail);
+			.map(this::toGroupDetail);
 	}
 
 	@Override
@@ -90,17 +79,9 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 	@Override
 	public Optional<NotificationResult> getNotification(Long notificationId) {
 		LocalDateTime from = detailFrom();
-		if (notificationDetailCacheRepository.enabled()) {
-			Optional<NotificationResult> cached = getCachedNotificationDetail(notificationId, from);
-			if (cached.isPresent()) {
-				return cached;
-			}
-		}
 		return notificationRepository.findById(notificationId)
 			.filter(notification -> isWithinRetention(notification.getCreatedAt(), from))
-			.map(this::toNotificationDetail)
-			.map(detail -> notificationDetailCacheRepository.enabled() ?
-				cacheNotificationDetail(notificationId, detail) : detail);
+			.map(this::toNotificationDetail);
 	}
 
 	@Override
@@ -128,11 +109,6 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 		return NotificationDetailRetentionPolicy.detailFrom(LocalDateTime.now());
 	}
 
-	private Optional<NotificationGroupDetailResult> getCachedGroupDetail(Long groupId, LocalDateTime from) {
-		return groupDetailCacheRepository.get(groupId)
-			.filter(detail -> retainOrEvict(groupId, detail.createdAt(), from, groupDetailCacheRepository::evict));
-	}
-
 	private NotificationGroupDetailResult toGroupDetail(com.example.domain.notification.NotificationGroup group) {
 		List<Long> notificationIds = group.getNotifications().stream()
 			.map(com.example.domain.notification.Notification::getId)
@@ -140,11 +116,6 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 		Map<Long, LocalDateTime> readAtByNotificationId =
 			notificationReadStatusRepository.findReadAtByNotificationIds(notificationIds);
 		return mapper.toGroupDetailResult(group, readAtByNotificationId);
-	}
-
-	private NotificationGroupDetailResult cacheGroupDetail(Long groupId, NotificationGroupDetailResult detail) {
-		groupDetailCacheRepository.put(groupId, detail);
-		return detail;
 	}
 
 	private Optional<List<NotificationGroupResult>> getCachedLatestGroups(String clientId, LocalDateTime from) {
@@ -162,35 +133,11 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 			.toList();
 	}
 
-	private Optional<NotificationResult> getCachedNotificationDetail(Long notificationId, LocalDateTime from) {
-		return notificationDetailCacheRepository.get(notificationId)
-			.filter(detail -> retainOrEvict(
-				notificationId,
-				detail.createdAt(),
-				from,
-				notificationDetailCacheRepository::evict
-			));
-	}
-
 	private NotificationResult toNotificationDetail(com.example.domain.notification.Notification notification) {
 		return mapper.toNotificationResult(
 			notification,
 			notificationReadStatusRepository.findReadAtByNotificationId(notification.getId())
 		);
-	}
-
-	private NotificationResult cacheNotificationDetail(Long notificationId, NotificationResult detail) {
-		notificationDetailCacheRepository.put(notificationId, detail);
-		return detail;
-	}
-
-	private boolean retainOrEvict(Long id, LocalDateTime createdAt, LocalDateTime from,
-		java.util.function.Consumer<Long> evictAction) {
-		if (isWithinRetention(createdAt, from)) {
-			return true;
-		}
-		evictAction.accept(id);
-		return false;
 	}
 
 	private boolean isWithinRetention(LocalDateTime createdAt, LocalDateTime from) {

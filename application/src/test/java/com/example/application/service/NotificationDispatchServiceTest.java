@@ -2,7 +2,9 @@ package com.example.application.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -23,11 +25,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.example.application.mapper.NotificationResultMapper;
 import com.example.application.port.in.result.BatchDispatchResult;
 import com.example.application.port.in.result.NotificationDispatchResult;
-import com.example.application.port.out.cache.NotificationDetailCacheRepository;
-import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
 import com.example.application.port.out.cache.NotificationGroupListCacheRepository;
+import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationRepository;
 import com.example.application.port.out.NotificationSender;
@@ -53,13 +55,13 @@ class NotificationDispatchServiceTest {
 	private TransactionTemplate transactionTemplate;
 
 	@Mock
-	private NotificationDetailCacheRepository notificationDetailCacheRepository;
-
-	@Mock
-	private NotificationGroupDetailCacheRepository groupDetailCacheRepository;
-
-	@Mock
 	private NotificationGroupListCacheRepository groupListCacheRepository;
+
+	@Mock
+	private NotificationUnreadCountCacheRepository unreadCountCacheRepository;
+
+	@Mock
+	private NotificationResultMapper mapper;
 
 	@InjectMocks
 	private NotificationDispatchService dispatchService;
@@ -69,6 +71,12 @@ class NotificationDispatchServiceTest {
 		lenient().when(transactionTemplate.execute(any())).thenAnswer(invocation -> invocation.getArgument(0,
 			org.springframework.transaction.support.TransactionCallback.class).doInTransaction(null));
 		lenient().when(notificationRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+		lenient().when(unreadCountCacheRepository.enabled()).thenReturn(true);
+		lenient().when(groupListCacheRepository.enabled()).thenReturn(true);
+		lenient().when(groupListCacheRepository.latestLimit()).thenReturn(60);
+		lenient().when(notificationGroupRepository.findByClientIdWithCursor(any(), any(), any(), anyInt()))
+			.thenReturn(List.of());
+		lenient().when(notificationRepository.countUnreadByClientIdAndReceiver(any(), any(), any())).thenReturn(0L);
 	}
 
 	@Test
@@ -103,9 +111,8 @@ class NotificationDispatchServiceTest {
 		assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
 		verify(notificationSender).send(notification);
 		verify(notificationRepository, times(2)).save(notification);
-		verify(notificationDetailCacheRepository).evict(notification.getId());
-		verify(groupDetailCacheRepository).evict(notification.getGroup().getId());
-		verify(groupListCacheRepository).evictLatest(notification.getGroup().getClientId());
+		verify(unreadCountCacheRepository).put(eq("dispatch-service"), eq("user@example.com"), anyLong());
+		verify(groupListCacheRepository).putLatest(eq("dispatch-service"), anyList());
 	}
 
 	@Test
@@ -168,8 +175,6 @@ class NotificationDispatchServiceTest {
 		assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENDING);
 		verify(notificationSender).send(notification);
 		verify(notificationRepository).save(notification);
-		verify(notificationDetailCacheRepository).evict(notification.getId());
-		verify(groupDetailCacheRepository).evict(notification.getGroup().getId());
 		verify(groupListCacheRepository).evictLatest(notification.getGroup().getClientId());
 	}
 
@@ -208,9 +213,9 @@ class NotificationDispatchServiceTest {
 		verify(notificationRepository).bulkMarkAsSent(eq(List.of(1L, 2L)), any(), any());
 		verify(notificationSender, times(2)).send(any(Notification.class));
 		verify(notificationGroupRepository).bulkApplyDispatchCounts(anyList());
-		verify(notificationDetailCacheRepository, times(4)).evict(any(Long.class));
-		verify(groupDetailCacheRepository, times(4)).evict(any(Long.class));
 		verify(groupListCacheRepository, times(2)).evictLatest("dispatch-service");
+		verify(unreadCountCacheRepository).evict("dispatch-service", "first@example.com");
+		verify(unreadCountCacheRepository).evict("dispatch-service", "second@example.com");
 	}
 
 	@Test
@@ -245,8 +250,6 @@ class NotificationDispatchServiceTest {
 		});
 		verify(notificationRepository).bulkStartSending(eq(List.of(10L)), any());
 		verify(notificationRepository).bulkMarkAsFailed(anyList(), any());
-		verify(notificationDetailCacheRepository, times(2)).evict(pending.getId());
-		verify(groupDetailCacheRepository, times(2)).evict(pending.getGroup().getId());
 	}
 
 	private Notification createNotification() {

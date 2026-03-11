@@ -8,10 +8,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record NotificationCacheProperties(
 	Boolean unreadCountEnabled,
 	Duration unreadCountTtl,
-	Boolean groupDetailEnabled,
-	Duration groupDetailTtl,
-	Boolean notificationDetailEnabled,
-	Duration notificationDetailTtl,
 	Boolean groupListEnabled,
 	Duration groupListTtl,
 	Integer groupListLatestLimit
@@ -23,18 +19,6 @@ public record NotificationCacheProperties(
 		}
 		if (unreadCountTtl == null) {
 			unreadCountTtl = Duration.ofSeconds(30);
-		}
-		if (groupDetailEnabled == null) {
-			groupDetailEnabled = true;
-		}
-		if (groupDetailTtl == null) {
-			groupDetailTtl = Duration.ofSeconds(30);
-		}
-		if (notificationDetailEnabled == null) {
-			notificationDetailEnabled = true;
-		}
-		if (notificationDetailTtl == null) {
-			notificationDetailTtl = Duration.ofSeconds(30);
 		}
 		if (groupListEnabled == null) {
 			groupListEnabled = true;
