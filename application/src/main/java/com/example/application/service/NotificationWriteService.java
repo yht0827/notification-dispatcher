@@ -67,7 +67,8 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 		LocalDateTime now = LocalDateTime.now();
 		var from = NotificationDetailRetentionPolicy.detailFrom(now);
 		return notificationRepository.findById(notificationId)
-			.filter(notification -> NotificationDetailRetentionPolicy.isWithinRetention(notification.getCreatedAt(), from))
+			.filter(
+				notification -> NotificationDetailRetentionPolicy.isWithinRetention(notification.getCreatedAt(), from))
 			.map(notification -> {
 				validateClientAccess(clientId, notification.getGroup().getClientId(), "해당 알림에 대한 접근 권한이 없습니다.");
 				notificationReadStatusRepository.markAsRead(notificationId, now);

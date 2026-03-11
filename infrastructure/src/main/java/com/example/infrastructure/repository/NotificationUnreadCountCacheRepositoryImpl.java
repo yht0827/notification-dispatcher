@@ -21,14 +21,18 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class NotificationUnreadCountCacheRepositoryImpl implements NotificationUnreadCountCacheRepository {
 
-	private static final String INCR_IF_EXISTS_SCRIPT =
-		"if redis.call('EXISTS', KEYS[1]) == 1 then return redis.call('INCR', KEYS[1]) else return -1 end";
+	private static final DefaultRedisScript<Long> INCR_IF_EXISTS_SCRIPT = new DefaultRedisScript<>(
+		"if redis.call('EXISTS', KEYS[1]) == 1 then return redis.call('INCR', KEYS[1]) else return -1 end",
+		Long.class
+	);
 
-	private static final String DECR_IF_EXISTS_SCRIPT =
+	private static final DefaultRedisScript<Long> DECR_IF_EXISTS_SCRIPT = new DefaultRedisScript<>(
 		"if redis.call('EXISTS', KEYS[1]) == 1 then " +
-		"  local v = tonumber(redis.call('GET', KEYS[1])) " +
-		"  if v and v > 0 then return redis.call('DECR', KEYS[1]) else return 0 end " +
-		"else return -1 end";
+			"  local v = tonumber(redis.call('GET', KEYS[1])) " +
+			"  if v and v > 0 then return redis.call('DECR', KEYS[1]) else return 0 end " +
+			"else return -1 end",
+		Long.class
+	);
 
 	private final StringRedisTemplate redisTemplate;
 	private final NotificationCacheProperties cacheProperties;
@@ -78,9 +82,8 @@ public class NotificationUnreadCountCacheRepositoryImpl implements NotificationU
 	public void increment(String clientId, String receiver) {
 		String key = key(clientId, receiver);
 		try {
-			DefaultRedisScript<Long> script = new DefaultRedisScript<>(INCR_IF_EXISTS_SCRIPT, Long.class);
-			Long result = redisTemplate.execute(script, List.of(key));
-			if (result == null || result == -1L) {
+			Long result = redisTemplate.execute(INCR_IF_EXISTS_SCRIPT, List.of(key));
+			if (result == -1L) {
 				log.debug("unread count cache increment 생략 (키 없음): clientId={}, receiver={}", clientId, receiver);
 			} else {
 				log.debug("unread count cache increment 완료: clientId={}, receiver={}, newValue={}", clientId, receiver,
@@ -95,9 +98,8 @@ public class NotificationUnreadCountCacheRepositoryImpl implements NotificationU
 	public void decrement(String clientId, String receiver) {
 		String key = key(clientId, receiver);
 		try {
-			DefaultRedisScript<Long> script = new DefaultRedisScript<>(DECR_IF_EXISTS_SCRIPT, Long.class);
-			Long result = redisTemplate.execute(script, List.of(key));
-			if (result == null || result == -1L) {
+			Long result = redisTemplate.execute(DECR_IF_EXISTS_SCRIPT, List.of(key));
+			if (result == -1L) {
 				log.debug("unread count cache decrement 생략 (키 없음): clientId={}, receiver={}", clientId, receiver);
 			} else {
 				log.debug("unread count cache decrement 완료: clientId={}, receiver={}, newValue={}", clientId, receiver,
