@@ -31,7 +31,6 @@ import com.example.application.port.out.DispatchLockManager;
 import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.repository.NotificationRepository;
 import com.example.infrastructure.messaging.inbound.RabbitMQBatchConsumer;
-import com.example.infrastructure.messaging.inbound.MessageProcessOrchestrator;
 import com.example.infrastructure.messaging.inbound.RabbitMQRecordHandler;
 import com.example.infrastructure.messaging.outbound.RabbitMQDlqPublisher;
 import com.example.infrastructure.messaging.outbound.RabbitMQPublisher;
@@ -250,24 +249,17 @@ public class NotificationRabbitConfig {
 	public RabbitMQRecordHandler rabbitMQRecordHandler(
 		NotificationRepository notificationRepository,
 		NotificationDispatchUseCase dispatchService,
-		NotificationRabbitProperties properties,
 		DispatchLockManager lockManager) {
-		return new RabbitMQRecordHandler(notificationRepository, dispatchService, properties, lockManager);
-	}
-
-	@Bean
-	public MessageProcessOrchestrator messageProcessOrchestrator(
-		RabbitMQRecordHandler recordHandler,
-		DeadLetterPublisher dlqPublisher,
-		WaitPublisher waitPublisher,
-		io.micrometer.core.instrument.MeterRegistry meterRegistry) {
-		return new MessageProcessOrchestrator(recordHandler, dlqPublisher, waitPublisher, meterRegistry);
+		return new RabbitMQRecordHandler(notificationRepository, dispatchService, lockManager);
 	}
 
 	@Bean
 	public RabbitMQBatchConsumer rabbitMQBatchConsumer(
-		MessageProcessOrchestrator orchestrator,
+		RabbitMQRecordHandler recordHandler,
+		DeadLetterPublisher dlqPublisher,
+		WaitPublisher waitPublisher,
+		io.micrometer.core.instrument.MeterRegistry meterRegistry,
 		MessageConverter messageConverter) {
-		return new RabbitMQBatchConsumer(orchestrator, messageConverter);
+		return new RabbitMQBatchConsumer(recordHandler, dlqPublisher, waitPublisher, meterRegistry, messageConverter);
 	}
 }
