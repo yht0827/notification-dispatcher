@@ -33,10 +33,6 @@ notification:
   cache:
     unread-count-enabled: true
     unread-count-ttl: 30s
-    group-detail-enabled: true
-    group-detail-ttl: 30s
-    notification-detail-enabled: true
-    notification-detail-ttl: 30s
     group-list-enabled: true
     group-list-ttl: 30s
     group-list-latest-limit: 60
@@ -186,6 +182,14 @@ spring:
     baseline-on-migrate: true
   data:
     redis:
+      timeout: 1s
+      connect-timeout: 1s
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+          max-wait: 500ms
       host: localhost
       port: 6379
 
@@ -252,5 +256,13 @@ spring:
     baseline-on-migrate: true
   data:
     redis:
+      timeout: 1s
+      connect-timeout: 1s
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+          max-wait: 500ms
       host: ${REDIS_HOST}
       port: ${REDIS_PORT:6379}

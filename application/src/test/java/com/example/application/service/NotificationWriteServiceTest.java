@@ -27,8 +27,6 @@ import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.in.result.NotificationGroupReadResult;
 import com.example.application.port.in.result.NotificationReadResult;
-import com.example.application.port.out.cache.NotificationDetailCacheRepository;
-import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
 import com.example.application.port.out.cache.NotificationGroupListCacheRepository;
 import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
@@ -60,12 +58,6 @@ class NotificationWriteServiceTest {
 	private NotificationUnreadCountCacheRepository unreadCountCacheRepository;
 
 	@Mock
-	private NotificationDetailCacheRepository notificationDetailCacheRepository;
-
-	@Mock
-	private NotificationGroupDetailCacheRepository groupDetailCacheRepository;
-
-	@Mock
 	private NotificationGroupListCacheRepository groupListCacheRepository;
 
 	private NotificationWriteService commandService;
@@ -78,8 +70,6 @@ class NotificationWriteServiceTest {
 			notificationReadStatusRepository,
 			idempotencyLookupService,
 			notificationWriteExecutor,
-			notificationDetailCacheRepository,
-			groupDetailCacheRepository,
 			groupListCacheRepository,
 			unreadCountCacheRepository
 		);
@@ -262,10 +252,8 @@ class NotificationWriteServiceTest {
 	void markAsRead_marksRecentNotification() {
 		NotificationGroup group = org.mockito.Mockito.mock(NotificationGroup.class);
 		when(group.getClientId()).thenReturn("clientId");
-		when(group.getId()).thenReturn(10L);
 		Notification notification = org.mockito.Mockito.mock(Notification.class);
 		when(notification.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(1));
-		when(notification.getId()).thenReturn(1L);
 		when(notification.getGroup()).thenReturn(group);
 		when(notification.getReceiver()).thenReturn("receiver@example.com");
 		when(notificationRepository.findById(1L)).thenReturn(Optional.of(notification));
@@ -278,9 +266,8 @@ class NotificationWriteServiceTest {
 		assertThat(result.orElseThrow().notificationId()).isEqualTo(1L);
 		assertThat(result.orElseThrow().readAt()).isEqualTo(LocalDateTime.of(2026, 3, 8, 12, 0));
 		verify(notificationReadStatusRepository).markAsRead(eq(1L), any(LocalDateTime.class));
-		verify(notificationDetailCacheRepository).evict(1L);
-		verify(groupDetailCacheRepository).evict(10L);
 		verify(unreadCountCacheRepository).evict("clientId", "receiver@example.com");
+		verify(groupListCacheRepository).evictLatest("clientId");
 	}
 
 	@Test
@@ -329,11 +316,9 @@ class NotificationWriteServiceTest {
 		assertThat(result).isPresent();
 		assertThat(result.orElseThrow().groupId()).isEqualTo(10L);
 		assertThat(result.orElseThrow().readCount()).isEqualTo(2);
-		verify(notificationDetailCacheRepository).evict(1L);
-		verify(notificationDetailCacheRepository).evict(2L);
-		verify(groupDetailCacheRepository).evict(10L);
 		verify(unreadCountCacheRepository).evict("clientId", "a@example.com");
 		verify(unreadCountCacheRepository).evict("clientId", "b@example.com");
+		verify(groupListCacheRepository).evictLatest("clientId");
 	}
 
 	@Test
@@ -358,11 +343,9 @@ class NotificationWriteServiceTest {
 		assertThat(result).isPresent();
 		assertThat(result.orElseThrow().groupId()).isEqualTo(10L);
 		assertThat(result.orElseThrow().readCount()).isZero();
-		verify(notificationDetailCacheRepository).evict(1L);
-		verify(notificationDetailCacheRepository).evict(2L);
-		verify(groupDetailCacheRepository).evict(10L);
 		verify(unreadCountCacheRepository).evict("clientId", "a@example.com");
 		verify(unreadCountCacheRepository).evict("clientId", "b@example.com");
+		verify(groupListCacheRepository).evictLatest("clientId");
 	}
 
 	@Test

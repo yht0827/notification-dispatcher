@@ -13,8 +13,6 @@ import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.in.result.NotificationGroupReadResult;
 import com.example.application.port.in.result.NotificationReadResult;
-import com.example.application.port.out.cache.NotificationDetailCacheRepository;
-import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
 import com.example.application.port.out.cache.NotificationGroupListCacheRepository;
 import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
@@ -36,8 +34,6 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 	private final NotificationReadStatusRepository notificationReadStatusRepository;
 	private final NotificationIdempotencyLookupService idempotencyLookupService;
 	private final NotificationWriteExecutor notificationWriteExecutor;
-	private final NotificationDetailCacheRepository notificationDetailCacheRepository;
-	private final NotificationGroupDetailCacheRepository groupDetailCacheRepository;
 	private final NotificationGroupListCacheRepository groupListCacheRepository;
 	private final NotificationUnreadCountCacheRepository unreadCountCacheRepository;
 
@@ -118,16 +114,14 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 	}
 
 	private void evictCachesAfterRead(String clientId, Notification notification) {
-		evictNotificationDetail(notification.getId());
-		evictGroupDetail(notification.getGroup().getId());
 		evictUnreadCount(clientId, notification.getReceiver());
+		evictGroupList(clientId);
 	}
 
 	private void evictCachesAfterGroupRead(String clientId, Long groupId, List<Long> notificationIds,
 		List<String> receivers) {
-		evictNotificationDetails(notificationIds);
-		evictGroupDetail(groupId);
 		evictUnreadCount(clientId, receivers);
+		evictGroupList(clientId);
 	}
 
 	private List<Long> notificationIds(List<Notification> notifications) {
@@ -160,30 +154,6 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 			return;
 		}
 		unreadCountCacheRepository.evict(clientId, receiver);
-	}
-
-	private void evictGroupDetail(Long groupId) {
-		if (groupId == null) {
-			return;
-		}
-		groupDetailCacheRepository.evict(groupId);
-	}
-
-	private void evictNotificationDetail(Long notificationId) {
-		if (notificationId == null) {
-			return;
-		}
-		notificationDetailCacheRepository.evict(notificationId);
-	}
-
-	private void evictNotificationDetails(List<Long> notificationIds) {
-		if (notificationIds == null || notificationIds.isEmpty()) {
-			return;
-		}
-		notificationIds.stream()
-			.filter(java.util.Objects::nonNull)
-			.distinct()
-			.forEach(notificationDetailCacheRepository::evict);
 	}
 
 	private void evictGroupList(String clientId) {

@@ -8,9 +8,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import com.example.application.port.out.cache.NotificationDetailCacheRepository;
-import com.example.application.port.out.cache.NotificationGroupDetailCacheRepository;
-
 @Configuration
 @ConditionalOnProperty(name = "archive.enabled", havingValue = "true")
 @EnableConfigurationProperties(ArchiveProperties.class)
@@ -21,17 +18,13 @@ public class ArchiveConfig {
 		JdbcTemplate jdbcTemplate,
 		NamedParameterJdbcTemplate namedParameterJdbcTemplate,
 		ArchiveProperties archiveProperties,
-		TransactionTemplate transactionTemplate,
-		NotificationDetailCacheRepository notificationDetailCacheRepository,
-		NotificationGroupDetailCacheRepository groupDetailCacheRepository
+		TransactionTemplate transactionTemplate
 	) {
 		return new NotificationArchiveService(
 			jdbcTemplate,
 			namedParameterJdbcTemplate,
 			archiveProperties,
-			transactionTemplate,
-			notificationDetailCacheRepository,
-			groupDetailCacheRepository
+			transactionTemplate
 		);
 	}
 
