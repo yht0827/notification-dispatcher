@@ -26,8 +26,8 @@ import com.example.infrastructure.messaging.inbound.RabbitMQBatchConsumer;
 import com.example.infrastructure.messaging.inbound.RabbitMQRecordHandler;
 import com.example.infrastructure.messaging.inbound.RecordProcessRequest;
 import com.example.infrastructure.messaging.inbound.RecordProcessResult;
-import com.example.infrastructure.messaging.inbound.DeadLetterPublisher;
-import com.example.infrastructure.messaging.inbound.WaitPublisher;
+import com.example.infrastructure.messaging.outbound.DeadLetterPublisher;
+import com.example.infrastructure.messaging.outbound.WaitPublisher;
 import com.rabbitmq.client.Channel;
 
 import io.micrometer.core.instrument.Counter;

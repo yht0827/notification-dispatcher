@@ -1,4 +1,4 @@
-package com.example.infrastructure.sender.mock.caller;
+package com.example.infrastructure.sender.mock.http;
 
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;

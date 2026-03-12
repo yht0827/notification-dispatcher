@@ -11,6 +11,8 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.support.converter.MessageConverter;
 
 import com.example.infrastructure.config.rabbitmq.RabbitBeanNames;
+import com.example.infrastructure.messaging.outbound.DeadLetterPublisher;
+import com.example.infrastructure.messaging.outbound.WaitPublisher;
 import com.example.infrastructure.messaging.payload.NotificationMessagePayload;
 import com.rabbitmq.client.Channel;
 
@@ -62,14 +64,14 @@ public class RabbitMQBatchConsumer {
 
 		for (MessageProcessContext context : contexts) {
 			if (context.isInvalid()) {
-				publishToDeadLetter(context.sourceRecordId(), context.payload(), null, context.invalidReason());
+				dlqPublisher.publish(context.sourceRecordId(), context.payload(), null, context.invalidReason());
 				decisions.add(ackWith(context.deliveryTag(), "dlq"));
 				continue;
 			}
 
 			NotificationMessagePayload payload = context.payload();
 			if (payload == null || payload.getNotificationId() == null) {
-				publishToDeadLetter(context.sourceRecordId(), payload, null, "payload 또는 notificationId 값이 비어 있습니다.");
+				dlqPublisher.publish(context.sourceRecordId(), payload, null, "payload 또는 notificationId 값이 비어 있습니다.");
 				decisions.add(ackWith(context.deliveryTag(), "dlq"));
 				continue;
 			}
@@ -110,11 +112,11 @@ public class RabbitMQBatchConsumer {
 			return ackWith(context.deliveryTag(), "success");
 		}
 		if (result.isNonRetryableFailure()) {
-			publishToDeadLetter(context.sourceRecordId(), context.payload(), result.notificationId(), result.reason());
+			dlqPublisher.publish(context.sourceRecordId(), context.payload(), result.notificationId(), result.reason());
 			return ackWith(context.deliveryTag(), "dlq");
 		}
 		if (result.isRetryableFailure()) {
-			publishToWait(result.notificationId(), result.retryCount(), result.reason(), result.retryDelayMillis());
+			waitPublisher.publish(result.notificationId(), result.retryCount(), result.reason(), result.retryDelayMillis());
 			return ackWith(context.deliveryTag(), "wait");
 		}
 		return nackWith(context.deliveryTag());
@@ -128,14 +130,5 @@ public class RabbitMQBatchConsumer {
 	private MessageProcessDecision nackWith(long deliveryTag) {
 		meterRegistry.counter(METRIC_DISPATCH_RESULT, TAG_OUTCOME, "nack").increment();
 		return MessageProcessDecision.nack(deliveryTag);
-	}
-
-	private void publishToDeadLetter(String sourceRecordId, NotificationMessagePayload payload, Long notificationId,
-		String reason) {
-		dlqPublisher.publish(sourceRecordId, payload, notificationId, reason);
-	}
-
-	private void publishToWait(Long notificationId, int retryCount, String reason, Long retryDelayMillis) {
-		waitPublisher.publish(notificationId, retryCount, reason, retryDelayMillis);
 	}
 }
