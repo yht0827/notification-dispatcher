@@ -15,7 +15,6 @@ import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.application.port.in.result.NotificationResult;
 import com.example.application.port.in.result.NotificationUnreadCountResult;
-import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationReadStatusRepository;
 import com.example.application.port.out.repository.NotificationRepository;
@@ -31,7 +30,6 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 	private final NotificationGroupRepository groupRepository;
 	private final NotificationRepository notificationRepository;
 	private final NotificationReadStatusRepository notificationReadStatusRepository;
-	private final NotificationUnreadCountCacheRepository unreadCountCacheRepository;
 	private final NotificationResultMapper mapper;
 
 	@Override
@@ -67,17 +65,7 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 	@Override
 	public NotificationUnreadCountResult getUnreadCount(String clientId, String receiver) {
 		LocalDateTime from = detailFrom();
-		long unreadCount;
-		if (unreadCountCacheRepository.enabled()) {
-			unreadCount = unreadCountCacheRepository.get(clientId, receiver)
-				.orElseGet(() -> {
-					long counted = notificationRepository.countUnreadByClientIdAndReceiver(clientId, receiver, from);
-					unreadCountCacheRepository.put(clientId, receiver, counted);
-					return counted;
-				});
-		} else {
-			unreadCount = notificationRepository.countUnreadByClientIdAndReceiver(clientId, receiver, from);
-		}
+		long unreadCount = notificationRepository.countUnreadByClientIdAndReceiver(clientId, receiver, from);
 		return new NotificationUnreadCountResult(receiver, unreadCount);
 	}
 

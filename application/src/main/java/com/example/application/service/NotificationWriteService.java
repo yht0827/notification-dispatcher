@@ -13,7 +13,6 @@ import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.in.result.NotificationGroupReadResult;
 import com.example.application.port.in.result.NotificationReadResult;
-import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationReadStatusRepository;
 import com.example.application.port.out.repository.NotificationRepository;
@@ -33,7 +32,6 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 	private final NotificationReadStatusRepository notificationReadStatusRepository;
 	private final NotificationIdempotencyLookupService idempotencyLookupService;
 	private final NotificationWriteExecutor notificationWriteExecutor;
-	private final NotificationUnreadCountCacheRepository unreadCountCacheRepository;
 
 	@Override
 	public NotificationCommandResult request(SendCommand command) {
@@ -47,7 +45,6 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 
 		try {
 			NotificationCommandResult result = notificationWriteExecutor.createAndPublish(command, idempotencyKey);
-			evictCachesAfterCreation(command.clientId(), command.receivers());
 			return result;
 		} catch (DataIntegrityViolationException e) {
 			Optional<NotificationCommandResult> recovered = recoverExistingResult(command.clientId(), idempotencyKey);
@@ -70,7 +67,6 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 			.map(notification -> {
 				validateClientAccess(clientId, notification.getGroup().getClientId(), "해당 알림에 대한 접근 권한이 없습니다.");
 				notificationReadStatusRepository.markAsRead(notificationId, now);
-				evictCachesAfterRead(clientId, notification);
 				LocalDateTime readAt = notificationReadStatusRepository.findReadAtByNotificationId(notificationId);
 				return new NotificationReadResult(notificationId, readAt);
 			});
@@ -88,7 +84,6 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 				List<Notification> notifications = group.getNotifications();
 				List<Long> notificationIds = notificationIds(notifications);
 				int readCount = notificationReadStatusRepository.markAllAsRead(notificationIds, now);
-				evictCachesAfterGroupRead(clientId, groupId, notificationIds, receivers(notifications));
 				return new NotificationGroupReadResult(groupId, readCount, now);
 			});
 	}
@@ -107,28 +102,9 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 		return idempotencyLookupService.findExistingResultAfterCollision(clientId, idempotencyKey);
 	}
 
-	private void evictCachesAfterCreation(String clientId, List<String> receivers) {
-		incrementUnreadCount(clientId, receivers);
-	}
-
-	private void evictCachesAfterRead(String clientId, Notification notification) {
-		decrementUnreadCount(clientId, notification.getReceiver());
-	}
-
-	private void evictCachesAfterGroupRead(String clientId, Long groupId, List<Long> notificationIds,
-		List<String> receivers) {
-		decrementUnreadCount(clientId, receivers);
-	}
-
 	private List<Long> notificationIds(List<Notification> notifications) {
 		return notifications.stream()
 			.map(Notification::getId)
-			.toList();
-	}
-
-	private List<String> receivers(List<Notification> notifications) {
-		return notifications.stream()
-			.map(Notification::getReceiver)
 			.toList();
 	}
 
@@ -136,36 +112,6 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 		if (!clientId.equals(ownerClientId)) {
 			throw new AccessDeniedException(message);
 		}
-	}
-
-	private void incrementUnreadCount(String clientId, List<String> receivers) {
-		if (!unreadCountCacheRepository.enabled()) {
-			return;
-		}
-		receivers.stream()
-			.filter(receiver -> receiver != null && !receiver.isBlank())
-			.distinct()
-			.forEach(receiver -> unreadCountCacheRepository.increment(clientId, receiver));
-	}
-
-	private void decrementUnreadCount(String clientId, String receiver) {
-		if (!unreadCountCacheRepository.enabled()) {
-			return;
-		}
-		if (receiver == null || receiver.isBlank()) {
-			return;
-		}
-		unreadCountCacheRepository.decrement(clientId, receiver);
-	}
-
-	private void decrementUnreadCount(String clientId, List<String> receivers) {
-		if (!unreadCountCacheRepository.enabled()) {
-			return;
-		}
-		receivers.stream()
-			.filter(receiver -> receiver != null && !receiver.isBlank())
-			.distinct()
-			.forEach(receiver -> unreadCountCacheRepository.decrement(clientId, receiver));
 	}
 
 	private String normalizeIdempotencyKey(String idempotencyKey) {
