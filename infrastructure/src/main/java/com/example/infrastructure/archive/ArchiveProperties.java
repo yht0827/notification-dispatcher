@@ -5,7 +5,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "archive")
 public record ArchiveProperties(
 	boolean enabled,
-	boolean runOnStartup,
 	int batchSize,
 	int retentionDays,
 	String cron,
