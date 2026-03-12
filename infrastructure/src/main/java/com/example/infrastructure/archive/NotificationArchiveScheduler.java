@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 public class NotificationArchiveScheduler {
 
 	private final NotificationArchiveService notificationArchiveService;
+	private final NotificationPartitionManager notificationPartitionManager;
 
 	@Scheduled(cron = "${archive.cron:0 0 0 * * *}")
 	public void archiveExpiredData() {
@@ -16,6 +17,6 @@ public class NotificationArchiveScheduler {
 
 	@Scheduled(cron = "${archive.partition-cron:0 5 0 1 * *}")
 	public void ensureNextMonthPartitions() {
-		notificationArchiveService.ensureNextMonthPartitions();
+		notificationPartitionManager.ensureNextMonthPartitions();
 	}
 }

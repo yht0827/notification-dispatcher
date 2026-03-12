@@ -29,10 +29,16 @@ public class ArchiveConfig {
 	}
 
 	@Bean
+	public NotificationPartitionManager notificationPartitionManager(JdbcTemplate jdbcTemplate) {
+		return new NotificationPartitionManager(jdbcTemplate);
+	}
+
+	@Bean
 	public NotificationArchiveScheduler notificationArchiveScheduler(
-		NotificationArchiveService notificationArchiveService
+		NotificationArchiveService notificationArchiveService,
+		NotificationPartitionManager notificationPartitionManager
 	) {
-		return new NotificationArchiveScheduler(notificationArchiveService);
+		return new NotificationArchiveScheduler(notificationArchiveService, notificationPartitionManager);
 	}
 
 }

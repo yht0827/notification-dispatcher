@@ -44,8 +44,7 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 		}
 
 		try {
-			NotificationCommandResult result = notificationWriteExecutor.createAndPublish(command, idempotencyKey);
-			return result;
+			return notificationWriteExecutor.createAndPublish(command, idempotencyKey);
 		} catch (DataIntegrityViolationException e) {
 			Optional<NotificationCommandResult> recovered = recoverExistingResult(command.clientId(), idempotencyKey);
 			if (recovered.isPresent()) {

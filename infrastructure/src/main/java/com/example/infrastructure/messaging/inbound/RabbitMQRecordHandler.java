@@ -29,71 +29,98 @@ public class RabbitMQRecordHandler {
 		}
 
 		Map<Long, RecordProcessResult> resultsByContextId = new LinkedHashMap<>();
-		Map<Long, RecordProcessRequest> firstRequestByNotificationId = new LinkedHashMap<>();
+
+		Map<Long, RecordProcessRequest> dedupedRequests = deduplicate(requests, resultsByContextId);
+		Map<Long, RecordProcessRequest> acquiredRequests = acquireLocks(dedupedRequests, resultsByContextId);
+
+		if (acquiredRequests.isEmpty()) {
+			return toOrderedResults(requests, resultsByContextId);
+		}
+
+		List<Notification> dispatchCandidates = resolveNotifications(acquiredRequests, resultsByContextId);
+		Map<Long, BatchDispatchResult> dispatchResultsById = dispatch(dispatchCandidates);
+		applyDispatchResults(acquiredRequests, dispatchResultsById, resultsByContextId);
+
+		return toOrderedResults(requests, resultsByContextId);
+	}
+
+	private Map<Long, RecordProcessRequest> deduplicate(
+		List<RecordProcessRequest> requests,
+		Map<Long, RecordProcessResult> resultsByContextId
+	) {
+		Map<Long, RecordProcessRequest> dedupedRequests = new LinkedHashMap<>();
 		for (RecordProcessRequest request : requests) {
 			if (request.notificationId() == null) {
 				resultsByContextId.put(request.contextId(),
 					RecordProcessResult.nonRetryableFailure(
-						request.contextId(),
-						null,
-						request.retryCount(),
+						request.contextId(), null, request.retryCount(),
 						"notificationId 값이 비어 있습니다."
 					));
 				continue;
 			}
-			if (firstRequestByNotificationId.containsKey(request.notificationId())) {
+			if (dedupedRequests.containsKey(request.notificationId())) {
 				resultsByContextId.put(request.contextId(),
 					RecordProcessResult.skipped(
-						request.contextId(),
-						request.notificationId(),
-						request.retryCount(),
+						request.contextId(), request.notificationId(), request.retryCount(),
 						"동일 배치 내 중복 notificationId 스킵"
 					));
 				continue;
 			}
-			firstRequestByNotificationId.put(request.notificationId(), request);
+			dedupedRequests.put(request.notificationId(), request);
 		}
+		return dedupedRequests;
+	}
 
+	private Map<Long, RecordProcessRequest> acquireLocks(
+		Map<Long, RecordProcessRequest> dedupedRequests,
+		Map<Long, RecordProcessResult> resultsByContextId
+	) {
 		Map<Long, RecordProcessRequest> acquiredRequests = new LinkedHashMap<>();
-		for (RecordProcessRequest request : firstRequestByNotificationId.values()) {
+		for (RecordProcessRequest request : dedupedRequests.values()) {
 			if (!lockManager.tryAcquire(request.notificationId())) {
 				resultsByContextId.put(request.contextId(),
 					RecordProcessResult.skipped(
-						request.contextId(),
-						request.notificationId(),
-						request.retryCount(),
+						request.contextId(), request.notificationId(), request.retryCount(),
 						"이미 처리 중인 알림 스킵"
 					));
 				continue;
 			}
 			acquiredRequests.put(request.notificationId(), request);
 		}
+		return acquiredRequests;
+	}
 
-		if (acquiredRequests.isEmpty()) {
-			return toOrderedResults(requests, resultsByContextId);
-		}
-
+	private List<Notification> resolveNotifications(
+		Map<Long, RecordProcessRequest> acquiredRequests,
+		Map<Long, RecordProcessResult> resultsByContextId
+	) {
 		Map<Long, Notification> notificationsById = loadNotifications(acquiredRequests.keySet().stream().toList());
-		List<Notification> dispatchCandidates = new ArrayList<>();
+		List<Notification> candidates = new ArrayList<>();
 		for (RecordProcessRequest request : acquiredRequests.values()) {
 			Notification notification = notificationsById.get(request.notificationId());
 			if (notification == null) {
 				resultsByContextId.put(request.contextId(),
 					RecordProcessResult.nonRetryableFailure(
-						request.contextId(),
-						request.notificationId(),
-						request.retryCount(),
+						request.contextId(), request.notificationId(), request.retryCount(),
 						"알림을 찾을 수 없음: " + request.notificationId()
 					));
 				continue;
 			}
-			dispatchCandidates.add(notification);
+			candidates.add(notification);
 		}
+		return candidates;
+	}
 
-		Map<Long, BatchDispatchResult> dispatchResultsById = dispatchService.dispatchBatch(dispatchCandidates).stream()
-			.collect(LinkedHashMap::new, (map, result)
-				-> map.put(result.notificationId(), result), Map::putAll);
+	private Map<Long, BatchDispatchResult> dispatch(List<Notification> dispatchCandidates) {
+		return dispatchService.dispatchBatch(dispatchCandidates).stream()
+			.collect(LinkedHashMap::new, (map, result) -> map.put(result.notificationId(), result), Map::putAll);
+	}
 
+	private void applyDispatchResults(
+		Map<Long, RecordProcessRequest> acquiredRequests,
+		Map<Long, BatchDispatchResult> dispatchResultsById,
+		Map<Long, RecordProcessResult> resultsByContextId
+	) {
 		for (RecordProcessRequest request : acquiredRequests.values()) {
 			if (resultsByContextId.containsKey(request.contextId())) {
 				continue;
@@ -103,9 +130,7 @@ public class RabbitMQRecordHandler {
 			if (dispatchResult == null) {
 				resultsByContextId.put(request.contextId(),
 					RecordProcessResult.retryableFailure(
-						request.contextId(),
-						request.notificationId(),
-						request.retryCount(),
+						request.contextId(), request.notificationId(), request.retryCount(),
 						"배치 처리 결과 누락"
 					));
 				lockManager.release(request.notificationId());
@@ -114,12 +139,13 @@ public class RabbitMQRecordHandler {
 
 			RecordProcessResult processResult = toProcessResult(request, dispatchResult);
 			resultsByContextId.put(request.contextId(), processResult);
+			if (processResult.isNonRetryableFailure()) {
+				dispatchService.markAsFailed(request.notificationId(), processResult.reason());
+			}
 			if (shouldReleaseLock(processResult)) {
 				lockManager.release(request.notificationId());
 			}
 		}
-
-		return toOrderedResults(requests, resultsByContextId);
 	}
 
 	private Map<Long, Notification> loadNotifications(List<Long> notificationIds) {
