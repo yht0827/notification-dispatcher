@@ -33,9 +33,6 @@ notification:
   cache:
     unread-count-enabled: true
     unread-count-ttl: 30s
-    group-list-enabled: true
-    group-list-ttl: 30s
-    group-list-latest-limit: 60
   rabbitmq:
     listener-virtual-threads: false
   external:

@@ -15,7 +15,6 @@ import com.example.application.port.in.result.NotificationGroupDetailResult;
 import com.example.application.port.in.result.NotificationGroupResult;
 import com.example.application.port.in.result.NotificationResult;
 import com.example.application.port.in.result.NotificationUnreadCountResult;
-import com.example.application.port.out.cache.NotificationGroupListCacheRepository;
 import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationReadStatusRepository;
@@ -32,7 +31,6 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 	private final NotificationGroupRepository groupRepository;
 	private final NotificationRepository notificationRepository;
 	private final NotificationReadStatusRepository notificationReadStatusRepository;
-	private final NotificationGroupListCacheRepository groupListCacheRepository;
 	private final NotificationUnreadCountCacheRepository unreadCountCacheRepository;
 	private final NotificationResultMapper mapper;
 
@@ -54,25 +52,6 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 		int size) {
 		int limit = normalizeSize(size);
 		LocalDateTime from = detailFrom();
-		if (groupListCacheRepository.enabled()) {
-			Optional<List<NotificationGroupResult>> cached = getCachedLatestGroups(clientId, from);
-			if (cached.isPresent()) {
-				List<NotificationGroupResult> cachedGroups = cached.get();
-				if (canServeFromCache(cachedGroups, cursorId)) {
-					return sliceFromCached(cachedGroups, cursorId, limit);
-				}
-			}
-		}
-
-		if (cursorId == null) {
-			List<NotificationGroupResult> latestGroups = fetchGroupsByClient(clientId, from, null,
-				groupListCacheRepository.latestLimit());
-			if (groupListCacheRepository.enabled()) {
-				groupListCacheRepository.putLatest(clientId, latestGroups);
-			}
-			return sliceFromCached(latestGroups, null, limit);
-		}
-
 		List<NotificationGroupResult> fetched = fetchGroupsByClient(clientId, from, cursorId, limit + 1);
 		return CursorSlice.of(fetched, limit, NotificationGroupResult::id);
 	}
@@ -119,13 +98,6 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 		return mapper.toGroupDetailResult(group, readAtByNotificationId);
 	}
 
-	private Optional<List<NotificationGroupResult>> getCachedLatestGroups(String clientId, LocalDateTime from) {
-		return groupListCacheRepository.getLatest(clientId)
-			.map(groups -> groups.stream()
-				.filter(group -> isWithinRetention(group.createdAt(), from))
-				.toList());
-	}
-
 	private List<NotificationGroupResult> fetchGroupsByClient(String clientId, LocalDateTime from, Long cursorId,
 		int limit) {
 		return groupRepository.findByClientIdWithCursor(clientId, from, cursorId, limit)
@@ -145,22 +117,5 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 		return NotificationDetailRetentionPolicy.isWithinRetention(createdAt, from);
 	}
 
-	private boolean canServeFromCache(List<NotificationGroupResult> groups, Long cursorId) {
-		if (cursorId == null) {
-			return true;
-		}
-		if (groups.isEmpty()) {
-			return true;
-		}
-		Long minCachedId = groups.getLast().id();
-		return cursorId > minCachedId;
-	}
-
-	private CursorSlice<NotificationGroupResult> sliceFromCached(List<NotificationGroupResult> groups, Long cursorId,
-		int limit) {
-		List<NotificationGroupResult> filtered = groups.stream()
-			.filter(group -> cursorId == null || group.id() < cursorId)
-			.toList();
-		return CursorSlice.of(filtered, limit, NotificationGroupResult::id);
-	}
 }
+

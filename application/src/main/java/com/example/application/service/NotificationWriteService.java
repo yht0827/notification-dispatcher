@@ -13,7 +13,6 @@ import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.in.result.NotificationGroupReadResult;
 import com.example.application.port.in.result.NotificationReadResult;
-import com.example.application.port.out.cache.NotificationGroupListCacheRepository;
 import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationReadStatusRepository;
@@ -34,7 +33,6 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 	private final NotificationReadStatusRepository notificationReadStatusRepository;
 	private final NotificationIdempotencyLookupService idempotencyLookupService;
 	private final NotificationWriteExecutor notificationWriteExecutor;
-	private final NotificationGroupListCacheRepository groupListCacheRepository;
 	private final NotificationUnreadCountCacheRepository unreadCountCacheRepository;
 
 	@Override
@@ -110,19 +108,16 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 	}
 
 	private void evictCachesAfterCreation(String clientId, List<String> receivers) {
-		evictGroupList(clientId);
 		incrementUnreadCount(clientId, receivers);
 	}
 
 	private void evictCachesAfterRead(String clientId, Notification notification) {
 		decrementUnreadCount(clientId, notification.getReceiver());
-		evictGroupList(clientId);
 	}
 
 	private void evictCachesAfterGroupRead(String clientId, Long groupId, List<Long> notificationIds,
 		List<String> receivers) {
 		decrementUnreadCount(clientId, receivers);
-		evictGroupList(clientId);
 	}
 
 	private List<Long> notificationIds(List<Notification> notifications) {
@@ -171,13 +166,6 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 			.filter(receiver -> receiver != null && !receiver.isBlank())
 			.distinct()
 			.forEach(receiver -> unreadCountCacheRepository.decrement(clientId, receiver));
-	}
-
-	private void evictGroupList(String clientId) {
-		if (clientId == null || clientId.isBlank()) {
-			return;
-		}
-		groupListCacheRepository.evictLatest(clientId);
 	}
 
 	private String normalizeIdempotencyKey(String idempotencyKey) {
