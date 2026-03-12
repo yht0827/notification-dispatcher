@@ -3,10 +3,8 @@ package com.example.application.service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,7 +13,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.example.application.port.in.NotificationDispatchUseCase;
 import com.example.application.port.in.result.BatchDispatchResult;
 import com.example.application.port.out.NotificationSender;
-import com.example.application.port.out.cache.NotificationGroupListCacheRepository;
 import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationFailureUpdate;
 import com.example.application.port.out.repository.NotificationGroupCountUpdate;
@@ -37,7 +34,6 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 	private final NotificationGroupRepository notificationGroupRepository;
 	private final NotificationSender notificationSender;
 	private final TransactionTemplate transactionTemplate;
-	private final NotificationGroupListCacheRepository groupListCacheRepository;
 	private final NotificationUnreadCountCacheRepository unreadCountCacheRepository;
 
 	@Override
@@ -73,7 +69,6 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 		notificationRepository.findById(notificationId).ifPresent(notification -> {
 			notification.markAsFailed(reason);
 			notificationRepository.save(notification);
-			evictGroupList(notification);
 			decrementUnreadCount(notification);
 			log.error("알림 최종 실패: id={}, reason={}", notificationId, reason);
 		});
@@ -92,7 +87,6 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 				preparedById.put(notification.getId(), notification);
 			}
 			notificationRepository.bulkStartSending(notificationIds, LocalDateTime.now());
-			evictGroupLists(preparedById.values());
 			return preparedById;
 		});
 	}
@@ -155,7 +149,6 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 			if (!groupCountUpdates.isEmpty()) {
 				notificationGroupRepository.bulkApplyDispatchCounts(List.copyOf(groupCountUpdates.values()));
 			}
-			evictGroupLists(preparedById.values());
 			return results;
 		});
 	}
@@ -194,29 +187,5 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 		unreadCountCacheRepository.decrement(clientId, receiver);
 	}
 
-	private void evictGroupList(Notification notification) {
-		if (notification == null || notification.getGroup() == null) {
-			return;
-		}
-		String clientId = notification.getGroup().getClientId();
-		if (clientId == null || clientId.isBlank()) {
-			return;
-		}
-		groupListCacheRepository.evictLatest(clientId);
-	}
-
-	private void evictGroupLists(Iterable<Notification> notifications) {
-		Set<String> clientIds = new LinkedHashSet<>();
-		for (Notification notification : notifications) {
-			if (notification == null || notification.getGroup() == null) {
-				continue;
-			}
-			String clientId = notification.getGroup().getClientId();
-			if (clientId == null || clientId.isBlank()) {
-				continue;
-			}
-			clientIds.add(clientId);
-		}
-		clientIds.forEach(groupListCacheRepository::evictLatest);
-	}
 }
+

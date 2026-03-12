@@ -24,7 +24,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.example.application.port.in.result.BatchDispatchResult;
-import com.example.application.port.out.cache.NotificationGroupListCacheRepository;
 import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationRepository;
@@ -50,9 +49,6 @@ class NotificationDispatchServiceTest {
 	private TransactionTemplate transactionTemplate;
 
 	@Mock
-	private NotificationGroupListCacheRepository groupListCacheRepository;
-
-	@Mock
 	private NotificationUnreadCountCacheRepository unreadCountCacheRepository;
 
 	@InjectMocks
@@ -64,7 +60,6 @@ class NotificationDispatchServiceTest {
 			org.springframework.transaction.support.TransactionCallback.class).doInTransaction(null));
 		lenient().when(notificationRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 		lenient().when(unreadCountCacheRepository.enabled()).thenReturn(true);
-		lenient().when(groupListCacheRepository.enabled()).thenReturn(true);
 	}
 
 	@Test
@@ -83,7 +78,6 @@ class NotificationDispatchServiceTest {
 		verify(notificationRepository).bulkMarkAsSent(eq(List.of(1L, 2L)), any(), any());
 		verify(notificationSender, times(2)).send(any(Notification.class));
 		verify(notificationGroupRepository).bulkApplyDispatchCounts(anyList());
-		verify(groupListCacheRepository, times(2)).evictLatest("dispatch-service");
 		verify(unreadCountCacheRepository, never()).evict(any(), any());
 	}
 
@@ -132,7 +126,6 @@ class NotificationDispatchServiceTest {
 		dispatchService.markAsFailed(5L, "최종 실패 사유");
 
 		verify(notificationRepository).save(notification);
-		verify(groupListCacheRepository).evictLatest("dispatch-service");
 		verify(unreadCountCacheRepository).decrement("dispatch-service", "user@example.com");
 	}
 
