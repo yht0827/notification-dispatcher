@@ -8,6 +8,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.example.application.port.out.ArchiveStorage;
+
 @Configuration
 @ConditionalOnProperty(name = "archive.enabled", havingValue = "true")
 @EnableConfigurationProperties(ArchiveProperties.class)
@@ -29,8 +31,17 @@ public class ArchiveConfig {
 	}
 
 	@Bean
-	public NotificationPartitionManager notificationPartitionManager(JdbcTemplate jdbcTemplate) {
-		return new NotificationPartitionManager(jdbcTemplate);
+	public ArchiveStorage archiveStorage() {
+		return new NoOpArchiveStorage();
+	}
+
+	@Bean
+	public NotificationPartitionManager notificationPartitionManager(
+		JdbcTemplate jdbcTemplate,
+		ArchiveProperties archiveProperties,
+		ArchiveStorage archiveStorage
+	) {
+		return new NotificationPartitionManager(jdbcTemplate, archiveProperties, archiveStorage);
 	}
 
 	@Bean
