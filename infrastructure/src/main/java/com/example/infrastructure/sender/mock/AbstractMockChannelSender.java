@@ -1,9 +1,9 @@
-package com.example.infrastructure.sender;
+package com.example.infrastructure.sender.mock;
 
 import com.example.application.port.out.result.SendResult;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
-import com.example.infrastructure.sender.mock.MockApiSender;
+import com.example.infrastructure.sender.ChannelSender;
 
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
