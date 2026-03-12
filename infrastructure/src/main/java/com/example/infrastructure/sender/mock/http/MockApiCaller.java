@@ -1,9 +1,8 @@
-package com.example.infrastructure.sender.mock.caller;
+package com.example.infrastructure.sender.mock.http;
 
 import java.util.function.Supplier;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Component;
 
 import com.example.application.port.out.SendResult;
 import com.example.domain.notification.ChannelType;
@@ -27,7 +26,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@Component
 @RequiredArgsConstructor
 public class MockApiCaller {
 
@@ -81,10 +79,10 @@ public class MockApiCaller {
 			log.debug("mock API 응답 수신: requestId={}, status={}", request.requestId(), response.getStatusCode().value());
 			return SendResult.success();
 
-		} catch (MockApiNonRetryableException | MockApiRetryableException | MockApiRateLimitException e) {
-			throw e;
 		} catch (RetryableException e) {
 			throw new MockApiRetryableException("외부 API 네트워크/타임아웃 오류: " + e.getMessage(), e);
+		} catch (MockApiNonRetryableException | MockApiRetryableException | MockApiRateLimitException e) {
+			throw e;
 		} catch (RuntimeException e) {
 			throw new MockApiRetryableException("외부 API 호출 오류: " + e.getMessage(), e);
 		}

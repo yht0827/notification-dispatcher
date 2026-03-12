@@ -1,4 +1,4 @@
-package com.example.infrastructure.sender.mock.caller;
+package com.example.infrastructure.sender.mock.http;
 
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;

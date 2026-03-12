@@ -1,4 +1,4 @@
-package com.example.infrastructure.sender.mock.caller;
+package com.example.infrastructure.sender.mock.http;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

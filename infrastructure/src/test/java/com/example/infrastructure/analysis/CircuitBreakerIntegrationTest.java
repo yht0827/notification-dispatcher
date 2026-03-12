@@ -22,8 +22,8 @@ import com.example.domain.notification.ChannelType;
 import com.example.infrastructure.TestApplication;
 import com.example.infrastructure.config.MockMessagingConfig;
 import com.example.infrastructure.config.TestcontainersConfig;
-import com.example.infrastructure.sender.mock.caller.MockApiCaller;
-import com.example.infrastructure.sender.mock.caller.MockApiClient;
+import com.example.infrastructure.sender.mock.http.MockApiCaller;
+import com.example.infrastructure.sender.mock.http.MockApiClient;
 import com.example.infrastructure.sender.mock.dto.MockApiSendRequest;
 import com.example.infrastructure.sender.mock.dto.MockApiSendSuccessResponse;
 

@@ -17,7 +17,7 @@ import com.example.application.port.out.SendResult;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
-import com.example.infrastructure.sender.mock.caller.MockApiCaller;
+import com.example.infrastructure.sender.mock.http.MockApiCaller;
 import com.example.infrastructure.sender.mock.config.MockApiProperties;
 import com.example.infrastructure.sender.mock.dto.MockApiSendRequest;
 import com.example.infrastructure.sender.mock.exception.MockApiNonRetryableException;
