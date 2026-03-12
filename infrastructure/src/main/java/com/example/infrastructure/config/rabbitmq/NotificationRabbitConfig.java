@@ -35,8 +35,8 @@ import com.example.infrastructure.messaging.inbound.RabbitMQRecordHandler;
 import com.example.infrastructure.messaging.outbound.RabbitMQDlqPublisher;
 import com.example.infrastructure.messaging.outbound.RabbitMQPublisher;
 import com.example.infrastructure.messaging.outbound.RabbitMQWaitPublisher;
-import com.example.infrastructure.messaging.port.DeadLetterPublisher;
-import com.example.infrastructure.messaging.port.WaitPublisher;
+import com.example.infrastructure.messaging.inbound.DeadLetterPublisher;
+import com.example.infrastructure.messaging.inbound.WaitPublisher;
 
 @Configuration
 @ConditionalOnProperty(name = RabbitPropertyKeys.MESSAGING_ENABLED, havingValue = "true")

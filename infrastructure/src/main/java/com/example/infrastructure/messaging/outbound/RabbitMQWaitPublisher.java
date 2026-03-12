@@ -4,7 +4,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
 import com.example.infrastructure.config.rabbitmq.NotificationRabbitProperties;
 import com.example.infrastructure.messaging.payload.NotificationWaitPayload;
-import com.example.infrastructure.messaging.port.WaitPublisher;
+import com.example.infrastructure.messaging.inbound.WaitPublisher;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
