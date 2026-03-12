@@ -21,7 +21,6 @@ import com.example.application.port.out.repository.NotificationRepository;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
-import com.example.infrastructure.config.rabbitmq.NotificationRabbitProperties;
 import com.example.infrastructure.messaging.inbound.RabbitMQRecordHandler;
 import com.example.infrastructure.messaging.inbound.RecordProcessRequest;
 import com.example.infrastructure.messaging.inbound.RecordProcessResult;
@@ -36,17 +35,14 @@ class RabbitMQRecordHandlerTest {
 	private NotificationDispatchUseCase dispatchService;
 
 	@Mock
-	private NotificationRabbitProperties properties;
-
-	@Mock
-	private DispatchLockManager lockManager;
+    private DispatchLockManager lockManager;
 
 	private RabbitMQRecordHandler recordHandler;
 
 	@BeforeEach
 	void setUp() {
 		lenient().when(lockManager.tryAcquire(any())).thenReturn(true);
-		recordHandler = new RabbitMQRecordHandler(notificationRepository, dispatchService, properties, lockManager);
+        recordHandler = new RabbitMQRecordHandler(notificationRepository, dispatchService, lockManager);
 	}
 
 	@Test

@@ -3,6 +3,7 @@ package com.example.api.auth;
 import java.io.IOException;
 import java.util.Set;
 
+import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -21,8 +22,8 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 	private final Set<String> validKeys;
 
 	@Override
-	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-		FilterChain filterChain) throws ServletException, IOException {
+	protected void doFilterInternal(HttpServletRequest request, @NonNull HttpServletResponse response,
+		@NonNull FilterChain filterChain) throws ServletException, IOException {
 		String apiKey = request.getHeader(HEADER_API_KEY);
 		if (apiKey == null || apiKey.isBlank()) {
 			writeUnauthorized(response, "X-Api-Key 헤더가 필요합니다.");

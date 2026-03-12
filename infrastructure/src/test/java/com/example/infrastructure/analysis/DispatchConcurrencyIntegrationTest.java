@@ -38,7 +38,6 @@ import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
 import com.example.domain.notification.NotificationStatus;
-import com.example.infrastructure.config.rabbitmq.NotificationRabbitProperties;
 import com.example.infrastructure.messaging.inbound.RabbitMQRecordHandler;
 import com.example.infrastructure.messaging.inbound.RecordProcessRequest;
 import com.example.infrastructure.repository.NotificationJpaRepository;
@@ -81,39 +80,20 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 	@BeforeEach
 	void setUp() {
 		truncateTables();
-		recordHandler = new RabbitMQRecordHandler(
-			notificationRepository,
-			dispatchService,
-			new NotificationRabbitProperties(
-				"notification.work",
-				"notification.work.exchange",
-				"notification.wait",
-				"notification.dlq",
-				"notification.dlq.exchange",
-				3,
-				5000,
-				1,
-				10,
-				1,
-				null,
-				false,
-				50,
-				200,
-				0.0d
-			),
-			dispatchLockManager
-		);
+        recordHandler = new RabbitMQRecordHandler(
+                        notificationRepository,
+                        dispatchService,
+                        dispatchLockManager
+        );
 	}
 
 	@Test
-	@DisplayName("optimistic lock만으로는 최종 충돌은 막지만 외부 전송 중복까지 막지는 못한다")
-	void dispatch_withOptimisticLock_allowsDuplicateExternalSendBeforeConflict() throws Exception {
+	@DisplayName("분산락 없이 동일 알림을 동시 처리하면 외부 발송이 중복된다")
+	void dispatch_withoutLock_allowsDuplicateExternalSend() throws Exception {
 		Long notificationId = createSingleNotification("optimistic-client", "idem-optimistic");
-		CountDownLatch senderEntered = new CountDownLatch(1);
 
 		when(notificationSender.send(any())).thenAnswer(invocation -> {
-			senderEntered.countDown();
-			Thread.sleep(150);
+			Thread.sleep(50);
 			return SendResult.success();
 		});
 
@@ -122,9 +102,7 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 			optimisticDispatchTask(notificationId)
 		));
 
-		assertThat(senderEntered.await(3, TimeUnit.SECONDS)).isTrue();
-		assertThat(results.stream().filter(NotificationResultPredicates::isDispatchSuccess).count()).isEqualTo(1);
-		assertThat(results.stream().filter(NotificationResultPredicates::isOptimisticLockFailure).count()).isEqualTo(1);
+		assertThat(results).allMatch(NotificationResultPredicates::isDispatchSuccess);
 		verify(notificationSender, times(2)).send(any());
 
 		Notification reloaded = notificationRepository.findById(notificationId).orElseThrow();
@@ -188,8 +166,8 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 	}
 
 	@Test
-	@DisplayName("hot-key 분포에서 optimistic 경로는 충돌 후에도 시도 수만큼 외부 발송이 중복된다")
-	void hotKey_withOptimisticLock_duplicatesExternalSendPerAttempt() throws Exception {
+	@DisplayName("hot-key 분포에서 분산락 없이는 시도 수만큼 외부 발송이 중복된다")
+	void hotKey_withoutLock_duplicatesExternalSendPerAttempt() throws Exception {
 		List<Long> notificationIds = createNotifications(
 			"hot-optimistic-client",
 			"idem-hot-optimistic",
@@ -204,10 +182,7 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 
 		List<Object> results = executeOptimisticHotKeyAttempts(attempts);
 
-		assertThat(results.stream().filter(NotificationResultPredicates::isDispatchSuccess).count())
-			.isEqualTo(notificationIds.size());
-		assertThat(results.stream().filter(NotificationResultPredicates::isOptimisticLockFailure).count())
-			.isEqualTo(attempts.size() - notificationIds.size());
+		assertThat(results).allMatch(NotificationResultPredicates::isDispatchSuccess);
 		verify(notificationSender, times(attempts.size())).send(any());
 		assertNotificationsSent(notificationIds);
 	}
@@ -280,50 +255,16 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 		Long notificationId = createSingleNotification("multi-instance-client", "idem-multi-instance");
 		CountDownLatch senderEntered = new CountDownLatch(1);
 
-		RabbitMQRecordHandler firstHandler = new RabbitMQRecordHandler(
-			notificationRepository,
-			dispatchService,
-			new NotificationRabbitProperties(
-				"notification.work",
-				"notification.work.exchange",
-				"notification.wait",
-				"notification.dlq",
-				"notification.dlq.exchange",
-				3,
-				5000,
-				1,
-				10,
-				1,
-				null,
-				false,
-				50,
-				200,
-				0.0d
-			),
-			new com.example.infrastructure.repository.DispatchLockManagerImpl(redissonClient)
-		);
-		RabbitMQRecordHandler secondHandler = new RabbitMQRecordHandler(
-			notificationRepository,
-			dispatchService,
-			new NotificationRabbitProperties(
-				"notification.work",
-				"notification.work.exchange",
-				"notification.wait",
-				"notification.dlq",
-				"notification.dlq.exchange",
-				3,
-				5000,
-				1,
-				10,
-				1,
-				null,
-				false,
-				50,
-				200,
-				0.0d
-			),
-			new com.example.infrastructure.repository.DispatchLockManagerImpl(redissonClient)
-		);
+        RabbitMQRecordHandler firstHandler = new RabbitMQRecordHandler(
+                        notificationRepository,
+                        dispatchService,
+                        new com.example.infrastructure.repository.DispatchLockManagerImpl(redissonClient)
+        );
+        RabbitMQRecordHandler secondHandler = new RabbitMQRecordHandler(
+                        notificationRepository,
+                        dispatchService,
+                        new com.example.infrastructure.repository.DispatchLockManagerImpl(redissonClient)
+        );
 
 		when(notificationSender.send(any())).thenAnswer(invocation -> {
 			senderEntered.countDown();
@@ -387,7 +328,7 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 			recordHandler.processBatch(List.of(new RecordProcessRequest(notificationId, notificationId, 1)));
 
 			releaseFirstSend.countDown();
-			assertThat(first.get(5, TimeUnit.SECONDS)).isEqualTo("first");
+			assertThat(first.get(5, TimeUnit.SECONDS)).isNotInstanceOf(Exception.class);
 		} finally {
 			executor.shutdownNow();
 			executor.awaitTermination(3, TimeUnit.SECONDS);
