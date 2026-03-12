@@ -1,4 +1,4 @@
-package com.example.infrastructure.messaging;
+package com.example.infrastructure.messaging.outbound;
 
 import java.util.List;
 

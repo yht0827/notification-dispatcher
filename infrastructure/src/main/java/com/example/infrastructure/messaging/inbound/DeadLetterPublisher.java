@@ -1,4 +1,4 @@
-package com.example.infrastructure.messaging.port;
+package com.example.infrastructure.messaging.inbound;
 
 /**
  * Dead Letter Queue 발행 인터페이스.

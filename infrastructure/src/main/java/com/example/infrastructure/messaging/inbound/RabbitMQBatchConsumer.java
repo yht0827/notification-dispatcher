@@ -12,8 +12,6 @@ import org.springframework.amqp.support.converter.MessageConverter;
 
 import com.example.infrastructure.config.rabbitmq.RabbitBeanNames;
 import com.example.infrastructure.messaging.payload.NotificationMessagePayload;
-import com.example.infrastructure.messaging.port.DeadLetterPublisher;
-import com.example.infrastructure.messaging.port.WaitPublisher;
 import com.rabbitmq.client.Channel;
 
 import io.micrometer.core.instrument.MeterRegistry;
