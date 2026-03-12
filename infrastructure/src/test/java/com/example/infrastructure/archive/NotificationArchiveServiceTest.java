@@ -34,7 +34,7 @@ class NotificationArchiveServiceTest {
 		archiveService = new NotificationArchiveService(
 			jdbcTemplate,
 			namedParameterJdbcTemplate,
-			new ArchiveProperties(true, 1000, 7, null, null),
+			new ArchiveProperties(true, 1000, 7, null, null, 12),
 			new TransactionTemplate(transactionManager)
 		);
 	}

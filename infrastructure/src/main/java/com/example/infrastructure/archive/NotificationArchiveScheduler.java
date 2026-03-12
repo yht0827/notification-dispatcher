@@ -16,7 +16,8 @@ public class NotificationArchiveScheduler {
 	}
 
 	@Scheduled(cron = "${archive.partition-cron:0 5 0 1 * *}")
-	public void ensureNextMonthPartitions() {
+	public void managePartitions() {
 		notificationPartitionManager.ensureNextMonthPartitions();
+		notificationPartitionManager.dropOldPartitions();
 	}
 }

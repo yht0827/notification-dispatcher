@@ -137,6 +137,7 @@ archive:
   batch-size: 1000
   cron: "0 0 0 * * *"
   partition-cron: "0 5 0 1 * *"
+  partition-retention-months: 12
 
 ---
 # ─────────────────────────────────────────
