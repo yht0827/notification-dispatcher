@@ -5,7 +5,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -24,7 +23,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.example.application.port.in.result.BatchDispatchResult;
-import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationRepository;
 import com.example.application.port.out.NotificationSender;
@@ -48,9 +46,6 @@ class NotificationDispatchServiceTest {
 	@Mock
 	private TransactionTemplate transactionTemplate;
 
-	@Mock
-	private NotificationUnreadCountCacheRepository unreadCountCacheRepository;
-
 	@InjectMocks
 	private NotificationDispatchService dispatchService;
 
@@ -59,7 +54,6 @@ class NotificationDispatchServiceTest {
 		lenient().when(transactionTemplate.execute(any())).thenAnswer(invocation -> invocation.getArgument(0,
 			org.springframework.transaction.support.TransactionCallback.class).doInTransaction(null));
 		lenient().when(notificationRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
-		lenient().when(unreadCountCacheRepository.enabled()).thenReturn(true);
 	}
 
 	@Test
@@ -78,7 +72,6 @@ class NotificationDispatchServiceTest {
 		verify(notificationRepository).bulkMarkAsSent(eq(List.of(1L, 2L)), any(), any());
 		verify(notificationSender, times(2)).send(any(Notification.class));
 		verify(notificationGroupRepository).bulkApplyDispatchCounts(anyList());
-		verify(unreadCountCacheRepository, never()).evict(any(), any());
 	}
 
 	@Test
@@ -116,8 +109,8 @@ class NotificationDispatchServiceTest {
 	}
 
 	@Test
-	@DisplayName("markAsFailed는 알림 상태를 FAILED로 전환하고 unread count를 decrement한다")
-	void markAsFailed_decrementsUnreadCount() {
+	@DisplayName("markAsFailed는 알림 상태를 FAILED로 전환한다")
+	void markAsFailed_marksNotificationAsFailed() {
 		Notification notification = createNotification(5L, "user@example.com");
 		notification.startSending();
 		when(notificationRepository.findById(5L)).thenReturn(Optional.of(notification));
@@ -126,21 +119,6 @@ class NotificationDispatchServiceTest {
 		dispatchService.markAsFailed(5L, "최종 실패 사유");
 
 		verify(notificationRepository).save(notification);
-		verify(unreadCountCacheRepository).decrement("dispatch-service", "user@example.com");
-	}
-
-	@Test
-	@DisplayName("markAsFailed에서 캐시가 비활성화되어 있으면 decrement를 호출하지 않는다")
-	void markAsFailed_skipsDecrementWhenCacheDisabled() {
-		when(unreadCountCacheRepository.enabled()).thenReturn(false);
-		Notification notification = createNotification(6L, "user@example.com");
-		notification.startSending();
-		when(notificationRepository.findById(6L)).thenReturn(Optional.of(notification));
-		when(notificationRepository.save(notification)).thenReturn(notification);
-
-		dispatchService.markAsFailed(6L, "실패");
-
-		verify(unreadCountCacheRepository, never()).decrement(any(), any());
 	}
 
 	private Notification createNotification(Long id, String receiver) {

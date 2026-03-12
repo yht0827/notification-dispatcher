@@ -18,7 +18,7 @@ import com.example.infrastructure.polling.OutboxProperties;
 import io.lettuce.core.api.StatefulConnection;
 
 @Configuration
-@EnableConfigurationProperties({OutboxProperties.class, NotificationCacheProperties.class})
+@EnableConfigurationProperties({OutboxProperties.class})
 public class RedisConfig {
 
 	@Bean

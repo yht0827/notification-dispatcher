@@ -30,9 +30,7 @@ spring:
 notification:
   messaging:
     enabled: true
-  cache:
-    unread-count-enabled: true
-    unread-count-ttl: 30s
+
   rabbitmq:
     listener-virtual-threads: false
   external:

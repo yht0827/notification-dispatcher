@@ -13,7 +13,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.example.application.port.in.NotificationDispatchUseCase;
 import com.example.application.port.in.result.BatchDispatchResult;
 import com.example.application.port.out.NotificationSender;
-import com.example.application.port.out.cache.NotificationUnreadCountCacheRepository;
 import com.example.application.port.out.repository.NotificationFailureUpdate;
 import com.example.application.port.out.repository.NotificationGroupCountUpdate;
 import com.example.application.port.out.repository.NotificationGroupRepository;
@@ -34,7 +33,6 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 	private final NotificationGroupRepository notificationGroupRepository;
 	private final NotificationSender notificationSender;
 	private final TransactionTemplate transactionTemplate;
-	private final NotificationUnreadCountCacheRepository unreadCountCacheRepository;
 
 	@Override
 	public List<BatchDispatchResult> dispatchBatch(List<Notification> notifications) {
@@ -69,7 +67,6 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 		notificationRepository.findById(notificationId).ifPresent(notification -> {
 			notification.markAsFailed(reason);
 			notificationRepository.save(notification);
-			decrementUnreadCount(notification);
 			log.error("알림 최종 실패: id={}, reason={}", notificationId, reason);
 		});
 	}
@@ -172,20 +169,6 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 		));
 	}
 
-	private void decrementUnreadCount(Notification notification) {
-		if (!unreadCountCacheRepository.enabled()) {
-			return;
-		}
-		if (notification.getGroup() == null) {
-			return;
-		}
-		String clientId = notification.getGroup().getClientId();
-		String receiver = notification.getReceiver();
-		if (clientId == null || receiver == null || receiver.isBlank()) {
-			return;
-		}
-		unreadCountCacheRepository.decrement(clientId, receiver);
-	}
-
 }
+
 
