@@ -13,8 +13,6 @@ import com.example.domain.outbox.OutboxStatus;
 
 public interface OutboxJpaRepository extends JpaRepository<Outbox, Long> {
 
-	List<Outbox> findByStatusOrderByCreatedAtAsc(OutboxStatus status, Pageable pageable);
-
 	@Query("SELECT o FROM Outbox o WHERE o.status = :status AND (o.scheduledAt IS NULL OR o.scheduledAt <= :now) ORDER BY o.createdAt ASC")
 	List<Outbox> findReadyByStatus(@Param("status") OutboxStatus status, @Param("now") LocalDateTime now,
 		Pageable pageable);
