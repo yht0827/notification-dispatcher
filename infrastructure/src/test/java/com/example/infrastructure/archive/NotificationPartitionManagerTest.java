@@ -12,26 +12,17 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import com.example.application.port.out.ArchiveStorage;
-
 @ExtendWith(MockitoExtension.class)
 class NotificationPartitionManagerTest {
 
 	@Mock
 	private JdbcTemplate jdbcTemplate;
 
-	@Mock
-	private ArchiveStorage archiveStorage;
-
 	private NotificationPartitionManager partitionManager;
 
 	@BeforeEach
 	void setUp() {
-		partitionManager = new NotificationPartitionManager(
-			jdbcTemplate,
-			new ArchiveProperties(true, 1000, 7, null, null, 12),
-			archiveStorage
-		);
+		partitionManager = new NotificationPartitionManager(jdbcTemplate);
 	}
 
 	@Test

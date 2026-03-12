@@ -13,11 +13,11 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.example.application.port.in.NotificationDispatchUseCase;
 import com.example.application.port.in.result.BatchDispatchResult;
 import com.example.application.port.out.NotificationSender;
+import com.example.application.port.out.SendResult;
 import com.example.application.port.out.repository.NotificationFailureUpdate;
 import com.example.application.port.out.repository.NotificationGroupCountUpdate;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationRepository;
-import com.example.application.port.out.SendResult;
 import com.example.domain.exception.UnsupportedChannelException;
 import com.example.domain.notification.Notification;
 

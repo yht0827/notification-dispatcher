@@ -2,7 +2,6 @@ package com.example.infrastructure.archive;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.time.YearMonth;
 import java.util.List;
 
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -25,8 +24,10 @@ public class NotificationArchiveService {
 	private final TransactionTemplate transactionTemplate;
 
 	public ArchiveRunResult archiveExpiredData() {
+		// 보존 기간(retention-days) 이전 데이터를 cutoff 기준으로 아카이빙
 		LocalDateTime cutoff = LocalDateTime.now().minusDays(archiveProperties.resolveRetentionDays());
 
+		// 1. 알림 배치 아카이빙: 처리할 데이터가 없을 때까지 반복
 		int archivedNotifications = 0;
 		while (true) {
 			Integer batchArchived = transactionTemplate.execute(status -> archiveNotificationBatch(cutoff));
@@ -37,6 +38,7 @@ public class NotificationArchiveService {
 			archivedNotifications += count;
 		}
 
+		// 2. 알림 그룹 배치 아카이빙: 알림이 모두 제거된 완료 그룹만 대상
 		int archivedGroups = 0;
 		while (true) {
 			Integer batchArchived = transactionTemplate.execute(status -> archiveCompletedGroupBatch(cutoff));
@@ -55,13 +57,6 @@ public class NotificationArchiveService {
 		return result;
 	}
 
-	public void ensureNextMonthPartitions() {
-		YearMonth nextMonth = YearMonth.now().plusMonths(1);
-		ensureNextMonthPartition("notification_archive", nextMonth);
-		ensureNextMonthPartition("notification_group_archive", nextMonth);
-		ensureNextMonthPartition("notification_read_status_archive", nextMonth);
-	}
-
 	private int archiveNotificationBatch(LocalDateTime cutoff) {
 		List<Long> ids = findArchivableNotificationIds(cutoff, archiveProperties.resolveBatchSize());
 		if (ids.isEmpty()) {
@@ -69,8 +64,10 @@ public class NotificationArchiveService {
 		}
 
 		LocalDateTime archivedAt = LocalDateTime.now();
+		// 1. 읽음 상태 먼저 아카이빙 후 삭제 (FK 순서 고려)
 		insertNotificationReadStatusArchive(ids, archivedAt);
 		deleteNotificationReadStatuses(ids);
+		// 2. 알림 아카이빙 후 원본 삭제
 		insertNotificationArchive(ids, archivedAt);
 		deleteNotifications(ids);
 		return ids.size();
@@ -82,6 +79,7 @@ public class NotificationArchiveService {
 			return 0;
 		}
 
+		// 알림 그룹 아카이빙 후 원본 삭제
 		LocalDateTime archivedAt = LocalDateTime.now();
 		insertNotificationGroupArchive(ids, archivedAt);
 		deleteGroups(ids);
@@ -89,6 +87,7 @@ public class NotificationArchiveService {
 	}
 
 	private List<Long> findArchivableNotificationIds(LocalDateTime cutoff, int limit) {
+		// cutoff 이전에 생성된 종료 상태(SENT/FAILED/CANCELED) 알림 ID 조회
 		return jdbcTemplate.queryForList("""
 				SELECT id
 				FROM notification
@@ -107,6 +106,7 @@ public class NotificationArchiveService {
 	}
 
 	private List<Long> findArchivableGroupIds(LocalDateTime cutoff, int limit) {
+		// 완료 조건: total = sent + failed이고 연결된 notification이 없는 그룹
 		return jdbcTemplate.queryForList("""
 				SELECT g.id
 				FROM notification_group g
@@ -199,44 +199,6 @@ public class NotificationArchiveService {
 			"DELETE FROM notification_group WHERE id IN (:ids)",
 			new MapSqlParameterSource().addValue("ids", ids)
 		);
-	}
-
-	private void ensureNextMonthPartition(String tableName, YearMonth nextMonth) {
-		String partitionName = partitionName(nextMonth);
-		Integer exists = jdbcTemplate.queryForObject("""
-				SELECT COUNT(*)
-				FROM information_schema.PARTITIONS
-				WHERE TABLE_SCHEMA = DATABASE()
-				  AND TABLE_NAME = ?
-				  AND PARTITION_NAME = ?
-				""",
-			Integer.class,
-			tableName,
-			partitionName
-		);
-
-		if (exists != null && exists > 0) {
-			return;
-		}
-
-		int lessThan = partitionValue(nextMonth.plusMonths(1));
-		String sql = """
-			ALTER TABLE %s
-			REORGANIZE PARTITION p_future INTO (
-			    PARTITION %s VALUES LESS THAN (%d),
-			    PARTITION p_future VALUES LESS THAN MAXVALUE
-			)
-			""".formatted(tableName, partitionName, lessThan);
-		jdbcTemplate.execute(sql);
-		log.info("Archive partition 생성: table={}, partition={}", tableName, partitionName);
-	}
-
-	private String partitionName(YearMonth yearMonth) {
-		return "p%04d%02d".formatted(yearMonth.getYear(), yearMonth.getMonthValue());
-	}
-
-	private int partitionValue(YearMonth yearMonth) {
-		return yearMonth.getYear() * 100 + yearMonth.getMonthValue();
 	}
 
 	public record ArchiveRunResult(
