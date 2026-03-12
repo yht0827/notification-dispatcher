@@ -133,7 +133,6 @@ recovery:
 
 archive:
   enabled: false
-  run-on-startup: false
   retention-days: 7
   batch-size: 1000
   cron: "0 0 0 * * *"

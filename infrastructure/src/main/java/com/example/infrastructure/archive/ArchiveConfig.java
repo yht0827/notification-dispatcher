@@ -35,11 +35,4 @@ public class ArchiveConfig {
 		return new NotificationArchiveScheduler(notificationArchiveService);
 	}
 
-	@Bean
-	@ConditionalOnProperty(name = "archive.run-on-startup", havingValue = "true")
-	public NotificationArchiveStartupRunner notificationArchiveStartupRunner(
-		NotificationArchiveService notificationArchiveService
-	) {
-		return new NotificationArchiveStartupRunner(notificationArchiveService);
-	}
 }
