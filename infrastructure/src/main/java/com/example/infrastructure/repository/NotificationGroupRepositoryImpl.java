@@ -1,5 +1,7 @@
 package com.example.infrastructure.repository;
 
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -13,9 +15,6 @@ import com.example.application.port.out.repository.NotificationGroupCountUpdate;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.domain.notification.GroupType;
 import com.example.domain.notification.NotificationGroup;
-
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -91,11 +90,6 @@ public class NotificationGroupRepositoryImpl implements NotificationGroupReposit
 				return updates.size();
 			}
 		});
-	}
-
-	@Override
-	public void delete(NotificationGroup group) {
-		jpaRepository.delete(group);
 	}
 
 	private int normalizeLimit(int limit) {

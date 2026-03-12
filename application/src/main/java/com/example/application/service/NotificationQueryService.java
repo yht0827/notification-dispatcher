@@ -20,6 +20,7 @@ import com.example.application.port.out.cache.NotificationUnreadCountCacheReposi
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationReadStatusRepository;
 import com.example.application.port.out.repository.NotificationRepository;
+import com.example.domain.notification.Notification;
 
 import lombok.RequiredArgsConstructor;
 
@@ -111,7 +112,7 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 
 	private NotificationGroupDetailResult toGroupDetail(com.example.domain.notification.NotificationGroup group) {
 		List<Long> notificationIds = group.getNotifications().stream()
-			.map(com.example.domain.notification.Notification::getId)
+			.map(Notification::getId)
 			.toList();
 		Map<Long, LocalDateTime> readAtByNotificationId =
 			notificationReadStatusRepository.findReadAtByNotificationIds(notificationIds);
@@ -151,7 +152,7 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 		if (groups.isEmpty()) {
 			return true;
 		}
-		Long minCachedId = groups.get(groups.size() - 1).id();
+		Long minCachedId = groups.getLast().id();
 		return cursorId > minCachedId;
 	}
 
