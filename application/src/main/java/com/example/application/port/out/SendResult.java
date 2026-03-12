@@ -1,4 +1,4 @@
-package com.example.application.port.out.result;
+package com.example.application.port.out;
 
 public record SendResult(boolean succeeded, String failReason, FailureType failureType, Long retryDelayMillis) {
 

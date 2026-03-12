@@ -1,4 +1,4 @@
-package com.example.application.mapper;
+package com.example.application.service.mapper;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;

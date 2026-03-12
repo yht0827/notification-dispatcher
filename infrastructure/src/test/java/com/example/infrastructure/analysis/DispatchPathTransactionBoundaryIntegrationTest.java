@@ -21,7 +21,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.out.NotificationSender;
-import com.example.application.port.out.result.SendResult;
+import com.example.application.port.out.SendResult;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationRepository;
 import com.example.application.service.NotificationWriteService;

@@ -7,7 +7,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.application.mapper.NotificationCommandResultMapper;
+import com.example.application.service.mapper.NotificationCommandResultMapper;
 import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.out.event.OutboxSavedEvent;

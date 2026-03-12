@@ -1,4 +1,4 @@
-package com.example.application.port.out.result;
+package com.example.application.port.out;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

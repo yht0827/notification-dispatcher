@@ -1,4 +1,4 @@
-package com.example.application.mapper;
+package com.example.application.service.mapper;
 
 import java.time.LocalDateTime;
 import java.util.List;

@@ -5,7 +5,7 @@ import java.util.function.Supplier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 
-import com.example.application.port.out.result.SendResult;
+import com.example.application.port.out.SendResult;
 import com.example.domain.notification.ChannelType;
 import com.example.infrastructure.sender.mock.dto.MockApiSendRequest;
 import com.example.infrastructure.sender.mock.dto.MockApiSendSuccessResponse;

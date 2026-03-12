@@ -31,7 +31,7 @@ import com.example.application.port.out.DispatchLockManager;
 import com.example.application.port.out.NotificationSender;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationRepository;
-import com.example.application.port.out.result.SendResult;
+import com.example.application.port.out.SendResult;
 import com.example.application.service.NotificationWriteService;
 import com.example.application.service.NotificationDispatchService;
 import com.example.domain.notification.ChannelType;
