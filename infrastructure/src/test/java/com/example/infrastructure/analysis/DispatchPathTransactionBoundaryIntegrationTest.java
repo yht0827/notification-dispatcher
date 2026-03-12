@@ -73,8 +73,8 @@ class DispatchPathTransactionBoundaryIntegrationTest extends IntegrationTestSupp
 	}
 
 	@Test
-	@DisplayName("현재 dispatch 경로는 메시지당 개별 트랜잭션이라 group update가 메시지 수만큼 발생한다")
-	void dispatchLikeProcessing_updatesGroupPerMessageTransaction() {
+	@DisplayName("현재 dispatch 경로는 bulk SQL을 사용해 entity lifecycle을 거치지 않는다")
+	void dispatchLikeProcessing_usesBulkSqlWithoutEntityLifecycle() {
 		List<Long> notificationIds = createNotifications(3);
 		statistics.clear();
 
@@ -85,8 +85,10 @@ class DispatchPathTransactionBoundaryIntegrationTest extends IntegrationTestSupp
 			assertThat(results).singleElement().satisfies(r -> assertThat(r.isSuccess()).isTrue());
 		}
 
-		assertEntityStats(Notification.class, 0, 3, 0);
-		assertEntityStats(NotificationGroup.class, 0, 3, 0);
+		// bulk SQL은 Hibernate entity lifecycle을 거치지 않아 entity stats가 기록되지 않음
+		assertEntityStats(Notification.class, 0, 0, 0);
+		assertEntityStats(NotificationGroup.class, 0, 0, 0);
+		assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM notification WHERE status = 'SENT'", Integer.class)).isEqualTo(3);
 	}
 
 	@Test

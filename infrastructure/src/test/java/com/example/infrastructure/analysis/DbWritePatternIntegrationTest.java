@@ -94,14 +94,13 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 	@DisplayName("dispatchBatch 단건 성공은 notification과 group을 갱신한다")
 	void dispatch_success_updatesNotificationAndGroup() {
 		Long notificationId = createSingleNotification();
-		statistics.clear();
 
 		Notification detached = notificationRepository.findById(notificationId).orElseThrow();
 		java.util.List<BatchDispatchResult> results = dispatchService.dispatchBatch(java.util.List.of(detached));
 
 		assertThat(results).singleElement().satisfies(result -> assertThat(result.isSuccess()).isTrue());
-		assertEntityStats(Notification.class, 0, 1, 0);
-		assertEntityStats(NotificationGroup.class, 0, 1, 0);
+		assertThat(countNotificationsByStatus("SENT")).isEqualTo(1);
+		assertThat(countSentNotifications()).isEqualTo(1);
 	}
 
 	@Test
