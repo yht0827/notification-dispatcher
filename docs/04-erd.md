@@ -229,7 +229,7 @@ erDiagram
 
 - DDL에 2026-01 ~ 2027-12 (24개) 사전 정의
 - 이후 데이터는 `p_future` 파티션으로 수용
-- `NotificationArchiveStartupRunner`가 앱 시작 시 다음 달 파티션 자동 생성
+- `NotificationArchiveScheduler.managePartitions()`가 매월 1일 `NotificationPartitionManager`를 통해 다음 달 파티션 자동 생성 및 오래된 파티션 DROP
 
 ---
 
@@ -241,4 +241,4 @@ erDiagram
 - 커서 조회 최적화: 그룹 조회는 `id DESC` 및 `cursorId` 조건으로 동작
 - 읽음 상태 분리: `notification_read_status` 별도 테이블 (캐시 설계 고려)
 - 메인 데이터 삭제: archive 배치의 physical delete로 정리 (soft delete 없음)
-- 파티션 관리: 매달 앱 시작 시 자동 생성, 오래된 파티션은 DROP PARTITION으로 삭제
+- 파티션 관리: 매월 1일 스케줄러(`NotificationArchiveScheduler.managePartitions`) 자동 실행, 오래된 파티션은 `ArchiveStorage.export()` 후 DROP PARTITION으로 삭제

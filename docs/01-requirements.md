@@ -51,8 +51,7 @@ Client
   -> DB 저장 (notification_group, notification, outbox)
   -> OutboxPoller
   -> RabbitMQ WORK Queue
-  -> RabbitMQConsumer / RabbitMQBatchConsumer  ← 설정으로 선택
-  -> MessageProcessOrchestrator
+  -> RabbitMQBatchConsumer
   -> RabbitMQRecordHandler
   -> NotificationDispatchService
   -> ChannelSender(EMAIL/SMS/KAKAO)
@@ -61,7 +60,8 @@ Client
 최종 실패: WORK -> DLQ
 
 아카이빙: NotificationArchiveScheduler
-  -> 매일 실행, 7일 경과 + terminal 알림을 archive 테이블로 이관 후 삭제
+  -> 매일 실행: retentionDays 경과 + terminal 알림을 archive 테이블로 이관 후 삭제
+  -> 매월 1일: NotificationPartitionManager로 다음 달 파티션 생성 및 오래된 파티션 DROP
 ```
 
 ### 핵심 패턴
@@ -74,7 +74,6 @@ Client
 | Retry with WAIT Queue | WAIT TTL + DLX 라우팅 기반 재처리 |
 | Distributed Lock | notificationId 단위 중복 처리 방지 |
 | Idempotency Key | `clientId + idempotencyKey` 기반 중복 요청 방지 |
-| Batch Consumer Switch | `@ConditionalOnProperty`로 단건/배치 컨슈머 선택 |
 | Monthly Archive | 7일 경과 알림을 월별 RANGE 파티션 테이블로 이관 |
 | Separate Read Status | `notification_read_status` 별도 테이블로 읽음 상태 관리 |
 
@@ -86,6 +85,7 @@ Client
 | `application` | 유스케이스/서비스/포트 정의 |
 | `infrastructure` | JPA, RabbitMQ, Lock, Sender, Archive 구현 |
 | `api` | HTTP Controller, DTO, 예외 응답 |
+| `mock` | 외부 채널 API Mock 서버 (`MockApiController`, `MockApiScenarioProperties`) |
 | `app` | Spring Boot 실행 진입점 (`@EnableScheduling`) |
 
 ---
@@ -141,7 +141,7 @@ Client
 6. Notification별 Outbox 이벤트 N건 저장
 7. 201 Created 응답 (groupId, totalCount)
 8. OutboxPoller가 Outbox를 WORK 큐로 발행
-9. RabbitMQConsumer/RabbitMQBatchConsumer가 WORK를 읽어 채널 발송 수행
+9. RabbitMQBatchConsumer가 WORK를 읽어 RabbitMQRecordHandler로 채널 발송 수행
 ```
 
 #### Request Body
@@ -330,23 +330,19 @@ Client
 
 ### RabbitMQ 소비
 
-설정 `notification.rabbitmq.batch-listener-enabled` 값에 따라 컨슈머가 결정된다.
-
-| 값 | 컨슈머 | 특징 |
-|----|--------|------|
-| `false` (기본) | `RabbitMQConsumer` | 메시지 단건 처리 |
-| `true` | `RabbitMQBatchConsumer` | 메시지 묶음 처리 |
-
-두 컨슈머 모두 `MessageProcessOrchestrator`를 통해 동일한 처리 로직을 사용한다.
+`RabbitMQBatchConsumer`가 WORK 큐를 배치로 소비한다. `notification.rabbitmq.messaging-enabled=true` 설정 시 활성화된다.
 
 처리 흐름:
-- WORK 큐 수신 (manual ACK)
-- `MessageProcessOrchestrator`가 유효성 검사 및 분기
+- WORK 큐에서 배치(최대 `batch-size`건) 수신 (manual ACK)
+- 메시지별 `MessageProcessContext` 생성 및 유효성 검사
+- 유효하지 않은 메시지 → `DeadLetterPublisher`로 DLQ 발행 후 ACK
+- 유효한 메시지 → `RabbitMQRecordHandler.processBatch()` 위임
 - `RabbitMQRecordHandler`에서 `DispatchLockManager.tryAcquire(notificationId)` 수행
-- 예외 분류:
-  - `RetryableMessageException` → WAIT 큐 전송
-  - `NonRetryableMessageException` → DLQ 큐 전송
-- WAIT/DLQ 전송 성공 시 원본 WORK 메시지 ACK
+- 처리 결과 분류:
+  - `success` / `skipped` → ACK
+  - `nonRetryableFailure` → `DeadLetterPublisher`로 DLQ 발행 후 ACK
+  - `retryableFailure` → `WaitPublisher`로 WAIT 큐 발행 후 ACK
+  - 기타 → NACK
 
 ### 재시도 전략
 
@@ -421,8 +417,8 @@ PENDING -> CANCELED
 
 - 3개 archive 테이블 모두 월별 RANGE 파티션 (`YEAR * 100 + MONTH`)
 - DDL에 2026-01 ~ 2027-12 파티션 사전 정의, 이후는 `p_future`
-- `NotificationArchiveStartupRunner`가 앱 시작 시 다음 달 파티션 자동 생성
-- 오래된 파티션은 `ALTER TABLE ... DROP PARTITION`으로 삭제
+- `NotificationArchiveScheduler`가 매월 1일 `NotificationPartitionManager`를 통해 다음 달 파티션 자동 생성
+- 오래된 파티션은 `ArchiveStorage.export()` 후 `ALTER TABLE ... DROP PARTITION`으로 삭제 (현재 `NoOpArchiveStorage` - S3 연동 시 교체)
 
 ### Archive 조회
 
@@ -462,4 +458,4 @@ PENDING -> CANCELED
 - 현재 채널 발송 구현(`EmailSender`, `SmsSender`, `KakaoSender`)은 외부 연동 전의 Mock 구현이다.
 - `notification_group(client_id, idempotency_key)` 유니크 인덱스, `idempotency_key`가 `NULL`인 요청은 중복 허용
 - `Outbox` 스키마는 Flyway 마이그레이션(`V1__init_schema.sql`)과 반드시 동기화해서 관리한다.
-- Archive 파티션은 앱 시작 시 자동으로 다음 달 파티션을 생성하므로 수동 관리 불필요
+- Archive 파티션은 매월 1일 스케줄러(`NotificationArchiveScheduler.managePartitions`)가 자동 생성/삭제하므로 수동 관리 불필요
