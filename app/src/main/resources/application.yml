@@ -138,6 +138,11 @@ archive:
   cron: "0 0 0 * * *"
   partition-cron: "0 5 0 1 * *"
   partition-retention-months: 12
+  s3:
+    enabled: false
+    bucket: ${ARCHIVE_S3_BUCKET:notification-archive}
+    prefix: ${ARCHIVE_S3_PREFIX:archive}
+    region: ${ARCHIVE_S3_REGION:ap-northeast-2}
 
 ---
 # ─────────────────────────────────────────
