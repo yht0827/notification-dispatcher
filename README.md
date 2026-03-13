@@ -32,19 +32,20 @@
 
 ## 기술 스택
 
-- ![Java](https://img.shields.io/badge/Java-17-007396?logo=java)
-- ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.2-6DB33F?logo=spring%20boot&logoColor=6DB33F)
-- ![MySQL](https://img.shields.io/badge/MySQL-8.0.32-4479A1?logo=mysql&logoColor=4479A1)
-- ![Redis](https://img.shields.io/badge/Redis-7.2.4-DC382D?logo=redis&logoColor=white)
-- ![RabbitMQ](https://img.shields.io/badge/RabbitMQ-3.13.0-FF6600?logo=rabbitmq&logoColor=white)
-- ![Gradle](https://img.shields.io/badge/Gradle-8.5-02303A?logo=gradle&logoColor=02303A)
-- ![JUnit](https://img.shields.io/badge/JUnit-5-25A162?logo=junit&logoColor=white)
-- ![JaCoCo](https://img.shields.io/badge/JaCoCo-_-FF4088)
-- ![Docker](https://img.shields.io/badge/Docker-24.0.2-2496ED?logo=docker&logoColor=white)
-- ![JMeter](https://img.shields.io/badge/JMeter-5.6.2-D21717?logo=apache%20jmeter&logoColor=white)
+| 카테고리 | 기술 | 버전 |
+|----------|------|------|
+| Language | Java | 21 |
+| Framework | Spring Boot | 3.5.12 |
+| Database | MySQL | 8.0.32 |
+| Cache / Lock | Redis | 7.2.4 |
+| Message Broker | RabbitMQ | 3.13.0 |
+| Build | Gradle | 8.5 |
+| Test | JUnit 5 / JaCoCo | - |
+| Container | Docker | 24.0.2 |
+| Load Test | K6 | - |
 
 ## 문서
-[Wiki](https://github.com/yht0827/notification-dispatcher/wiki)
+ > [Wiki](https://github.com/yht0827/notification-dispatcher/wiki)
 
 ## 아키텍처
 
@@ -54,18 +55,7 @@
 
 ### 비동기 발송 파이프라인
 
-```mermaid
-flowchart LR
-    A[클라이언트] -->|POST /api/v1/notifications| B[NotificationWriteService]
-    B --> C[(notification + outbox)]
-    C -->|OutboxPoller| D[RabbitMQ\nWORK Queue]
-    D -->|RabbitMQConsumer| E[NotificationDispatchService]
-    E -->|Channel Sender| F[외부 API\nEMAIL/SMS/KAKAO]
-    F -->|성공| G[SENT 저장]
-    F -->|실패| H[WAIT Queue TTL]
-    H -->|DLX| D
-    H -->|재시도 초과| I[DLQ]
-```
+![비동기 발송 파이프라인](img/notification_architecture-pipeline.png)
 
 ### Hexagonal Architecture
 
@@ -79,8 +69,9 @@ flowchart LR
 | 알림 발송 | POST | `/api/v1/notifications` |
 | 개별 알림 조회 | GET | `/api/v1/notifications/{notificationId}` |
 | 알림 읽음 처리 | PATCH | `/api/v1/notifications/{notificationId}/read` |
+| 읽지 않은 알림 수 조회 | GET | `/api/v1/notifications/unread-count` |
 | 그룹 상세 조회 | GET | `/api/v1/notifications/groups/{groupId}` |
-| 그룹 목록 조회 (커서 페이징) | GET | `/api/v1/notifications/groups?clientId={clientId}` |
+| 그룹 목록 조회 (커서 페이징) | GET | `/api/v1/notifications/groups` |
 | 그룹 전체 읽음 처리 | PATCH | `/api/v1/notifications/groups/{groupId}/read` |
 
 Swagger UI: `http://localhost:8080/swagger-ui/index.html`
@@ -93,9 +84,8 @@ Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 | Transactional Outbox | 알림 저장 + Outbox를 동일 트랜잭션으로 처리해 메시지 유실 방지 |
 | Distributed Lock | Redis(Redisson)로 notificationId 단위 중복 발송 방지 |
 | WAIT Queue + DLX | 실패 시 지수 백오프 재시도, 한도 초과 시 DLQ 보관 |
-| Batch Consumer Switch | `batch-listener-enabled` 설정으로 단건/배치 컨슈머 전환 |
 | Separate Read Status | `notification_read_status` 별도 테이블로 읽음 상태 관리 |
-| Monthly Archive | 7일 경과 + 종결 알림을 월별 RANGE 파티션 archive 테이블로 이관 |
+| Monthly Archive | 보관 정책 경과 + 종결 알림을 월별 RANGE 파티션 archive 테이블로 이관 |
 | Idempotency Key | `(clientId, idempotencyKey)` 기반 중복 요청 방지 |
 
 ## 디렉토리 구조
@@ -129,3 +119,5 @@ make test
 # 모니터링 포함 전체 기동
 make up-all
 ```
+
+필수 환경변수: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `REDIS_HOST`, `REDIS_PORT`
