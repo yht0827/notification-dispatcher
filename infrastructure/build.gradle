@@ -29,6 +29,9 @@ dependencies {
     // RabbitMQ (AMQP)
     implementation 'org.springframework.boot:spring-boot-starter-amqp'
 
+    // AWS SDK v2 S3
+    implementation 'software.amazon.awssdk:s3:2.25.6'
+
     // Testcontainers
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
     testImplementation 'org.testcontainers:junit-jupiter'
