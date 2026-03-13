@@ -209,51 +209,50 @@ classDiagram
       +publish(notificationId)
     }
 
-    class MessageProcessOrchestrator {
-      +process(context) MessageProcessDecision
-      -publishToDeadLetter(...)
-    }
-
-    class RabbitMQConsumer {
-      +onMessage(payload, message, channel, deliveryTag)
-    }
-
     class RabbitMQBatchConsumer {
-      +onMessage(payloads, messages, channel, deliveryTags)
+      +onMessages(messages, channel)
     }
 
-    note for RabbitMQConsumer "batch-listener-enabled=false"
-    note for RabbitMQBatchConsumer "batch-listener-enabled=true"
-
-    class RabbitMQRecordHandler {
-      +process(notificationId, retryCount)
+    class DeadLetterPublisher {
+      <<interface>>
+      +publish(sourceRecordId, payload, notificationId, reason)
     }
 
-    class NotificationRecoveryPoller {
-      +recoverStuckNotifications()
-    }
-
-    class RabbitMQWaitPublisher {
+    class WaitPublisher {
+      <<interface>>
       +publish(notificationId, retryCount, lastError)
+      +publish(notificationId, retryCount, lastError, retryDelayMillis)
     }
 
     class RabbitMQDlqPublisher {
       +publish(sourceRecordId, payload, notificationId, reason)
     }
 
+    class RabbitMQWaitPublisher {
+      +publish(notificationId, retryCount, lastError, retryDelayMillis)
+    }
+
+    class RabbitMQRecordHandler {
+      +processBatch(requests) List~RecordProcessResult~
+    }
+
+    class NotificationRecoveryPoller {
+      +recoverStuckNotifications()
+    }
+
     class NotificationRabbitProperties {
       +resolveMaxRetryCount()
-      +calculateRetryDelayMillis(retryCount)
+      +calculateRetryDelayMillis(retryCount, overrideMillis)
     }
 
     OutboxPoller --> RabbitMQPublisher
 
-    RabbitMQConsumer --> MessageProcessOrchestrator
-    RabbitMQBatchConsumer --> MessageProcessOrchestrator
+    RabbitMQBatchConsumer --> RabbitMQRecordHandler
+    RabbitMQBatchConsumer --> DeadLetterPublisher
+    RabbitMQBatchConsumer --> WaitPublisher
 
-    MessageProcessOrchestrator --> RabbitMQRecordHandler
-    MessageProcessOrchestrator --> RabbitMQWaitPublisher
-    MessageProcessOrchestrator --> RabbitMQDlqPublisher
+    DeadLetterPublisher <|.. RabbitMQDlqPublisher
+    WaitPublisher <|.. RabbitMQWaitPublisher
 
     RabbitMQRecordHandler --> NotificationDispatchUseCase
     RabbitMQRecordHandler --> NotificationRepository
@@ -310,18 +309,28 @@ classDiagram
 ```mermaid
 classDiagram
     class NotificationArchiveScheduler {
-      +runArchive()
-    }
-
-    class NotificationArchiveStartupRunner {
-      +run(args)
+      +archiveExpiredData()
+      +managePartitions()
     }
 
     class NotificationArchiveService {
-      +archiveExpiredData(cutoff) ArchiveRunResult
-      +ensureNextMonthPartitions()
+      +archiveExpiredData() ArchiveRunResult
       -archiveNotificationBatch(cutoff) int
       -archiveCompletedGroupBatch(cutoff) int
+    }
+
+    class NotificationPartitionManager {
+      +ensureNextMonthPartitions()
+      +dropOldPartitions()
+    }
+
+    class ArchiveStorage {
+      <<interface>>
+      +export(tableName, partitionName)
+    }
+
+    class NoOpArchiveStorage {
+      +export(tableName, partitionName)
     }
 
     class ArchiveRunResult {
@@ -333,15 +342,21 @@ classDiagram
     }
 
     class ArchiveProperties {
-      +retentionDays int
-      +batchSize int
-      +cronExpression String
+      +resolveRetentionDays() int
+      +resolveBatchSize() int
+      +resolvePartitionRetentionMonths() int
     }
 
     NotificationArchiveScheduler --> NotificationArchiveService
-    NotificationArchiveStartupRunner --> NotificationArchiveService
+    NotificationArchiveScheduler --> NotificationPartitionManager
+
     NotificationArchiveService --> ArchiveRunResult
     NotificationArchiveService --> ArchiveProperties
+
+    NotificationPartitionManager --> ArchiveStorage
+    NotificationPartitionManager --> ArchiveProperties
+
+    ArchiveStorage <|.. NoOpArchiveStorage
 ```
 
 ---
@@ -355,13 +370,11 @@ classDiagram
 | `NotificationQueryService` | Application | 그룹/알림 조회, 커서 페이지 계산 |
 | `NotificationDispatchService` | Application | 발송 상태 전이, 채널 발송 위임, 배치 발송 |
 | `OutboxPoller` | Infrastructure | Outbox → WORK 큐 발행 |
-| `RabbitMQConsumer` | Infrastructure | WORK 메시지 단건 소비 (기본 모드) |
-| `RabbitMQBatchConsumer` | Infrastructure | WORK 메시지 배치 소비 (배치 모드) |
-| `MessageProcessOrchestrator` | Infrastructure | 유효성 검사, 분기, DLQ 전송 공통 처리 |
-| `RabbitMQRecordHandler` | Infrastructure | 분산 락/재시도 분기/실패 처리 |
+| `RabbitMQBatchConsumer` | Infrastructure | WORK 메시지 배치 소비, 유효성 검사, DLQ/WAIT 분기 |
+| `RabbitMQRecordHandler` | Infrastructure | 분산 락 획득, 발송 위임, 재시도/실패 결과 반환 |
 | `NotificationRecoveryPoller` | Infrastructure | 장시간 PENDING 알림 재발행 |
 | `NotificationSenderImpl` | Infrastructure | 채널별 Sender 전략 선택 |
 | `DispatchLockManagerImpl` | Infrastructure | notificationId 단위 락 획득/해제 |
-| `NotificationArchiveService` | Infrastructure | 만료 알림 archive 테이블 이관 및 파티션 관리 |
-| `NotificationArchiveScheduler` | Infrastructure | 아카이브 배치 스케줄 실행 |
-| `NotificationArchiveStartupRunner` | Infrastructure | 앱 시작 시 다음 달 파티션 사전 생성 |
+| `NotificationArchiveService` | Infrastructure | 만료 알림 archive 테이블 이관 |
+| `NotificationPartitionManager` | Infrastructure | 월별 파티션 생성 및 오래된 파티션 삭제 |
+| `NotificationArchiveScheduler` | Infrastructure | 아카이브 배치 및 파티션 관리 스케줄 실행 |
