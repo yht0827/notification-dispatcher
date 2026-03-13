@@ -56,7 +56,7 @@ erDiagram
     }
 
     notification_read_status {
-      bigint notification_id PK_FK
+      bigint notification_id PK
       datetime read_at
     }
 

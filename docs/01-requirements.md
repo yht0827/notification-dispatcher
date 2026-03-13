@@ -92,14 +92,17 @@ Client
 
 ## API 전체 요약
 
+모든 엔드포인트는 `X-Api-Key` 헤더로 인증한다. 헤더가 없거나 유효하지 않으면 `401 UNAUTHORIZED`를 반환한다. `clientId`는 이 헤더 값에서 추출되므로 Request Body나 쿼리 파라미터에 포함하지 않는다.
+
 | 도메인 | 기능 | METHOD | URI | 인증 |
 |--------|------|--------|-----|------|
-| 알림 | 알림 발송 | POST | `/api/v1/notifications` | X |
-| 알림 | 개별 알림 조회 | GET | `/api/v1/notifications/{notificationId}` | X |
-| 알림 | 알림 읽음 처리 | PATCH | `/api/v1/notifications/{notificationId}/read` | X |
-| 그룹 | 그룹 상세 조회 | GET | `/api/v1/notifications/groups/{groupId}` | X |
-| 그룹 | 클라이언트별 그룹 조회 | GET | `/api/v1/notifications/groups?clientId={clientId}` | X |
-| 그룹 | 그룹 전체 읽음 처리 | PATCH | `/api/v1/notifications/groups/{groupId}/read` | X |
+| 알림 | 알림 발송 | POST | `/api/v1/notifications` | O |
+| 알림 | 개별 알림 조회 | GET | `/api/v1/notifications/{notificationId}` | O |
+| 알림 | 알림 읽음 처리 | PATCH | `/api/v1/notifications/{notificationId}/read` | O |
+| 알림 | 읽지 않은 알림 개수 조회 | GET | `/api/v1/notifications/unread-count` | O |
+| 그룹 | 그룹 상세 조회 | GET | `/api/v1/notifications/groups/{groupId}` | O |
+| 그룹 | 클라이언트별 그룹 목록 조회 | GET | `/api/v1/notifications/groups` | O |
+| 그룹 | 그룹 전체 읽음 처리 | PATCH | `/api/v1/notifications/groups/{groupId}/read` | O |
 
 ---
 
@@ -109,7 +112,7 @@ Client
 
 | METHOD | URI | 설명 | 인증 |
 |--------|-----|------|------|
-| POST | `/api/v1/notifications` | 단일/대량 알림 발송 요청 | 불필요 |
+| POST | `/api/v1/notifications` | 단일/대량 알림 발송 요청 | 필요 (`X-Api-Key`) |
 
 #### 기능적 요구사항
 
@@ -120,15 +123,16 @@ Client
 
 #### 입력 제약
 
-| 필드 | 제약 |
-|------|------|
-| `clientId` | 필수, 공백 불가 |
-| `sender` | 필수, 공백 불가 |
-| `title` | 필수, 공백 불가 |
-| `content` | 필수, 공백 불가 |
-| `channelType` | 필수, `EMAIL` / `SMS` / `KAKAO` |
-| `receivers` | 필수, 최소 1개 이상 |
-| `idempotencyKey` | 선택, 공백이면 `null` 처리 |
+| 위치 | 필드 | 제약 |
+|------|------|------|
+| 헤더 | `X-Api-Key` | 필수, 등록된 API 키 (= `clientId`) |
+| Body | `sender` | 필수, 공백 불가 |
+| Body | `title` | 필수, 공백 불가 |
+| Body | `content` | 필수, 공백 불가 |
+| Body | `channelType` | 필수, `EMAIL` / `SMS` / `KAKAO` |
+| Body | `receivers` | 필수, 최소 1개 이상 |
+| Body | `idempotencyKey` | 선택, 공백이면 `null` 처리 |
+| Body | `scheduledAt` | 선택, 미래 시각만 허용 (없으면 즉시 발송) |
 
 #### Happy Path
 
@@ -144,17 +148,21 @@ Client
 9. RabbitMQBatchConsumer가 WORK를 읽어 RabbitMQRecordHandler로 채널 발송 수행
 ```
 
-#### Request Body
+#### Request
+
+```http
+X-Api-Key: order-service
+```
 
 ```json
 {
-  "clientId": "order-service",
   "sender": "MyShop",
   "title": "주문 완료",
   "content": "주문이 완료되었습니다. 주문번호: #12345",
   "channelType": "EMAIL",
   "receivers": ["user@example.com"],
-  "idempotencyKey": "order-12345"
+  "idempotencyKey": "order-12345",
+  "scheduledAt": null
 }
 ```
 
@@ -175,9 +183,12 @@ Client
 
 | 케이스 | 설명 | HTTP 상태코드 |
 |--------|------|---------------|
-| 필수값 누락 | `clientId`, `sender`, `title` 등 누락/공백 | `400 BAD REQUEST` |
+| API 키 누락 | `X-Api-Key` 헤더 없음 | `401 UNAUTHORIZED` |
+| API 키 무효 | 등록되지 않은 키 | `401 UNAUTHORIZED` |
+| 필수값 누락 | `sender`, `title`, `content` 등 누락/공백 | `400 BAD REQUEST` |
 | 수신자 없음 | `receivers`가 빈 배열 | `400 BAD REQUEST` |
 | 잘못된 채널 | 역직렬화 불가 채널 값 | `400 BAD REQUEST` |
+| 과거 예약 시각 | `scheduledAt`이 현재 시각 이전 | `400 BAD REQUEST` |
 | 서버 오류 | 예기치 않은 예외 | `500 INTERNAL SERVER ERROR` |
 
 ---
@@ -188,13 +199,14 @@ Client
 
 | METHOD | URI | 설명 |
 |--------|-----|------|
-| GET | `/api/v1/notifications/groups?clientId={clientId}` | 특정 클라이언트 그룹 목록 조회 |
+| GET | `/api/v1/notifications/groups` | 특정 클라이언트 그룹 목록 조회 |
+
+`clientId`는 `X-Api-Key` 헤더에서 추출한다.
 
 #### 쿼리 파라미터
 
 | 파라미터 | 타입 | 필수 | 기본값 | 설명 |
 |----------|------|------|--------|------|
-| `clientId` | String | O | - | 그룹 생성 주체 식별자 |
 | `cursorId` | Long | X | - | 이전 페이지 마지막 그룹 ID |
 | `size` | Integer | X | 20 | 조회 크기 (`1~100`) |
 
@@ -256,9 +268,9 @@ Client
 
 | 케이스 | 설명 | HTTP 상태코드 |
 |--------|------|---------------|
+| API 키 누락/무효 | `X-Api-Key` 헤더 없음 또는 등록되지 않은 키 | `401 UNAUTHORIZED` |
 | `size` 범위 오류 | `size < 1` 또는 `size > 100` | `400 BAD REQUEST` |
 | `cursorId` 범위 오류 | `cursorId <= 0` | `400 BAD REQUEST` |
-| `clientId` 공백 | clientId 파라미터 빈 값 | `400 BAD REQUEST` |
 | 그룹 미존재 | 존재하지 않는 `groupId` | `404 NOT FOUND` |
 | 알림 미존재 | 존재하지 않는 `notificationId` | `404 NOT FOUND` |
 
