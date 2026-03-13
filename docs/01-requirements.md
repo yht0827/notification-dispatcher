@@ -14,7 +14,6 @@
 - [상태 전이 규칙](#상태-전이-규칙)
 - [데이터 보관 및 아카이빙](#데이터-보관-및-아카이빙)
 - [비기능적 요구사항](#비기능적-요구사항)
-- [운영 체크포인트](#운영-체크포인트)
 
 ---
 
@@ -36,7 +35,7 @@
 | DLQ | Dead Letter Queue | 재시도 불가 메시지 보관 큐 |
 | 분산 락 | Distributed Lock | 중복 발송 방지를 위한 Redis 락 |
 | 읽음 상태 | Read Status | 알림 읽음 여부 (`notification_read_status` 별도 테이블) |
-| 아카이브 | Archive | 7일 경과 + 종결 알림을 별도 테이블로 이관하는 작업 |
+| 아카이브 | Archive | 만료 + 종결 알림을 별도 테이블로 이관하는 작업 |
 
 ---
 
@@ -74,7 +73,7 @@ Client
 | Retry with WAIT Queue | WAIT TTL + DLX 라우팅 기반 재처리 |
 | Distributed Lock | notificationId 단위 중복 처리 방지 |
 | Idempotency Key | `clientId + idempotencyKey` 기반 중복 요청 방지 |
-| Monthly Archive | 7일 경과 알림을 월별 RANGE 파티션 테이블로 이관 |
+| Monthly Archive | 만료 알림을 월별 RANGE 파티션 테이블로 이관 |
 | Separate Read Status | `notification_read_status` 별도 테이블로 읽음 상태 관리 |
 
 ### 모듈 구성
@@ -264,7 +263,7 @@ X-Api-Key: order-service
 |--------|-----|------|
 | GET | `/api/v1/notifications/{notificationId}` | 알림 단건 조회 |
 
-#### 조회 API Fail Cases
+### 조회 API Fail Cases
 
 | 케이스 | 설명 | HTTP 상태코드 |
 |--------|------|---------------|
@@ -369,12 +368,6 @@ X-Api-Key: order-service
 - `Retry-After` 헤더가 있으면 해당 값을 WAIT 큐 TTL로 사용
 - 관련 메트릭 기록 및 재시도 카운트 증가
 
-### 시작 시 복구 전략
-
-- 앱 시작 시 Consumer Group 없으면 생성
-- WORK Pending 메시지를 조회해 WAIT로 이관 후 ACK
-- 복구 중 일부 메시지 실패가 발생해도 나머지 복구는 계속 진행
-
 ---
 
 ## 상태 전이 규칙
@@ -409,10 +402,10 @@ PENDING -> CANCELED
 
 ## 데이터 보관 및 아카이빙
 
-### 7일 보관 정책
+### 보관 정책
 
 - 메인 테이블(`notification`, `notification_group`)은 최근 7일 데이터만 서비스에서 조회한다.
-- 7일 경과 + 종결 상태(`SENT`/`FAILED`/`CANCELED`) 알림은 배치로 archive 테이블에 이관 후 삭제된다.
+- `retentionDays` 경과 + 종결 상태(`SENT`/`FAILED`/`CANCELED`) 알림은 배치로 archive 테이블에 이관 후 삭제된다.
 
 ### Archive 배치 순서
 
@@ -443,7 +436,7 @@ PENDING -> CANCELED
 ### 성능
 
 - API 검증/조회는 동기 처리, 발송은 비동기 처리로 분리
-- Outbox Poller와 WAIT Scheduler는 1초 주기로 동작
+- Outbox Poller는 1초 주기로 동작
 - 커서 조회는 `id DESC` 기반으로 페이징한다.
 - 인덱스: 그룹 조회 `(client_id, created_at)`, Outbox 조회 `(status, created_at)`
 
@@ -453,21 +446,10 @@ PENDING -> CANCELED
 - 분산 락으로 동일 알림 중복 처리 방지
 - 재시도 가능한 오류는 WAIT 큐에서 지수 백오프
 - 재시도 불가 오류는 DLQ에 보관
-- 7일 이후 데이터는 archive 테이블에 보존
+- 만료 데이터는 archive 테이블에 보존
 
 ### 확장성
 
-- Consumer Group 구조로 컨슈머 확장 가능
-- `batch-listener-enabled` 설정으로 단건/배치 컨슈머 전환 가능
-- `ChannelSender` 전략 인터페이스로 채널 확장 가능
-
----
-
-## 운영 체크포인트
-
-- 로컬 실행: `make up`, `make run`, `make test`
-- 프로덕션 필수 환경변수: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `REDIS_HOST`, `REDIS_PORT`
-- 현재 채널 발송 구현(`EmailSender`, `SmsSender`, `KakaoSender`)은 외부 연동 전의 Mock 구현이다.
-- `notification_group(client_id, idempotency_key)` 유니크 인덱스, `idempotency_key`가 `NULL`인 요청은 중복 허용
-- `Outbox` 스키마는 Flyway 마이그레이션(`V1__init_schema.sql`)과 반드시 동기화해서 관리한다.
-- Archive 파티션은 매월 1일 스케줄러(`NotificationArchiveScheduler.managePartitions`)가 자동 생성/삭제하므로 수동 관리 불필요
+- Consumer Group 구조로 컨슈머 수평 확장 가능
+- `ChannelSender` 전략 인터페이스로 채널 추가 가능
+- `ArchiveStorage` 인터페이스 교체로 S3 연동 확장 가능
