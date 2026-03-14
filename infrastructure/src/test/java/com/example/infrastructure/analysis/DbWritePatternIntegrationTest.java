@@ -87,7 +87,8 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 		assertThat(result.totalCount()).isEqualTo(2);
 		assertEntityStats(NotificationGroup.class, 1, 0, 0);
 		assertEntityStats(Notification.class, 2, 0, 0);
-		assertEntityStats(Outbox.class, 2, 0, 0);
+		// sync 모드(messaging.enabled=false)에서는 outbox 미저장
+		assertEntityStats(Outbox.class, 0, 0, 0);
 	}
 
 	@Test
