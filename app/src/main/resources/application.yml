@@ -45,6 +45,16 @@ notification:
 api:
   valid-keys:
     - "dev-api-key-001"
+  admin-key: "dev-admin-key-001"
+
+# ─────────────────────────────────────────
+# Cache (Two-Level: Caffeine L1 + Redis L2)
+# ─────────────────────────────────────────
+cache:
+  stats:
+    enabled: true         # true: L1+L2 캐시, false: DB 직접 조회
+    l1-ttl-seconds: 10    # Caffeine (로컬, 인스턴스별)
+    l2-ttl-seconds: 60    # Redis (분산 공유)
 
 # ─────────────────────────────────────────
 # Resilience4j
@@ -195,6 +205,7 @@ spring:
 
 notification:
   rabbitmq:
+    batch-listener-enabled: true               # true: 배치 소비, false: 단건 소비
     work-queue: notification.work              # Work 큐 이름
     work-exchange: notification.work.exchange  # Work Exchange
     wait-queue: notification.wait              # Wait 큐 이름
@@ -211,6 +222,19 @@ notification:
   external:
     mock:
       enabled: true
+
+# ─────────────────────────────────────────
+# DataSource 라우팅 (Master/Slave)
+# ─────────────────────────────────────────
+datasource:
+  routing:
+    enabled: false          # true: Master/Slave 라우팅, false: 단일 DataSource
+  slave:
+    url: jdbc:mysql://localhost:3307/notification?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+    username: application
+    password: application
+    maximum-pool-size: 10
+    minimum-idle: 5
 
 ---
 # ─────────────────────────────────────────

@@ -14,4 +14,5 @@ import lombok.Setter;
 public class ApiKeyProperties {
 
 	private List<String> validKeys = new ArrayList<>();
+	private String adminKey;
 }

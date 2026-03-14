@@ -10,15 +10,19 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.connection.lettuce.LettucePoolingClientConfiguration;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.util.StringUtils;
 
+import com.example.infrastructure.cache.CacheProperties;
 import com.example.infrastructure.polling.OutboxProperties;
 
 import io.lettuce.core.api.StatefulConnection;
 
 @Configuration
-@EnableConfigurationProperties({OutboxProperties.class})
+@EnableConfigurationProperties({OutboxProperties.class, CacheProperties.class})
 public class RedisConfig {
 
 	@Bean
@@ -58,5 +62,17 @@ public class RedisConfig {
 	@Bean
 	public StringRedisTemplate stringRedisTemplate(LettuceConnectionFactory lettuceConnectionFactory) {
 		return new StringRedisTemplate(lettuceConnectionFactory);
+	}
+
+	@Bean
+	public RedisTemplate<String, Object> objectRedisTemplate(LettuceConnectionFactory lettuceConnectionFactory) {
+		RedisTemplate<String, Object> template = new RedisTemplate<>();
+		template.setConnectionFactory(lettuceConnectionFactory);
+		template.setKeySerializer(new StringRedisSerializer());
+		template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
+		template.setHashKeySerializer(new StringRedisSerializer());
+		template.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
+		template.afterPropertiesSet();
+		return template;
 	}
 }

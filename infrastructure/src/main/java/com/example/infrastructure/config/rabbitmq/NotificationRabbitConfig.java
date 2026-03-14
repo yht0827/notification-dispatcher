@@ -61,6 +61,7 @@ public class NotificationRabbitConfig {
 	}
 
 	@Bean(name = RabbitBeanNames.BATCH_LISTENER_CONTAINER_FACTORY)
+	@ConditionalOnProperty(name = "notification.rabbitmq.batch-listener-enabled", havingValue = "true", matchIfMissing = true)
 	public SimpleRabbitListenerContainerFactory rabbitBatchListenerContainerFactory(
 		ConnectionFactory cf,
 		MessageConverter mc,
@@ -74,6 +75,17 @@ public class NotificationRabbitConfig {
 		factory.setBatchSize(p.resolveBatchSize());
 		factory.setReceiveTimeout(p.resolveBatchReceiveTimeoutMillis());
 		return factory;
+	}
+
+	@Bean(name = RabbitBeanNames.SINGLE_LISTENER_CONTAINER_FACTORY)
+	@ConditionalOnProperty(name = "notification.rabbitmq.batch-listener-enabled", havingValue = "false")
+	public SimpleRabbitListenerContainerFactory rabbitSingleListenerContainerFactory(
+		ConnectionFactory cf,
+		MessageConverter mc,
+		NotificationRabbitProperties p,
+		@Qualifier(RabbitBeanNames.LISTENER_TASK_EXECUTOR) Executor listenerTaskExecutor
+	) {
+		return createBaseListenerContainerFactory(cf, mc, p, listenerTaskExecutor);
 	}
 
 	@Bean(name = RabbitBeanNames.LISTENER_TASK_EXECUTOR)
@@ -254,6 +266,7 @@ public class NotificationRabbitConfig {
 	}
 
 	@Bean
+	@ConditionalOnProperty(name = "notification.rabbitmq.batch-listener-enabled", havingValue = "true", matchIfMissing = true)
 	public RabbitMQBatchConsumer rabbitMQBatchConsumer(
 		RabbitMQRecordHandler recordHandler,
 		DeadLetterPublisher dlqPublisher,
