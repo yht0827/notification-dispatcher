@@ -2,6 +2,7 @@ package com.example.infrastructure.messaging.sync;
 
 import java.util.List;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -17,6 +18,11 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(
+	name = "notification.messaging.sync-listener.enabled",
+	havingValue = "true",
+	matchIfMissing = false
+)
 public class SyncDispatchEventListener {
 
 	private final NotificationRepository notificationRepository;

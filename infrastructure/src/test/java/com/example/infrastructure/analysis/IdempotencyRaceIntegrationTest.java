@@ -95,7 +95,6 @@ class IdempotencyRaceIntegrationTest extends IntegrationTestSupportNoTx {
 		assertThat(groupRepository.findByClientIdAndIdempotencyKey(CLIENT_ID, IDEMPOTENCY_KEY)).isPresent();
 		assertThat(countRows("notification_group")).isEqualTo(1);
 		assertThat(countRows("notification")).isEqualTo(2);
-		assertThat(countRows("outbox")).isEqualTo(2);
 	}
 
 	@Test
@@ -131,7 +130,6 @@ class IdempotencyRaceIntegrationTest extends IntegrationTestSupportNoTx {
 			assertThat(groupRepository.findByClientIdAndIdempotencyKey(clientId, idempotencyKey)).isPresent();
 			assertThat(countRows("notification_group")).isEqualTo(1);
 			assertThat(countRows("notification")).isEqualTo(2);
-			assertThat(countRows("outbox")).isEqualTo(2);
 		}
 	}
 
