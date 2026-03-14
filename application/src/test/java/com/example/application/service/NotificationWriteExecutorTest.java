@@ -49,6 +49,7 @@ class NotificationWriteExecutorTest {
 	@BeforeEach
 	void setUp() {
 		executor = new NotificationWriteExecutor(groupRepository, outboxRepository, eventPublisher, resultMapper);
+		ReflectionTestUtils.setField(executor, "messagingEnabled", true);
 	}
 
 	@Test
