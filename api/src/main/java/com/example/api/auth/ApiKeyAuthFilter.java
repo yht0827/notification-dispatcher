@@ -22,6 +22,11 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 	private final Set<String> validKeys;
 
 	@Override
+	protected boolean shouldNotFilter(HttpServletRequest request) {
+		return request.getRequestURI().startsWith("/api/admin/");
+	}
+
+	@Override
 	protected void doFilterInternal(HttpServletRequest request, @NonNull HttpServletResponse response,
 		@NonNull FilterChain filterChain) throws ServletException, IOException {
 		String apiKey = request.getHeader(HEADER_API_KEY);
