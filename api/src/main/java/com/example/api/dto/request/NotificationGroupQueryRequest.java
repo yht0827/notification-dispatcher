@@ -3,15 +3,10 @@ package com.example.api.dto.request;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 
 @Schema(description = "요청자별 알림 그룹 목록 조회 요청")
 public record NotificationGroupQueryRequest(
-	@Schema(description = "클라이언트 ID", example = "order-service")
-	@NotBlank(message = "clientId는 필수입니다")
-	String clientId,
-
 	@Schema(description = "커서 ID", example = "120")
 	@Positive(message = "cursorId는 1 이상이어야 합니다")
 	Long cursorId,

@@ -10,6 +10,8 @@ public record NotificationItemResult(
 	NotificationStatus status,
 	LocalDateTime sentAt,
 	String failReason,
-	LocalDateTime createdAt
+	LocalDateTime createdAt,
+	boolean isRead,
+	LocalDateTime readAt
 ) {
 }

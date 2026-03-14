@@ -1,17 +1,17 @@
 package com.example.mock.service.dto;
 
+import com.example.mock.api.ChannelType;
+
 public record MockFailureLog(
 	String requestId,
-	String channelType,
+	ChannelType channelType,
 	String receiver,
 	int messageLength,
 	int httpStatus,
 	long latencyMs
 ) {
 
-	private static final String UNKNOWN = "UNKNOWN";
-
 	public static MockFailureLog unknown(int httpStatus, long latencyMs) {
-		return new MockFailureLog(UNKNOWN, UNKNOWN, UNKNOWN, 0, httpStatus, latencyMs);
+		return new MockFailureLog("UNKNOWN", ChannelType.UNKNOWN, "UNKNOWN", 0, httpStatus, latencyMs);
 	}
 }

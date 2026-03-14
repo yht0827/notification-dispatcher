@@ -1,5 +1,6 @@
 package com.example.infrastructure.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.data.domain.PageRequest;
@@ -30,7 +31,7 @@ public class OutboxRepositoryImpl implements OutboxRepository {
 	@Override
 	public List<Outbox> findByStatus(OutboxStatus status, int limit) {
 		int normalizedLimit = normalizeLimit(limit);
-		return jpaRepository.findByStatusOrderByCreatedAtAsc(status, PageRequest.of(0, normalizedLimit));
+		return jpaRepository.findReadyByStatus(status, LocalDateTime.now(), PageRequest.of(0, normalizedLimit));
 	}
 
 	@Override

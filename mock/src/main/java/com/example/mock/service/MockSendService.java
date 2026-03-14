@@ -6,6 +6,7 @@ import java.time.ZoneOffset;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import com.example.mock.api.ChannelType;
 import com.example.mock.api.MockSendFailResponse;
 import com.example.mock.api.MockSendRequest;
 import com.example.mock.api.MockSendSuccessResponse;
@@ -29,10 +30,14 @@ public class MockSendService {
 
 	private final MockProperties properties;
 	private final MockBehaviorDecider behaviorDecider;
+	private final MockRateLimitDecider rateLimitDecider;
 
 	public MockSendSuccessResponse handleSend(MockSendRequest request) {
 		MockSendContext context = MockSendContext.from(request, nowMillis());
-		MockMode mode = properties.getMode();
+		MockMode mode = resolveMode(context.channelType());
+
+		// Provider-side rate limiting should reject immediately before adding latency/failure noise.
+		rateLimitDecider.check(context);
 
 		boolean delayed = behaviorDecider.shouldDelay(mode);
 		if (delayed) {
@@ -49,7 +54,7 @@ public class MockSendService {
 		return new MockSendSuccessResponse(
 			RESULT_SUCCESS,
 			context.requestId(),
-			context.channelType(),
+			safeChannel(context.channelType()),
 			nowUtc(),
 			latencyMs
 		);
@@ -60,7 +65,7 @@ public class MockSendService {
 		return new MockSendFailResponse(
 			RESULT_FAIL,
 			safeText(failResult.requestId()),
-			safeText(failResult.channelType()),
+			safeChannel(failResult.channelType()),
 			failResult.errorCode(),
 			failResult.message(),
 			nowUtc(),
@@ -72,7 +77,7 @@ public class MockSendService {
 		log.info(
 			"mock_send requestId={} channelType={} receiver={} messageLength={} chosenBehavior=FAIL httpStatus={} latencyMs={}",
 			safeText(failureLog.requestId()),
-			safeText(failureLog.channelType()),
+			safeChannel(failureLog.channelType()),
 			safeText(failureLog.receiver()),
 			failureLog.messageLength(),
 			failureLog.httpStatus(),
@@ -85,7 +90,7 @@ public class MockSendService {
 			log.info(
 				"mock_send requestId={} channelType={} receiver={} messageLength={} messagePreview={} chosenBehavior={} httpStatus={} latencyMs={}",
 				context.requestId(),
-				context.channelType(),
+				safeChannel(context.channelType()),
 				context.receiver(),
 				context.messageLength(),
 				maskedPreview(context.messageOrEmpty()),
@@ -99,13 +104,24 @@ public class MockSendService {
 		log.info(
 			"mock_send requestId={} channelType={} receiver={} messageLength={} chosenBehavior={} httpStatus={} latencyMs={}",
 			context.requestId(),
-			context.channelType(),
+			safeChannel(context.channelType()),
 			context.receiver(),
 			context.messageLength(),
 			behavior,
 			HttpStatus.OK.value(),
 			latencyMs
 		);
+	}
+
+	private MockMode resolveMode(ChannelType channelType) {
+		if (channelType != null && channelType != ChannelType.UNKNOWN) {
+			MockProperties.ChannelConfig channelConfig = properties.getChannels()
+				.get(channelType.name().toLowerCase());
+			if (channelConfig != null && channelConfig.getMode() != null) {
+				return channelConfig.getMode();
+			}
+		}
+		return properties.getMode();
 	}
 
 	private String maskedPreview(String message) {
@@ -118,6 +134,10 @@ public class MockSendService {
 
 	private String safeText(String value) {
 		return value == null || value.isBlank() ? UNKNOWN : value;
+	}
+
+	private String safeChannel(ChannelType channelType) {
+		return channelType == null ? UNKNOWN : channelType.name();
 	}
 
 	private String nowUtc() {

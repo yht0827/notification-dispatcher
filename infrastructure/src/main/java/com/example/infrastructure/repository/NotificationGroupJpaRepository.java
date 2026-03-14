@@ -25,9 +25,6 @@ public interface NotificationGroupJpaRepository extends JpaRepository<Notificati
     @Query("select g from NotificationGroup g where g.id = :id")
     Optional<NotificationGroup> findByIdWithNotifications(@Param("id") Long id);
 
-    @Query("select g from NotificationGroup g where (:cursorId is null or g.id < :cursorId) order by g.id desc")
-    List<NotificationGroup> findRecentSlice(@Param("cursorId") Long cursorId, Pageable pageable);
-
     Optional<NotificationGroup> findByClientIdAndIdempotencyKey(String clientId, String idempotencyKey);
 
     List<NotificationGroup> findByGroupType(GroupType groupType);

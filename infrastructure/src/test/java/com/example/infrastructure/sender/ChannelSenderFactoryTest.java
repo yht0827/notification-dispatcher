@@ -24,7 +24,6 @@ class ChannelSenderFactoryTest {
 		ChannelSender kakaoSender = sender(ChannelType.KAKAO);
 
 		ChannelSenderFactory factory = new ChannelSenderFactory(List.of(emailSender, smsSender, kakaoSender));
-		factory.init();
 
 		assertThat(factory.getSender(ChannelType.EMAIL)).isSameAs(emailSender);
 		assertThat(factory.getSender(ChannelType.SMS)).isSameAs(smsSender);
@@ -35,7 +34,6 @@ class ChannelSenderFactoryTest {
 	@DisplayName("지원하지 않는 채널이면 예외를 던진다")
 	void getSender_throwsWhenUnsupportedChannel() {
 		ChannelSenderFactory factory = new ChannelSenderFactory(List.of(sender(ChannelType.EMAIL)));
-		factory.init();
 
 		assertThatThrownBy(() -> factory.getSender(ChannelType.SMS))
 			.isInstanceOf(UnsupportedChannelException.class)
@@ -43,14 +41,12 @@ class ChannelSenderFactoryTest {
 	}
 
 	@Test
-	@DisplayName("동일 채널 sender가 중복 등록되면 초기화 시 예외를 던진다")
-	void init_throwsWhenDuplicateChannelSenderRegistered() {
+	@DisplayName("동일 채널 sender가 중복 등록되면 생성 시 예외를 던진다")
+	void constructor_throwsWhenDuplicateChannelSenderRegistered() {
 		ChannelSender first = sender(ChannelType.EMAIL);
 		ChannelSender duplicate = sender(ChannelType.EMAIL);
 
-		ChannelSenderFactory factory = new ChannelSenderFactory(List.of(first, duplicate));
-
-		assertThatThrownBy(factory::init)
+		assertThatThrownBy(() -> new ChannelSenderFactory(List.of(first, duplicate)))
 			.isInstanceOf(DuplicateChannelSenderRegistrationException.class)
 			.hasMessageContaining("중복 ChannelSender 등록");
 	}

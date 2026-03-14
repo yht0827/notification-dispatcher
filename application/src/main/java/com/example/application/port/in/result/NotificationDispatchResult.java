@@ -1,18 +1,30 @@
 package com.example.application.port.in.result;
 
-public record NotificationDispatchResult(boolean succeeded, String failReason, FailureType failureType) {
+public record NotificationDispatchResult(
+	boolean succeeded,
+	String failReason,
+	FailureType failureType,
+	Long retryDelayMillis
+) {
 
 	public NotificationDispatchResult {
 		if (succeeded) {
 			failReason = null;
 			failureType = null;
+			retryDelayMillis = null;
 		} else if (failureType == null) {
 			failureType = FailureType.RETRYABLE;
+		}
+		if (retryDelayMillis != null && retryDelayMillis <= 0) {
+			retryDelayMillis = null;
+		}
+		if (failureType == FailureType.NON_RETRYABLE) {
+			retryDelayMillis = null;
 		}
 	}
 
 	public static NotificationDispatchResult success() {
-		return new NotificationDispatchResult(true, null, null);
+		return new NotificationDispatchResult(true, null, null, null);
 	}
 
 	public static NotificationDispatchResult fail(String reason) {
@@ -20,11 +32,15 @@ public record NotificationDispatchResult(boolean succeeded, String failReason, F
 	}
 
 	public static NotificationDispatchResult failRetryable(String reason) {
-		return new NotificationDispatchResult(false, reason, FailureType.RETRYABLE);
+		return new NotificationDispatchResult(false, reason, FailureType.RETRYABLE, null);
+	}
+
+	public static NotificationDispatchResult failRetryable(String reason, Long retryDelayMillis) {
+		return new NotificationDispatchResult(false, reason, FailureType.RETRYABLE, retryDelayMillis);
 	}
 
 	public static NotificationDispatchResult failNonRetryable(String reason) {
-		return new NotificationDispatchResult(false, reason, FailureType.NON_RETRYABLE);
+		return new NotificationDispatchResult(false, reason, FailureType.NON_RETRYABLE, null);
 	}
 
 	public boolean isSuccess() {

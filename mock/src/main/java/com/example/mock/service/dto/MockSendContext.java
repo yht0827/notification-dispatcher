@@ -1,10 +1,11 @@
 package com.example.mock.service.dto;
 
+import com.example.mock.api.ChannelType;
 import com.example.mock.api.MockSendRequest;
 
 public record MockSendContext(
 	String requestId,
-	String channelType,
+	ChannelType channelType,
 	String receiver,
 	String message,
 	long startedAtMillis
@@ -14,13 +15,12 @@ public record MockSendContext(
 
 	public static MockSendContext from(MockSendRequest request, long startedAtMillis) {
 		if (request == null) {
-			return new MockSendContext(UNKNOWN, UNKNOWN, UNKNOWN, "", startedAtMillis);
+			return new MockSendContext(UNKNOWN, ChannelType.UNKNOWN, UNKNOWN, "", startedAtMillis);
 		}
 
-		String channelType = request.channelType() == null ? UNKNOWN : request.channelType().name();
 		return new MockSendContext(
 			safeText(request.requestId()),
-			channelType,
+			request.channelType() == null ? ChannelType.UNKNOWN : request.channelType(),
 			safeText(request.receiver()),
 			request.message(),
 			startedAtMillis

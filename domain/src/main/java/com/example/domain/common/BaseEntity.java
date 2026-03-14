@@ -21,14 +21,4 @@ public abstract class BaseEntity {
 
     @LastModifiedDate
     private LocalDateTime updatedAt;
-
-    private LocalDateTime deletedAt;
-
-    public boolean isDeleted() {
-        return deletedAt != null;
-    }
-
-    public void delete() {
-        this.deletedAt = LocalDateTime.now();
-    }
 }

@@ -8,6 +8,7 @@
 - [도메인 모델](#도메인-모델)
 - [비동기 메시징 처리](#비동기-메시징-처리)
 - [채널 발송 전략](#채널-발송-전략)
+- [아카이브](#아카이브)
 - [핵심 클래스 책임 요약](#핵심-클래스-책임-요약)
 
 ---
@@ -18,32 +19,36 @@
 classDiagram
     class NotificationController {
       +send(request)
-      +getNotificationBundles(cursorId, size)
+      +getNotification(notificationId)
+      +markAsRead(notificationId)
       +getGroup(groupId)
       +getGroupsByClientId(clientId)
-      +getNotification(notificationId)
-      +getNotificationsByReceiver(receiver)
+      +markGroupAsRead(groupId)
     }
 
-    class NotificationCommandUseCase {
+    class NotificationWriteUseCase {
       <<interface>>
-      +request(command) NotificationGroup
+      +request(command) NotificationCommandResult
+      +markAsRead(notificationId) Optional~NotificationReadResult~
+      +markGroupAsRead(groupId) Optional~NotificationGroupReadResult~
     }
 
     class NotificationQueryUseCase {
       <<interface>>
-      +getRecentGroups(cursorId, size) CursorSlice
-      +getGroupDetail(groupId) Optional~NotificationGroup~
-      +getNotification(notificationId) Optional~Notification~
+      +getGroup(groupId) Optional~NotificationGroupResult~
+      +getGroupDetail(groupId) Optional~NotificationGroupDetailResult~
+      +getGroupsByClientId(clientId, cursorId, size) CursorSlice
+      +getNotification(notificationId) Optional~NotificationResult~
     }
 
     class NotificationDispatchUseCase {
       <<interface>>
       +dispatch(notification) NotificationDispatchResult
+      +dispatchBatch(notifications) BatchDispatchResult
       +markAsFailed(notificationId, reason)
     }
 
-    class NotificationCommandService
+    class NotificationWriteService
     class NotificationQueryService
     class NotificationDispatchService
 
@@ -59,6 +64,13 @@ classDiagram
       <<interface>>
     }
 
+    class NotificationReadStatusRepository {
+      <<interface>>
+      +findById(notificationId)
+      +save(notificationId, readAt)
+      +saveAll(notificationIds, readAt)
+    }
+
     class NotificationSender {
       <<interface>>
       +send(notification) SendResult
@@ -70,15 +82,16 @@ classDiagram
       +release(notificationId)
     }
 
-    NotificationController --> NotificationCommandUseCase
+    NotificationController --> NotificationWriteUseCase
     NotificationController --> NotificationQueryUseCase
 
-    NotificationCommandUseCase <|.. NotificationCommandService
+    NotificationWriteUseCase <|.. NotificationWriteService
     NotificationQueryUseCase <|.. NotificationQueryService
     NotificationDispatchUseCase <|.. NotificationDispatchService
 
-    NotificationCommandService --> NotificationGroupRepository
-    NotificationCommandService --> OutboxRepository
+    NotificationWriteService --> NotificationGroupRepository
+    NotificationWriteService --> OutboxRepository
+    NotificationWriteService --> NotificationReadStatusRepository
     NotificationQueryService --> NotificationGroupRepository
     NotificationQueryService --> NotificationRepository
     NotificationDispatchService --> NotificationRepository
@@ -94,9 +107,6 @@ classDiagram
     class BaseEntity {
       +createdAt
       +updatedAt
-      +deletedAt
-      +delete()
-      +isDeleted()
     }
 
     class NotificationGroup {
@@ -199,65 +209,56 @@ classDiagram
       +publish(notificationId)
     }
 
-    class RabbitMQConsumer {
-      +onMessage(payload, message, channel, deliveryTag)
+    class RabbitMQBatchConsumer {
+      +onMessages(messages, channel)
     }
 
-    class RabbitMQRecordHandler {
-      +process(notificationId, retryCount)
+    class DeadLetterPublisher {
+      <<interface>>
+      +publish(sourceRecordId, payload, notificationId, reason)
     }
 
-    class NotificationRecoveryPoller {
-      +recoverStuckNotifications()
-    }
-
-    class RabbitMQWaitPublisher {
+    class WaitPublisher {
+      <<interface>>
       +publish(notificationId, retryCount, lastError)
+      +publish(notificationId, retryCount, lastError, retryDelayMillis)
     }
 
     class RabbitMQDlqPublisher {
       +publish(sourceRecordId, payload, notificationId, reason)
     }
 
+    class RabbitMQWaitPublisher {
+      +publish(notificationId, retryCount, lastError, retryDelayMillis)
+    }
+
+    class RabbitMQRecordHandler {
+      +processBatch(requests) List~RecordProcessResult~
+    }
+
+    class NotificationRecoveryPoller {
+      +recoverStuckNotifications()
+    }
+
     class NotificationRabbitProperties {
       +resolveMaxRetryCount()
-      +calculateRetryDelayMillis(retryCount)
-    }
-
-    class NotificationMessagePayload {
-      +notificationId
-      +retryCount
-    }
-
-    class NotificationWaitPayload {
-      +notificationId
-      +currentRetryCount
-      +nextRetryCount
-      +delayMillis
-      +lastError
-    }
-
-    class NotificationDeadLetterPayload {
-      +recordId
-      +notificationId
-      +payload
-      +reason
-      +failedAt
+      +calculateRetryDelayMillis(retryCount, overrideMillis)
     }
 
     OutboxPoller --> RabbitMQPublisher
 
-    RabbitMQConsumer --> RabbitMQRecordHandler
-    RabbitMQConsumer --> RabbitMQWaitPublisher
-    RabbitMQConsumer --> RabbitMQDlqPublisher
+    RabbitMQBatchConsumer --> RabbitMQRecordHandler
+    RabbitMQBatchConsumer --> DeadLetterPublisher
+    RabbitMQBatchConsumer --> WaitPublisher
+
+    DeadLetterPublisher <|.. RabbitMQDlqPublisher
+    WaitPublisher <|.. RabbitMQWaitPublisher
 
     RabbitMQRecordHandler --> NotificationDispatchUseCase
     RabbitMQRecordHandler --> NotificationRepository
     RabbitMQRecordHandler --> DispatchLockManager
     RabbitMQRecordHandler --> NotificationRabbitProperties
 
-    RabbitMQWaitPublisher --> NotificationWaitPayload
-    RabbitMQDlqPublisher --> NotificationDeadLetterPayload
     NotificationRecoveryPoller --> NotificationRepository
     NotificationRecoveryPoller --> RabbitMQPublisher
 ```
@@ -303,17 +304,77 @@ classDiagram
 
 ---
 
+## 아카이브
+
+```mermaid
+classDiagram
+    class NotificationArchiveScheduler {
+      +archiveExpiredData()
+      +managePartitions()
+    }
+
+    class NotificationArchiveService {
+      +archiveExpiredData() ArchiveRunResult
+      -archiveNotificationBatch(cutoff) int
+      -archiveCompletedGroupBatch(cutoff) int
+    }
+
+    class NotificationPartitionManager {
+      +ensureNextMonthPartitions()
+      +dropOldPartitions()
+    }
+
+    class ArchiveStorage {
+      <<interface>>
+      +export(tableName, partitionName)
+    }
+
+    class NoOpArchiveStorage {
+      +export(tableName, partitionName)
+    }
+
+    class ArchiveRunResult {
+      <<record>>
+      +cutoff LocalDateTime
+      +archivedNotifications int
+      +archivedGroups int
+      +hasWork() boolean
+    }
+
+    class ArchiveProperties {
+      +resolveRetentionDays() int
+      +resolveBatchSize() int
+      +resolvePartitionRetentionMonths() int
+    }
+
+    NotificationArchiveScheduler --> NotificationArchiveService
+    NotificationArchiveScheduler --> NotificationPartitionManager
+
+    NotificationArchiveService --> ArchiveRunResult
+    NotificationArchiveService --> ArchiveProperties
+
+    NotificationPartitionManager --> ArchiveStorage
+    NotificationPartitionManager --> ArchiveProperties
+
+    ArchiveStorage <|.. NoOpArchiveStorage
+```
+
+---
+
 ## 핵심 클래스 책임 요약
 
 | 클래스 | 레이어 | 주요 책임 |
 |-------|--------|-----------|
 | `NotificationController` | API | 요청 검증/DTO 변환/응답 생성 |
-| `NotificationCommandService` | Application | 멱등성 검사, 그룹 생성, Outbox 저장 |
+| `NotificationWriteService` | Application | 멱등성 검사, 그룹 생성, Outbox 저장, 읽음 처리 |
 | `NotificationQueryService` | Application | 그룹/알림 조회, 커서 페이지 계산 |
-| `NotificationDispatchService` | Application | 발송 상태 전이, 채널 발송 위임 |
-| `OutboxPoller` | Infrastructure | Outbox -> WORK 큐 발행 |
-| `RabbitMQConsumer` | Infrastructure | WORK 메시지 소비 및 ACK 제어 |
-| `RabbitMQRecordHandler` | Infrastructure | 분산 락/재시도 분기/실패 처리 |
+| `NotificationDispatchService` | Application | 발송 상태 전이, 채널 발송 위임, 배치 발송 |
+| `OutboxPoller` | Infrastructure | Outbox → WORK 큐 발행 |
+| `RabbitMQBatchConsumer` | Infrastructure | WORK 메시지 배치 소비, 유효성 검사, DLQ/WAIT 분기 |
+| `RabbitMQRecordHandler` | Infrastructure | 분산 락 획득, 발송 위임, 재시도/실패 결과 반환 |
 | `NotificationRecoveryPoller` | Infrastructure | 장시간 PENDING 알림 재발행 |
 | `NotificationSenderImpl` | Infrastructure | 채널별 Sender 전략 선택 |
 | `DispatchLockManagerImpl` | Infrastructure | notificationId 단위 락 획득/해제 |
+| `NotificationArchiveService` | Infrastructure | 만료 알림 archive 테이블 이관 |
+| `NotificationPartitionManager` | Infrastructure | 월별 파티션 생성 및 오래된 파티션 삭제 |
+| `NotificationArchiveScheduler` | Infrastructure | 아카이브 배치 및 파티션 관리 스케줄 실행 |

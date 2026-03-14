@@ -1,7 +1,7 @@
 package com.example.infrastructure.analysis;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.doAnswer;
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,10 +17,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
-import com.example.application.port.in.NotificationCommandUseCase;
+import com.example.application.port.in.NotificationWriteUseCase;
 import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.out.repository.NotificationGroupRepository;
@@ -34,12 +34,12 @@ class IdempotencyRaceIntegrationTest extends IntegrationTestSupportNoTx {
 	private static final String IDEMPOTENCY_KEY = "idem-race-key";
 
 	@Autowired
-	private NotificationCommandUseCase commandUseCase;
+	private NotificationWriteUseCase commandUseCase;
 
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
-	@SpyBean
+	@MockitoSpyBean
 	private NotificationGroupRepository groupRepository;
 
 	@BeforeEach
@@ -70,7 +70,8 @@ class IdempotencyRaceIntegrationTest extends IntegrationTestSupportNoTx {
 			"content",
 			ChannelType.EMAIL,
 			List.of("user1@test.com", "user2@test.com"),
-			IDEMPOTENCY_KEY
+			IDEMPOTENCY_KEY,
+			null
 		);
 
 		Callable<Object> task = () -> {
@@ -97,7 +98,91 @@ class IdempotencyRaceIntegrationTest extends IntegrationTestSupportNoTx {
 		assertThat(countRows("outbox")).isEqualTo(2);
 	}
 
+	@Test
+	@DisplayName("동일 clientId/idempotencyKey 대량 경쟁 N=10/20/50에서도 모두 같은 groupId를 반환한다")
+	void request_withSameIdempotencyKeyRace_scalesToHigherConcurrency() throws Exception {
+		for (int requestCount : List.of(10, 20, 50)) {
+			truncateTables();
+			String clientId = CLIENT_ID + "-" + requestCount;
+			String idempotencyKey = IDEMPOTENCY_KEY + "-" + requestCount;
+
+			SendCommand command = new SendCommand(
+				clientId,
+				"sender",
+				"title",
+				"content",
+				ChannelType.EMAIL,
+				List.of("user1@test.com", "user2@test.com"),
+				idempotencyKey,
+				null
+			);
+
+			List<Object> results = executeConcurrently(buildTasks(command, requestCount), 15);
+
+			assertThat(results.stream().filter(NotificationResultPredicates::isCommandSuccess).count())
+				.isEqualTo(requestCount);
+			assertThat(results.stream().filter(NotificationResultPredicates::isException).count()).isZero();
+			assertThat(results.stream()
+				.filter(NotificationResultPredicates::isCommandSuccess)
+				.map(NotificationCommandResult.class::cast)
+				.map(NotificationCommandResult::groupId)
+				.distinct()
+				.count()).isEqualTo(1);
+			assertThat(groupRepository.findByClientIdAndIdempotencyKey(clientId, idempotencyKey)).isPresent();
+			assertThat(countRows("notification_group")).isEqualTo(1);
+			assertThat(countRows("notification")).isEqualTo(2);
+			assertThat(countRows("outbox")).isEqualTo(2);
+		}
+	}
+
+	private List<Callable<Object>> buildTasks(SendCommand command, int requestCount) {
+		List<Callable<Object>> tasks = new ArrayList<>();
+		for (int i = 0; i < requestCount; i++) {
+			tasks.add(() -> {
+				try {
+					return commandUseCase.request(command);
+				} catch (Exception e) {
+					return e;
+				}
+			});
+		}
+		return tasks;
+	}
+
 	private List<Object> executeConcurrently(Callable<Object> first, Callable<Object> second) throws Exception {
+		return executeConcurrently(List.of(first, second), 5);
+	}
+
+	private List<Object> executeConcurrently(List<Callable<Object>> tasks, int timeoutSeconds) throws Exception {
+		ExecutorService executor = Executors.newFixedThreadPool(tasks.size());
+		CountDownLatch startLatch = new CountDownLatch(1);
+		try {
+			List<Callable<Object>> wrapped = new ArrayList<>();
+			for (Callable<Object> task : tasks) {
+				wrapped.add(() -> {
+					startLatch.await();
+					return task.call();
+				});
+			}
+			List<Future<Object>> futures = new ArrayList<>();
+			for (Callable<Object> callable : wrapped) {
+				futures.add(executor.submit(callable));
+			}
+			startLatch.countDown();
+
+			List<Object> results = new ArrayList<>();
+			for (Future<Object> future : futures) {
+				results.add(future.get(timeoutSeconds, TimeUnit.SECONDS));
+			}
+			return results;
+		} finally {
+			executor.shutdownNow();
+			executor.awaitTermination(3, TimeUnit.SECONDS);
+		}
+	}
+
+	private List<Object> executeConcurrently(Callable<Object> first, Callable<Object> second, int timeoutSeconds) throws
+		Exception {
 		ExecutorService executor = Executors.newFixedThreadPool(2);
 		CountDownLatch startLatch = new CountDownLatch(1);
 		try {
@@ -119,7 +204,7 @@ class IdempotencyRaceIntegrationTest extends IntegrationTestSupportNoTx {
 
 			List<Object> results = new ArrayList<>();
 			for (Future<Object> future : futures) {
-				results.add(future.get(5, TimeUnit.SECONDS));
+				results.add(future.get(timeoutSeconds, TimeUnit.SECONDS));
 			}
 			return results;
 		} finally {

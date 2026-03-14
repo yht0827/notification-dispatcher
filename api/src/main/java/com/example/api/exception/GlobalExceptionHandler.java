@@ -14,6 +14,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 
 import com.example.api.dto.response.ApiResponse;
 import com.example.api.dto.response.ErrorResponse;
+import com.example.domain.exception.AccessDeniedException;
 
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,14 @@ public class GlobalExceptionHandler {
 		return ResponseEntity
 			.status(errorCode.getStatus())
 			.body(ApiResponse.error(errorCode.name(), e.getMessage()));
+	}
+
+	@ExceptionHandler(AccessDeniedException.class)
+	public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(AccessDeniedException e) {
+		log.warn("AccessDeniedException: {}", e.getMessage());
+		return ResponseEntity
+			.status(ErrorCode.FORBIDDEN.getStatus())
+			.body(ApiResponse.error(ErrorCode.FORBIDDEN.name(), e.getMessage()));
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)

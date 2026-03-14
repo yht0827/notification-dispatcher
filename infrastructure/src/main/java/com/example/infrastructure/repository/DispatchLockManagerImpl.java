@@ -1,5 +1,7 @@
 package com.example.infrastructure.repository;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.redisson.api.RLock;
@@ -22,8 +24,8 @@ public class DispatchLockManagerImpl implements DispatchLockManager {
 
 	private final RedissonClient redissonClient;
 
-	// 현재 스레드가 획득한 락 저장
-	private final ThreadLocal<RLock> currentLock = new ThreadLocal<>();
+	// 배치 처리에서는 한 스레드가 여러 notification lock을 동시에 보유할 수 있다.
+	private final ThreadLocal<Map<Long, RLock>> currentLocks = ThreadLocal.withInitial(HashMap::new);
 
 	@Override
 	public boolean tryAcquire(Long notificationId) {
@@ -31,13 +33,13 @@ public class DispatchLockManagerImpl implements DispatchLockManager {
 		RLock lock = redissonClient.getLock(key);
 
 		try {
-			boolean acquired = lock.tryLock(LOCK_WAIT_TIME, LOCK_LEASE_TIME, TimeUnit.MINUTES);
+				boolean acquired = lock.tryLock(LOCK_WAIT_TIME, LOCK_LEASE_TIME, TimeUnit.MINUTES);
 
-			if (acquired) {
-				currentLock.set(lock);
-				log.debug("발송 락 획득: notificationId={}", notificationId);
-				return true;
-			}
+				if (acquired) {
+					currentLocks.get().put(notificationId, lock);
+					log.debug("발송 락 획득: notificationId={}", notificationId);
+					return true;
+				}
 
 			log.debug("발송 락 획득 실패 (이미 처리 중): notificationId={}", notificationId);
 			return false;
@@ -50,7 +52,8 @@ public class DispatchLockManagerImpl implements DispatchLockManager {
 
 	@Override
 	public void release(Long notificationId) {
-		RLock lock = currentLock.get();
+		Map<Long, RLock> locks = currentLocks.get();
+		RLock lock = locks.get(notificationId);
 
 		if (lock == null) {
 			log.warn("해제할 락 없음: notificationId={}", notificationId);
@@ -61,12 +64,15 @@ public class DispatchLockManagerImpl implements DispatchLockManager {
 			if (lock.isHeldByCurrentThread()) {
 				lock.unlock();
 				log.debug("발송 락 해제: notificationId={}", notificationId);
-			} else {
-				log.warn("현재 스레드가 소유한 락이 아님: notificationId={}", notificationId);
+				} else {
+					log.warn("현재 스레드가 소유한 락이 아님: notificationId={}", notificationId);
+				}
+			} finally {
+				locks.remove(notificationId);
+				if (locks.isEmpty()) {
+					currentLocks.remove();
+				}
 			}
-		} finally {
-			currentLock.remove();
-		}
 	}
 
 	private String buildKey(Long notificationId) {

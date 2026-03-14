@@ -23,7 +23,7 @@
       "gridPos": {
         "x": 0,
         "y": 1,
-        "w": 12,
+        "w": 8,
         "h": 8
       },
       "fieldConfig": {
@@ -63,9 +63,9 @@
       "type": "timeseries",
       "title": "JVM Memory (Heap)",
       "gridPos": {
-        "x": 12,
+        "x": 8,
         "y": 1,
-        "w": 12,
+        "w": 8,
         "h": 8
       },
       "fieldConfig": {
@@ -99,6 +99,46 @@
         {
           "expr": "jvm_memory_max_bytes{application=\"notification-dispatcher\", area=\"heap\"}",
           "legendFormat": "Heap Max"
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "type": "timeseries",
+      "title": "JVM Threads",
+      "gridPos": {
+        "x": 16,
+        "y": 1,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "jvm_threads_live_threads{application=\"notification-dispatcher\"}",
+          "legendFormat": "Live Threads"
+        },
+        {
+          "expr": "jvm_threads_daemon_threads{application=\"notification-dispatcher\"}",
+          "legendFormat": "Daemon Threads"
         }
       ]
     },
@@ -426,7 +466,7 @@
       "gridPos": {
         "x": 0,
         "y": 23,
-        "w": 5,
+        "w": 4,
         "h": 4
       },
       "fieldConfig": {
@@ -458,17 +498,17 @@
     {
       "id": 22,
       "type": "stat",
-      "title": "Peak TPS",
-      "description": "테스트 구간 내 최고 TPS (최근 30분)",
+      "title": "Request Count (1m)",
+      "description": "최근 1분 총 요청 수",
       "gridPos": {
-        "x": 5,
+        "x": 4,
         "y": 23,
-        "w": 5,
+        "w": 4,
         "h": 4
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps",
+          "unit": "short",
           "decimals": 1,
           "color": {
             "fixedColor": "blue",
@@ -497,17 +537,17 @@
       },
       "targets": [
         {
-          "expr": "max_over_time(sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))[30m:1m])",
-          "legendFormat": "Peak TPS"
+          "expr": "increase(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m])",
+          "legendFormat": "Request Count"
         }
       ]
     },
     {
       "id": 19,
       "type": "stat",
-      "title": "P95 응답시간",
+      "title": "Avg 응답시간",
       "gridPos": {
-        "x": 10,
+        "x": 8,
         "y": 23,
         "w": 4,
         "h": 4
@@ -549,19 +589,71 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
-          "legendFormat": "P95"
+          "expr": "sum(rate(http_server_requests_seconds_sum{application=\"notification-dispatcher\"}[1m])) / sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))",
+          "legendFormat": "Avg"
         }
       ]
     },
     {
       "id": 21,
       "type": "stat",
+      "title": "P95 응답시간",
+      "gridPos": {
+        "x": 12,
+        "y": 23,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 1.0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
+          "legendFormat": "P95"
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "type": "stat",
       "title": "P99 응답시간",
       "gridPos": {
-        "x": 14,
+        "x": 16,
         "y": 23,
-        "w": 5,
+        "w": 4,
         "h": 4
       },
       "fieldConfig": {
@@ -611,9 +703,9 @@
       "type": "stat",
       "title": "에러율",
       "gridPos": {
-        "x": 19,
+        "x": 20,
         "y": 23,
-        "w": 5,
+        "w": 4,
         "h": 4
       },
       "fieldConfig": {
@@ -661,11 +753,11 @@
     {
       "id": 9,
       "type": "timeseries",
-      "title": "HTTP Response Time (P50 / P95 / P99)",
+      "title": "HTTP Response Time (Avg / P95 / P99 / Max)",
       "gridPos": {
         "x": 0,
         "y": 27,
-        "w": 12,
+        "w": 8,
         "h": 8
       },
       "fieldConfig": {
@@ -689,8 +781,8 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
-          "legendFormat": "P50"
+          "expr": "sum(rate(http_server_requests_seconds_sum{application=\"notification-dispatcher\"}[1m])) / sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))",
+          "legendFormat": "Avg"
         },
         {
           "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
@@ -699,44 +791,31 @@
         {
           "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
           "legendFormat": "P99"
+        },
+        {
+          "expr": "max(http_server_requests_seconds_max{application=\"notification-dispatcher\"})",
+          "legendFormat": "Max"
         }
       ]
     },
     {
       "id": 10,
       "type": "timeseries",
-      "title": "HTTP Request Rate & Error Rate",
+      "title": "HTTP Request Count / Success / Fail (1m)",
       "gridPos": {
-        "x": 12,
+        "x": 8,
         "y": 27,
-        "w": 12,
+        "w": 8,
         "h": 8
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps",
+          "unit": "short",
           "custom": {
             "lineWidth": 2
           }
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Error Rate"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "percentunit"
-              },
-              {
-                "id": "custom.axisPlacement",
-                "value": "right"
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "options": {
         "tooltip": {
@@ -750,16 +829,20 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))",
-          "legendFormat": "Total RPS"
+          "expr": "increase(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m])",
+          "legendFormat": "Total"
         },
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\", status=~\"5..\"}[1m]))",
-          "legendFormat": "5xx RPS"
+          "expr": "increase(http_server_requests_seconds_count{application=\"notification-dispatcher\", status!~\"4..|5..\"}[1m])",
+          "legendFormat": "Success"
         },
         {
-          "expr": "(sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\", status=~\"5..\"}[1m])) or vector(0)) / sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))",
-          "legendFormat": "Error Rate"
+          "expr": "increase(http_server_requests_seconds_count{application=\"notification-dispatcher\", status=~\"4..\"}[1m]) or vector(0)",
+          "legendFormat": "4xx"
+        },
+        {
+          "expr": "increase(http_server_requests_seconds_count{application=\"notification-dispatcher\", status=~\"5..\"}[1m]) or vector(0)",
+          "legendFormat": "5xx"
         }
       ]
     },
@@ -768,9 +851,9 @@
       "type": "timeseries",
       "title": "HTTP Response Time by URI (P95)",
       "gridPos": {
-        "x": 0,
+        "x": 16,
         "y": 35,
-        "w": 24,
+        "w": 8,
         "h": 8
       },
       "fieldConfig": {
@@ -819,8 +902,8 @@
     {
       "id": 12,
       "type": "timeseries",
-      "title": "MySQL Active Threads (DB 부하)",
-      "description": "threads_running = 현재 실행 중인 쿼리 수. CPU 부하의 proxy 지표. threads_connected = 전체 연결 수",
+      "title": "MySQL Connections & Active Threads",
+      "description": "threads_connected = DB 전체 연결 수, threads_running = 현재 실행 중인 쿼리 수, max_connections = DB 허용 최대 연결 수",
       "gridPos": {
         "x": 0,
         "y": 44,
@@ -864,8 +947,8 @@
     {
       "id": 13,
       "type": "timeseries",
-      "title": "MySQL Query Rate",
-      "description": "초당 쿼리 수 및 슬로우 쿼리 발생률",
+      "title": "MySQL Slow Queries & Query Rate",
+      "description": "Slow Queries / s 발생 여부와 전체 Queries / s를 함께 본다",
       "gridPos": {
         "x": 12,
         "y": 44,
@@ -968,75 +1051,13 @@
       ]
     },
     {
-      "id": 15,
+      "id": 16,
       "type": "timeseries",
-      "title": "DB Connection Acquire Time & Row Lock",
-      "description": "커넥션 획득 지연 + InnoDB Row Lock 대기. 응답시간 증가 원인 파악용",
+      "title": "MySQL Row Lock Wait Time",
+      "description": "InnoDB row lock 평균/최대 대기 시간. 높을수록 동시성 병목 가능성 증가",
       "gridPos": {
         "x": 12,
         "y": 52,
-        "w": 12,
-        "h": 8
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "ms",
-          "custom": {
-            "lineWidth": 2
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Row Lock Waits / s"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              },
-              {
-                "id": "custom.axisPlacement",
-                "value": "right"
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        },
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        }
-      },
-      "targets": [
-        {
-          "expr": "rate(hikaricp_connections_acquire_seconds_sum{application=\"notification-dispatcher\"}[1m]) / rate(hikaricp_connections_acquire_seconds_count{application=\"notification-dispatcher\"}[1m]) * 1000",
-          "legendFormat": "Avg Acquire Time (ms)"
-        },
-        {
-          "expr": "hikaricp_connections_timeout_total{application=\"notification-dispatcher\"}",
-          "legendFormat": "Connection Timeout (누적)"
-        },
-        {
-          "expr": "rate(mysql_global_status_innodb_row_lock_waits[1m])",
-          "legendFormat": "Row Lock Waits / s"
-        }
-      ]
-    },
-    {
-      "id": 16,
-      "type": "timeseries",
-      "title": "MySQL InnoDB Row Lock Avg Wait Time",
-      "description": "InnoDB 행 잠금 평균 대기 시간. 높을수록 동시성 병목",
-      "gridPos": {
-        "x": 0,
-        "y": 60,
         "w": 12,
         "h": 8
       },
@@ -1071,10 +1092,51 @@
       ]
     },
     {
-      "id": 17,
+      "id": 29,
       "type": "timeseries",
-      "title": "MySQL Buffer Pool",
-      "description": "Buffer pool hit rate가 낮으면 디스크 I/O 증가 → 쿼리 지연",
+      "title": "MySQL Deadlocks / Table Locks Waited",
+      "description": "InnoDB deadlock 1분 증가량과 Table Locks Waited 1분 증가량. deadlock은 info_schema.innodb_metrics collector 기준.",
+      "gridPos": {
+        "x": 0,
+        "y": 60,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "increase(mysql_info_schema_innodb_metrics_lock_lock_deadlocks_total[1m])",
+          "legendFormat": "Deadlocks / 1m"
+        },
+        {
+          "expr": "increase(mysql_global_status_table_locks_waited[1m]) or vector(0)",
+          "legendFormat": "Table Locks Waited / 1m"
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "type": "timeseries",
+      "title": "MySQL CPU & Disk I/O",
+      "description": "MySQL 컨테이너 CPU 사용량과 디스크 read/write throughput. CPU는 left axis, Disk I/O는 right axis(bytes/s).",
       "gridPos": {
         "x": 12,
         "y": 60,
@@ -1083,7 +1145,7 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "bytes",
+          "unit": "percentunit",
           "custom": {
             "lineWidth": 2
           }
@@ -1092,12 +1154,28 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Buffer Pool Hit Rate"
+              "options": "Read Bytes / s"
             },
             "properties": [
               {
                 "id": "unit",
-                "value": "percentunit"
+                "value": "Bps"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Write Bytes / s"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "Bps"
               },
               {
                 "id": "custom.axisPlacement",
@@ -1119,53 +1197,16 @@
       },
       "targets": [
         {
-          "expr": "mysql_global_status_innodb_buffer_pool_bytes_data",
-          "legendFormat": "Buffer Pool Used"
-        },
-        {
-          "expr": "mysql_global_variables_innodb_buffer_pool_size",
-          "legendFormat": "Buffer Pool Total"
-        },
-        {
-          "expr": "1 - rate(mysql_global_status_innodb_buffer_pool_reads[1m]) / rate(mysql_global_status_innodb_buffer_pool_read_requests[1m])",
-          "legendFormat": "Buffer Pool Hit Rate"
-        }
-      ]
-    },
-    {
-      "id": 28,
-      "type": "timeseries",
-      "title": "MySQL Container CPU",
-      "description": "notification-mysql 컨테이너 CPU 사용량. 1.0 = 100%, 멀티코어에서는 100%를 초과할 수 있음.",
-      "gridPos": {
-        "x": 0,
-        "y": 68,
-        "w": 24,
-        "h": 8
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit",
-          "custom": {
-            "lineWidth": 2
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        },
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        }
-      },
-      "targets": [
-        {
           "expr": "sum(rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service=\"mysql\"}[1m])) or sum(rate(container_cpu_usage_seconds_total{name=~\".*notification-mysql.*\"}[1m])) or sum(rate(container_cpu_usage_seconds_total{container=~\".*notification-mysql.*\"}[1m]))",
           "legendFormat": "MySQL CPU"
+        },
+        {
+          "expr": "sum(rate(container_fs_reads_bytes_total{container_label_com_docker_compose_service=\"mysql\"}[1m])) or sum(rate(container_fs_reads_bytes_total{name=~\".*notification-mysql.*\"}[1m])) or sum(rate(container_fs_reads_bytes_total{container=~\".*notification-mysql.*\"}[1m]))",
+          "legendFormat": "Read Bytes / s"
+        },
+        {
+          "expr": "sum(rate(container_fs_writes_bytes_total{container_label_com_docker_compose_service=\"mysql\"}[1m])) or sum(rate(container_fs_writes_bytes_total{name=~\".*notification-mysql.*\"}[1m])) or sum(rate(container_fs_writes_bytes_total{container=~\".*notification-mysql.*\"}[1m]))",
+          "legendFormat": "Write Bytes / s"
         }
       ]
     },
@@ -1176,7 +1217,7 @@
       "type": "row",
       "gridPos": {
         "x": 0,
-        "y": 76,
+        "y": 68,
         "w": 24,
         "h": 1
       }
@@ -1188,7 +1229,7 @@
       "description": "WORK/WAIT/DLQ 큐의 전체 메시지 수(ready + unacked)",
       "gridPos": {
         "x": 0,
-        "y": 77,
+        "y": 69,
         "w": 12,
         "h": 8
       },
@@ -1233,7 +1274,7 @@
       "description": "Ready=대기 메시지, Unacked=소비 중 미ACK 메시지",
       "gridPos": {
         "x": 12,
-        "y": 77,
+        "y": 69,
         "w": 12,
         "h": 8
       },
@@ -1273,8 +1314,8 @@
       "title": "Redis Memory",
       "gridPos": {
         "x": 0,
-        "y": 85,
-        "w": 8,
+        "y": 77,
+        "w": 6,
         "h": 8
       },
       "fieldConfig": {
@@ -1312,9 +1353,9 @@
       "type": "timeseries",
       "title": "Connected Clients",
       "gridPos": {
-        "x": 8,
-        "y": 85,
-        "w": 8,
+        "x": 6,
+        "y": 77,
+        "w": 6,
         "h": 8
       },
       "fieldConfig": {
@@ -1352,9 +1393,9 @@
       "type": "timeseries",
       "title": "Commands/s",
       "gridPos": {
-        "x": 16,
-        "y": 85,
-        "w": 8,
+        "x": 12,
+        "y": 77,
+        "w": 6,
         "h": 8
       },
       "fieldConfig": {
@@ -1382,6 +1423,46 @@
           "legendFormat": "Commands/s"
         }
       ]
+    },
+    {
+      "id": 28,
+      "type": "timeseries",
+      "title": "Keyspace Hit/Miss",
+      "gridPos": {
+        "x": 18,
+        "y": 77,
+        "w": 6,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(redis_keyspace_hits_total[1m]) or vector(0)",
+          "legendFormat": "Hits/s"
+        },
+        {
+          "expr": "rate(redis_keyspace_misses_total[1m]) or vector(0)",
+          "legendFormat": "Misses/s"
+        }
+      ]
     }
   ],
   "refresh": "5s",
@@ -1398,5 +1479,5 @@
   "timezone": "browser",
   "title": "Notification Dispatcher - Load Test",
   "uid": "notification-dispatcher-lt",
-  "version": 1
+  "version": 2
 }

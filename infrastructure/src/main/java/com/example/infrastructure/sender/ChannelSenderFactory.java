@@ -1,5 +1,6 @@
 package com.example.infrastructure.sender;
 
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -10,25 +11,20 @@ import com.example.domain.exception.UnsupportedChannelException;
 import com.example.domain.notification.ChannelType;
 import com.example.infrastructure.sender.exception.DuplicateChannelSenderRegistrationException;
 
-import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
-
 @Component
-@RequiredArgsConstructor
 public class ChannelSenderFactory {
 
-	private final List<ChannelSender> senders;
-	private Map<ChannelType, ChannelSender> senderMap;
+	private final Map<ChannelType, ChannelSender> senderMap;
 
-	@PostConstruct
-	void init() {
-		senderMap = new EnumMap<>(ChannelType.class);
+	public ChannelSenderFactory(List<ChannelSender> senders) {
+		Map<ChannelType, ChannelSender> map = new EnumMap<>(ChannelType.class);
 		for (ChannelSender sender : senders) {
-			ChannelSender existing = senderMap.put(sender.getChannelType(), sender);
+			ChannelSender existing = map.put(sender.getChannelType(), sender);
 			if (existing != null) {
 				throw new DuplicateChannelSenderRegistrationException(sender.getChannelType());
 			}
 		}
+		this.senderMap = Collections.unmodifiableMap(map);
 	}
 
 	public ChannelSender getSender(ChannelType channelType) {

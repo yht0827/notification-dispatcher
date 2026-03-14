@@ -103,6 +103,19 @@ class NotificationGroupTest {
         assertThat(group.isCompleted()).isTrue();
     }
 
+    @Test
+    @DisplayName("처리되지 않은 알림이 남아 있으면 isCompleted가 false를 반환한다")
+    void isCompleted_falseWhenPendingExists() {
+        NotificationGroup group = createBulkGroup();
+        Notification processed = group.addNotification("user1@example.com");
+        group.addNotification("user2@example.com");
+
+        processed.startSending();
+        processed.markAsSent();
+
+        assertThat(group.isCompleted()).isFalse();
+    }
+
     private NotificationGroup createBulkGroup() {
         return NotificationGroup.create(
                 "test-service", "MyShop", "대량 발송 테스트", "테스트 내용입니다.", ChannelType.EMAIL, 3);

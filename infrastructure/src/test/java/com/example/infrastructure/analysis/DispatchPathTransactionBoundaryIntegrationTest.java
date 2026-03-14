@@ -13,18 +13,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.out.NotificationSender;
-import com.example.application.port.out.result.SendResult;
+import com.example.application.port.out.SendResult;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationRepository;
-import com.example.application.service.NotificationCommandService;
+import com.example.application.service.NotificationWriteService;
 import com.example.application.service.NotificationDispatchService;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
@@ -39,7 +39,7 @@ import jakarta.persistence.EntityManagerFactory;
 class DispatchPathTransactionBoundaryIntegrationTest extends IntegrationTestSupportNoTx {
 
 	@Autowired
-	private NotificationCommandService commandService;
+	private NotificationWriteService commandService;
 
 	@Autowired
 	private NotificationDispatchService dispatchService;
@@ -59,7 +59,7 @@ class DispatchPathTransactionBoundaryIntegrationTest extends IntegrationTestSupp
 	@Autowired
 	private TransactionTemplate transactionTemplate;
 
-	@MockBean
+	@MockitoBean
 	private NotificationSender notificationSender;
 
 	private Statistics statistics;
@@ -73,18 +73,22 @@ class DispatchPathTransactionBoundaryIntegrationTest extends IntegrationTestSupp
 	}
 
 	@Test
-	@DisplayName("현재 dispatch 경로는 메시지당 개별 트랜잭션이라 group update가 메시지 수만큼 발생한다")
-	void dispatchLikeProcessing_updatesGroupPerMessageTransaction() {
+	@DisplayName("현재 dispatch 경로는 bulk SQL을 사용해 entity lifecycle을 거치지 않는다")
+	void dispatchLikeProcessing_usesBulkSqlWithoutEntityLifecycle() {
 		List<Long> notificationIds = createNotifications(3);
 		statistics.clear();
 
 		for (Long notificationId : notificationIds) {
 			Notification detached = notificationRepository.findById(notificationId).orElseThrow();
-			assertThat(dispatchService.dispatch(detached).isSuccess()).isTrue();
+			List<com.example.application.port.in.result.BatchDispatchResult> results =
+				dispatchService.dispatchBatch(List.of(detached));
+			assertThat(results).singleElement().satisfies(r -> assertThat(r.isSuccess()).isTrue());
 		}
 
-		assertEntityStats(Notification.class, 0, 3, 0);
-		assertEntityStats(NotificationGroup.class, 0, 3, 0);
+		// bulk SQL은 Hibernate entity lifecycle을 거치지 않아 entity stats가 기록되지 않음
+		assertEntityStats(Notification.class, 0, 0, 0);
+		assertEntityStats(NotificationGroup.class, 0, 0, 0);
+		assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM notification WHERE status = 'SENT'", Integer.class)).isEqualTo(3);
 	}
 
 	@Test
@@ -125,7 +129,8 @@ class DispatchPathTransactionBoundaryIntegrationTest extends IntegrationTestSupp
 				"content",
 				ChannelType.EMAIL,
 				receivers,
-				"dispatch-boundary-" + receiverCount
+				"dispatch-boundary-" + receiverCount,
+				null
 			)
 		);
 		return result.groupId();

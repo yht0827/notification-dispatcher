@@ -5,7 +5,7 @@ spring:
     active: local
   threads:
     virtual:
-      enabled: true
+      enabled: false
   cloud:
     compatibility-verifier:
       enabled: false
@@ -15,6 +15,14 @@ spring:
           mockApi:
             connect-timeout: 1000
             read-timeout: 5000
+  jpa:
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+          batch_versioned_data: true
+        order_inserts: true
+        order_updates: true
 
 # ─────────────────────────────────────────
 # Notification Messaging (공통 기본값)
@@ -22,43 +30,77 @@ spring:
 notification:
   messaging:
     enabled: true
+
   rabbitmq:
-    listener-virtual-threads: true
+    listener-virtual-threads: false
   external:
     mock:
       name: mockApi
       enabled: false
       base-url: http://localhost:8081
-      send-path: /mock/send
+
+# ─────────────────────────────────────────
+# API Key 인증
+# ─────────────────────────────────────────
+api:
+  valid-keys:
+    - "dev-api-key-001"
 
 # ─────────────────────────────────────────
 # Resilience4j
 # ─────────────────────────────────────────
 resilience4j:
   retry:
-    retry-aspect-order: 2
-    instances:
-      mockApi:
+    configs:
+      channel:
         max-attempts: 2
         wait-duration: 200ms
-        enable-exponential-backoff: false
-        exponential-backoff-multiplier: 2
         retry-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiRetryableException
         ignore-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiNonRetryableException
-  circuitbreaker:
-    circuit-breaker-aspect-order: 1
+          - com.example.infrastructure.sender.mock.exception.MockApiRateLimitException
     instances:
-      mockApi:
+      email-api:
+        base-config: channel
+      sms-api:
+        base-config: channel
+      kakao-api:
+        base-config: channel
+  circuitbreaker:
+    configs:
+      channel:
         sliding-window-size: 20
         minimum-number-of-calls: 20
-        failure-rate-threshold: 50 # 10건 중 5건 실패 시 OPEN
+        failure-rate-threshold: 30 # mixed-latency VU15 재검증(r1~r3) 기준
         wait-duration-in-open-state: 10s
         record-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiRetryableException
+          - com.example.infrastructure.sender.mock.exception.MockApiRateLimitException
         ignore-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiNonRetryableException
+    instances:
+      email-api:
+        base-config: channel
+      sms-api:
+        base-config: channel
+      kakao-api:
+        base-config: channel
+  ratelimiter:
+    configs:
+      channel:
+        limit-refresh-period: 1s
+        timeout-duration: 0s         # 대기 없이 즉시 실패
+    instances:
+      email-api:
+        base-config: channel
+        limit-for-period: 30
+      sms-api:
+        base-config: channel
+        limit-for-period: 50
+      kakao-api:
+        base-config: channel
+        limit-for-period: 30
 # ─────────────────────────────────────────
 # Actuator / Metrics
 # ─────────────────────────────────────────
@@ -89,6 +131,19 @@ recovery:
   threshold-minutes: 5              # 5분 이상 PENDING이면 복구
   batch-size: 100                   # 1회당 100개씩 처리
 
+archive:
+  enabled: false
+  retention-days: 7
+  batch-size: 1000
+  cron: "0 0 0 * * *"
+  partition-cron: "0 5 0 1 * *"
+  partition-retention-months: 12
+  s3:
+    enabled: false
+    bucket: ${ARCHIVE_S3_BUCKET:notification-archive}
+    prefix: ${ARCHIVE_S3_PREFIX:archive}
+    region: ${ARCHIVE_S3_REGION:ap-northeast-2}
+
 ---
 # ─────────────────────────────────────────
 # Local 환경
@@ -111,6 +166,8 @@ spring:
       maximum-pool-size: 30
       minimum-idle: 10
       connection-timeout: 5000   # 5초 대기 후 TimeoutException (기본 30초)
+      data-source-properties:
+        rewriteBatchedStatements: true
   jpa:
     open-in-view: false
     hibernate:
@@ -125,6 +182,14 @@ spring:
     baseline-on-migrate: true
   data:
     redis:
+      timeout: 1s
+      connect-timeout: 1s
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+          max-wait: 500ms
       host: localhost
       port: 6379
 
@@ -137,10 +202,10 @@ notification:
     dlq-exchange: notification.dlq.exchange    # DLQ Exchange
     max-retry-count: 3                         # 최대 재시도 횟수
     retry-base-delay-millis: 5000              # 기본 재시도 지연 (ms)
+    retry-jitter-factor: 0.20                  # 재시도 대기 지터 비율 (20%)
     concurrency: 2
     max-concurrency: 2
-    prefetch: 100
-    batch-listener-enabled: false              # 배치 리스너 활성화
+    prefetch: 5
     batch-size: 50                             # 배치 수집 크기
     batch-receive-timeout-millis: 200          # 배치 수집 대기(ms)
   external:
@@ -176,6 +241,9 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      data-source-properties:
+        rewriteBatchedStatements: true
   jpa:
     open-in-view: false
     hibernate:
@@ -187,5 +255,13 @@ spring:
     baseline-on-migrate: true
   data:
     redis:
+      timeout: 1s
+      connect-timeout: 1s
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+          max-wait: 500ms
       host: ${REDIS_HOST}
       port: ${REDIS_PORT:6379}

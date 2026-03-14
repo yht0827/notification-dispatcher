@@ -2,11 +2,16 @@ import http from 'k6/http';
 import { check } from 'k6';
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
-const CONTENT_TYPE = { 'Content-Type': 'application/json' };
 
 const CLIENT_ID = __ENV.CLIENT_ID || 'perf-test-service';
 const CHANNEL_TYPE = __ENV.CHANNEL_TYPE || 'EMAIL';
 const RECEIVER_COUNT = Number(__ENV.RECEIVER_COUNT || 20);
+const API_KEY = __ENV.API_KEY || __ENV.X_API_KEY || CLIENT_ID;
+
+const DEFAULT_HEADERS = {
+  'Content-Type': 'application/json',
+  'X-Api-Key': API_KEY,
+};
 
 function buildEmailReceivers(count, vu, iter) {
   const receivers = [];
@@ -36,7 +41,7 @@ export function sendScenarioRequest(label, vu, iter) {
   const response = http.post(
     `${BASE_URL}/api/v1/notifications`,
     JSON.stringify(buildRequestBody(label, vu, iter)),
-    { headers: CONTENT_TYPE, tags: { scenario: label } }
+    { headers: DEFAULT_HEADERS, tags: { scenario: label } }
   );
 
   check(response, {

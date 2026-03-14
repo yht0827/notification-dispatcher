@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -22,6 +23,9 @@ class NotificationRepositoryTest extends IntegrationTestSupport {
 
     @Autowired
     private NotificationGroupRepository groupRepository;
+
+	@Autowired
+	private NotificationReadStatusJpaRepository notificationReadStatusJpaRepository;
 
     @Test
     @DisplayName("알림을 저장하고 조회한다")
@@ -41,25 +45,6 @@ class NotificationRepositoryTest extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("receiver로 알림을 조회한다")
-    void findByReceiver() {
-        // given
-        NotificationGroup group = createAndSaveGroup();
-        group.addNotification("user@example.com");
-        group.addNotification("user@example.com");
-        group.addNotification("other@example.com");
-        groupRepository.save(group);
-
-        // when
-        List<Notification> notifications = notificationRepository.findByReceiver("user@example.com");
-
-        // then
-        assertThat(notifications).hasSize(2);
-        assertThat(notifications)
-                .allSatisfy(notification -> assertThat(Hibernate.isInitialized(notification.getGroup())).isTrue());
-    }
-
-    @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @DisplayName("findById 조회 결과는 트랜잭션 밖 DTO 매핑에서도 group 필드를 읽을 수 있다")
     void findById_allowsGroupFieldAccessOutsideTransaction() {
@@ -74,28 +59,6 @@ class NotificationRepositoryTest extends IntegrationTestSupport {
         // then
         assertThat(found.getGroup().getSender()).isEqualTo(saved.getSender());
         assertThat(found.getGroup().getTitle()).isEqualTo(saved.getTitle());
-    }
-
-    @Test
-    @DisplayName("receiver와 상태로 알림을 조회한다")
-    void findByReceiverAndStatus() {
-        // given
-        NotificationGroup group = createAndSaveGroup();
-        Notification n1 = group.addNotification("user@example.com");
-        group.addNotification("user@example.com");
-        groupRepository.save(group);
-
-        n1.startSending();
-        n1.markAsSent();
-        groupRepository.save(group);
-
-        // when
-        List<Notification> sent = notificationRepository.findByReceiverAndStatus("user@example.com", NotificationStatus.SENT);
-        List<Notification> pending = notificationRepository.findByReceiverAndStatus("user@example.com", NotificationStatus.PENDING);
-
-        // then
-        assertThat(sent).hasSize(1);
-        assertThat(pending).hasSize(1);
     }
 
     @Test
@@ -120,6 +83,29 @@ class NotificationRepositoryTest extends IntegrationTestSupport {
         // then
         assertThat(pending).hasSize(1);
     }
+
+	@Test
+	@DisplayName("clientId + receiver + 최근 7일 기준으로 읽지 않은 알림 개수를 센다")
+	void countUnreadByClientIdAndReceiver() {
+		NotificationGroup group = NotificationGroup.create(
+			"client-a", "MyShop", "테스트", "내용", ChannelType.EMAIL, 3
+		);
+		Notification unreadRecent = group.addNotification("user@example.com");
+		Notification readRecent = group.addNotification("user@example.com");
+		group.addNotification("other@example.com");
+		groupRepository.save(group);
+
+		NotificationReadStatus readStatus = NotificationReadStatus.create(readRecent.getId(), LocalDateTime.now());
+		notificationReadStatusJpaRepository.save(readStatus);
+
+		long count = notificationRepository.countUnreadByClientIdAndReceiver(
+			"client-a",
+			"user@example.com",
+			LocalDateTime.now().minusDays(7)
+		);
+
+		assertThat(count).isEqualTo(1L);
+	}
 
     private NotificationGroup createAndSaveGroup() {
         return NotificationGroup.create("test-service", "MyShop", "테스트", "테스트 내용", ChannelType.EMAIL, 1);

@@ -14,6 +14,7 @@ import com.example.domain.outbox.Outbox;
 import com.example.domain.outbox.OutboxStatus;
 import com.example.infrastructure.config.rabbitmq.RabbitPropertyKeys;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -26,6 +27,7 @@ public class OutboxPoller {
 	private final OutboxRepository outboxRepository;
 	private final NotificationEventPublisher eventPublisher;
 	private final OutboxProperties outboxProperties;
+	private final MeterRegistry meterRegistry;
 
 	@Scheduled(fixedDelayString = "${outbox.poll-interval-millis:1000}")
 	@Transactional
@@ -51,6 +53,7 @@ public class OutboxPoller {
 		// 3. 성공한 것만 삭제
 		if (!processed.isEmpty()) {
 			outboxRepository.deleteAll(processed);
+			meterRegistry.counter("notification.outbox.published").increment(processed.size());
 			log.info("Outbox 처리 완료: count={}", processed.size());
 		}
 	}
@@ -60,6 +63,7 @@ public class OutboxPoller {
 			eventPublisher.publish(outbox.getAggregateId());
 			return true;
 		} catch (Exception e) {
+			meterRegistry.counter("notification.outbox.publish_failed").increment();
 			log.error("메시징 발행 실패: outboxId={}, aggregateId={}, reason={}",
 				outbox.getId(), outbox.getAggregateId(), e.getMessage());
 			return false;

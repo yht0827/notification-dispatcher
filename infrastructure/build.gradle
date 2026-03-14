@@ -11,6 +11,7 @@ dependencies {
 
     // Resilience
     implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
+    implementation 'io.micrometer:micrometer-core'
 
     // JPA
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -22,10 +23,14 @@ dependencies {
 
     // Redis
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.apache.commons:commons-pool2'
     implementation 'org.redisson:redisson-spring-boot-starter:3.27.0'
 
     // RabbitMQ (AMQP)
     implementation 'org.springframework.boot:spring-boot-starter-amqp'
+
+    // AWS SDK v2 S3
+    implementation 'software.amazon.awssdk:s3:2.25.6'
 
     // Testcontainers
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
