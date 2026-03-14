@@ -21,18 +21,28 @@ import com.example.application.port.out.repository.NotificationRepository;
 import com.example.domain.exception.UnsupportedChannelException;
 import com.example.domain.notification.Notification;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class NotificationDispatchService implements NotificationDispatchUseCase {
 
 	private final NotificationRepository notificationRepository;
 	private final NotificationGroupRepository notificationGroupRepository;
 	private final NotificationSender notificationSender;
 	private final TransactionTemplate transactionTemplate;
+
+	public NotificationDispatchService(
+		NotificationRepository notificationRepository,
+		NotificationGroupRepository notificationGroupRepository,
+		NotificationSender notificationSender,
+		TransactionTemplate transactionTemplate
+	) {
+		this.notificationRepository = notificationRepository;
+		this.notificationGroupRepository = notificationGroupRepository;
+		this.notificationSender = notificationSender;
+		this.transactionTemplate = transactionTemplate;
+	}
 
 	@Override
 	public List<BatchDispatchResult> dispatchBatch(List<Notification> notifications) {
@@ -89,19 +99,28 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 	}
 
 	private Map<Long, SendResult> sendBatch(Map<Long, Notification> preparedById) {
+		if (preparedById.isEmpty()) {
+			return Map.of();
+		}
+		return sendBatchSequential(preparedById);
+	}
+
+	private Map<Long, SendResult> sendBatchSequential(Map<Long, Notification> preparedById) {
 		Map<Long, SendResult> sendResults = new LinkedHashMap<>();
 		for (Notification notification : preparedById.values()) {
-			try {
-				SendResult sendResult = notificationSender.send(notification);
-				sendResults.put(notification.getId(), sendResult);
-			} catch (UnsupportedChannelException unsupportedChannelException) {
-				sendResults.put(notification.getId(),
-					SendResult.failNonRetryable(unsupportedChannelException.getMessage()));
-			} catch (RuntimeException exception) {
-				sendResults.put(notification.getId(), SendResult.fail(exception.getMessage()));
-			}
+			sendResults.put(notification.getId(), sendNotification(notification));
 		}
 		return sendResults;
+	}
+
+	private SendResult sendNotification(Notification notification) {
+		try {
+			return notificationSender.send(notification);
+		} catch (UnsupportedChannelException unsupportedChannelException) {
+			return SendResult.failNonRetryable(unsupportedChannelException.getMessage());
+		} catch (RuntimeException exception) {
+			return SendResult.fail(exception.getMessage());
+		}
 	}
 
 	private Map<Long, BatchDispatchResult> persistBatchDispatchResults(Map<Long, Notification> preparedById,
@@ -170,5 +189,3 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 	}
 
 }
-
-

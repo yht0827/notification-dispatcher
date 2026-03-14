@@ -16,17 +16,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.example.application.port.in.result.BatchDispatchResult;
-import com.example.application.port.out.repository.NotificationGroupRepository;
-import com.example.application.port.out.repository.NotificationRepository;
 import com.example.application.port.out.NotificationSender;
 import com.example.application.port.out.SendResult;
+import com.example.application.port.out.repository.NotificationGroupRepository;
+import com.example.application.port.out.repository.NotificationRepository;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
@@ -46,7 +45,6 @@ class NotificationDispatchServiceTest {
 	@Mock
 	private TransactionTemplate transactionTemplate;
 
-	@InjectMocks
 	private NotificationDispatchService dispatchService;
 
 	@BeforeEach
@@ -54,6 +52,12 @@ class NotificationDispatchServiceTest {
 		lenient().when(transactionTemplate.execute(any())).thenAnswer(invocation -> invocation.getArgument(0,
 			org.springframework.transaction.support.TransactionCallback.class).doInTransaction(null));
 		lenient().when(notificationRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+		dispatchService = new NotificationDispatchService(
+			notificationRepository,
+			notificationGroupRepository,
+			notificationSender,
+			transactionTemplate
+		);
 	}
 
 	@Test
