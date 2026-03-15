@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.api.auth.ApiKeyAuthFilter;
 import com.example.api.dto.request.NotificationGroupQueryRequest;
+import com.example.api.dto.request.NotificationReceiverQueryRequest;
 import com.example.api.dto.request.NotificationSendRequest;
 import com.example.api.dto.response.ApiResponse;
 import com.example.api.dto.response.NotificationGroupDetailResponse;
@@ -24,6 +25,7 @@ import com.example.api.dto.response.NotificationGroupSliceResponse;
 import com.example.api.dto.response.NotificationReadResponse;
 import com.example.api.dto.response.NotificationResponse;
 import com.example.api.dto.response.NotificationSendResponse;
+import com.example.api.dto.response.NotificationSliceResponse;
 import com.example.api.dto.response.NotificationUnreadCountResponse;
 import com.example.api.exception.ErrorCode;
 import com.example.api.exception.NotificationException;
@@ -72,7 +74,20 @@ public class NotificationController {
 		@Valid @ModelAttribute NotificationGroupQueryRequest request) {
 		return ApiResponse.ok(
 			NotificationGroupSliceResponse.from(
-				queryUseCase.getGroupsByClientId(clientId, request.cursorId(), request.resolveSize())
+				queryUseCase.getGroupsByClientId(clientId, request.cursorId(), request.resolveSize(), request.completed())
+			)
+		);
+	}
+
+	@Operation(summary = "수신자별 메시지 내역 조회 (최근 7일, 커서 페이징)")
+	@GetMapping("/receiver")
+	public ApiResponse<NotificationSliceResponse> getNotificationsByReceiver(
+		@RequestHeader(ApiKeyAuthFilter.HEADER_API_KEY) String clientId,
+		@Valid @ModelAttribute NotificationReceiverQueryRequest request) {
+		return ApiResponse.ok(
+			NotificationSliceResponse.from(
+				queryUseCase.getNotificationsByReceiver(clientId, request.receiver(), request.cursorId(),
+					request.resolveSize())
 			)
 		);
 	}

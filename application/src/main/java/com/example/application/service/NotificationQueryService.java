@@ -47,11 +47,24 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 
 	@Override
 	public CursorSlice<NotificationGroupResult> getGroupsByClientId(String clientId, Long cursorId,
+		int size, Boolean completed) {
+		int limit = normalizeSize(size);
+		LocalDateTime from = detailFrom();
+		List<NotificationGroupResult> fetched = fetchGroupsByClient(clientId, from, cursorId, completed, limit + 1);
+		return CursorSlice.of(fetched, limit, NotificationGroupResult::id);
+	}
+
+	@Override
+	public CursorSlice<NotificationResult> getNotificationsByReceiver(String clientId, String receiver, Long cursorId,
 		int size) {
 		int limit = normalizeSize(size);
 		LocalDateTime from = detailFrom();
-		List<NotificationGroupResult> fetched = fetchGroupsByClient(clientId, from, cursorId, limit + 1);
-		return CursorSlice.of(fetched, limit, NotificationGroupResult::id);
+		List<Notification> fetched = notificationRepository.findByClientIdAndReceiverWithCursor(clientId, receiver,
+			from, cursorId, limit + 1);
+		List<NotificationResult> results = fetched.stream()
+			.map(n -> toNotificationDetail(n))
+			.toList();
+		return CursorSlice.of(results, limit, NotificationResult::id);
 	}
 
 	@Override
@@ -87,8 +100,8 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 	}
 
 	private List<NotificationGroupResult> fetchGroupsByClient(String clientId, LocalDateTime from, Long cursorId,
-		int limit) {
-		return groupRepository.findByClientIdWithCursor(clientId, from, cursorId, limit)
+		Boolean completed, int limit) {
+		return groupRepository.findByClientIdWithCursor(clientId, from, cursorId, completed, limit)
 			.stream()
 			.map(mapper::toGroupResult)
 			.toList();

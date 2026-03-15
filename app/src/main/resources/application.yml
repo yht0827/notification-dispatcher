@@ -48,13 +48,12 @@ api:
   admin-key: "dev-admin-key-001"
 
 # ─────────────────────────────────────────
-# Cache (Two-Level: Caffeine L1 + Redis L2)
+# Cache
 # ─────────────────────────────────────────
 cache:
   stats:
-    enabled: true         # true: L1+L2 캐시, false: DB 직접 조회
-    l1-ttl-seconds: 10    # Caffeine (로컬, 인스턴스별)
-    l2-ttl-seconds: 60    # Redis (분산 공유)
+    enabled: true         # true: Redis 캐시, false: DB 직접 조회
+    ttl-seconds: 60       # Redis TTL (초)
 
 # ─────────────────────────────────────────
 # Resilience4j

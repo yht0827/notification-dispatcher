@@ -52,9 +52,10 @@ public class NotificationGroupRepositoryImpl implements NotificationGroupReposit
 
 	@Override
 	public List<NotificationGroup> findByClientIdWithCursor(String clientId, LocalDateTime from, Long cursorId,
-		int limit) {
+		Boolean completed, int limit) {
 		int normalizedLimit = normalizeLimit(limit);
-		return jpaRepository.findByClientIdWithCursor(clientId, from, cursorId, PageRequest.of(0, normalizedLimit));
+		return jpaRepository.findByClientIdWithCursor(clientId, from, cursorId, completed,
+			PageRequest.of(0, normalizedLimit));
 	}
 
 	@Override
