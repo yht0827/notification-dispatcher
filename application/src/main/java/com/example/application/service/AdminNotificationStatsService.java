@@ -1,6 +1,7 @@
 package com.example.application.service;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.application.port.in.AdminNotificationStatsUseCase;
 import com.example.application.port.in.result.NotificationStatsResult;
@@ -10,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class AdminNotificationStatsService implements AdminNotificationStatsUseCase {
 
 	private final NotificationStatsRepository statsRepository;

@@ -69,7 +69,7 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 	}
 
 	@Test
-	@DisplayName("request는 그룹 1건, 알림 N건, outbox N건을 저장한다")
+	@DisplayName("request는 그룹만 JPA로 저장하고 알림 row는 bulk insert로 저장한다")
 	void request_persistsGroupNotificationsAndOutboxes() {
 		SendCommand command = new SendCommand(
 			"write-pattern-client",
@@ -86,9 +86,11 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 
 		assertThat(result.totalCount()).isEqualTo(2);
 		assertEntityStats(NotificationGroup.class, 1, 0, 0);
-		assertEntityStats(Notification.class, 2, 0, 0);
+		assertEntityStats(Notification.class, 0, 0, 0);
+		assertThat(countRows("notification")).isEqualTo(2);
 		// sync 모드(messaging.enabled=false)에서는 outbox 미저장
 		assertEntityStats(Outbox.class, 0, 0, 0);
+		assertThat(countRows("outbox")).isZero();
 	}
 
 	@Test
@@ -202,6 +204,11 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 			Integer.class,
 			status
 		);
+		return count == null ? 0 : count;
+	}
+
+	private int countRows(String table) {
+		Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + table, Integer.class);
 		return count == null ? 0 : count;
 	}
 

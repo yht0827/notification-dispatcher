@@ -13,6 +13,8 @@ public interface NotificationRepository {
 
 	List<Notification> saveAll(List<Notification> notifications);
 
+	List<Long> bulkInsertPending(Long groupId, List<String> receivers, LocalDateTime createdAt);
+
 	Optional<Notification> findById(Long id);
 
 	List<Notification> findAllByIdIn(List<Long> ids);

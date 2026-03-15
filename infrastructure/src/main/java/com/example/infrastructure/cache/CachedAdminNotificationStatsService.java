@@ -2,6 +2,7 @@ package com.example.infrastructure.cache;
 
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.application.port.in.AdminNotificationStatsUseCase;
 import com.example.application.port.in.result.NotificationStatsResult;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 @Service
 @Primary
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class CachedAdminNotificationStatsService implements AdminNotificationStatsUseCase {
 
 	private final NotificationStatsRepository statsRepository;

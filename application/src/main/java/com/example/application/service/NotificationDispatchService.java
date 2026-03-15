@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -14,6 +15,7 @@ import com.example.application.port.in.NotificationDispatchUseCase;
 import com.example.application.port.in.result.BatchDispatchResult;
 import com.example.application.port.out.NotificationSender;
 import com.example.application.port.out.SendResult;
+import com.example.application.port.out.event.AdminStatsChangedEvent;
 import com.example.application.port.out.repository.NotificationFailureUpdate;
 import com.example.application.port.out.repository.NotificationGroupCountUpdate;
 import com.example.application.port.out.repository.NotificationGroupRepository;
@@ -31,17 +33,20 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 	private final NotificationGroupRepository notificationGroupRepository;
 	private final NotificationSender notificationSender;
 	private final TransactionTemplate transactionTemplate;
+	private final ApplicationEventPublisher eventPublisher;
 
 	public NotificationDispatchService(
 		NotificationRepository notificationRepository,
 		NotificationGroupRepository notificationGroupRepository,
 		NotificationSender notificationSender,
-		TransactionTemplate transactionTemplate
+		TransactionTemplate transactionTemplate,
+		ApplicationEventPublisher eventPublisher
 	) {
 		this.notificationRepository = notificationRepository;
 		this.notificationGroupRepository = notificationGroupRepository;
 		this.notificationSender = notificationSender;
 		this.transactionTemplate = transactionTemplate;
+		this.eventPublisher = eventPublisher;
 	}
 
 	@Override
@@ -77,6 +82,7 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 		notificationRepository.findById(notificationId).ifPresent(notification -> {
 			notification.markAsFailed(reason);
 			notificationRepository.save(notification);
+			eventPublisher.publishEvent(new AdminStatsChangedEvent());
 			log.error("알림 최종 실패: id={}, reason={}", notificationId, reason);
 		});
 	}
@@ -94,6 +100,7 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 				preparedById.put(notification.getId(), notification);
 			}
 			notificationRepository.bulkStartSending(notificationIds, LocalDateTime.now());
+			eventPublisher.publishEvent(new AdminStatsChangedEvent());
 			return preparedById;
 		});
 	}
@@ -165,6 +172,7 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 			if (!groupCountUpdates.isEmpty()) {
 				notificationGroupRepository.bulkApplyDispatchCounts(List.copyOf(groupCountUpdates.values()));
 			}
+			eventPublisher.publishEvent(new AdminStatsChangedEvent());
 			return results;
 		});
 	}

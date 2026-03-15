@@ -12,9 +12,14 @@ scrape_configs:
       - targets: ['host.docker.internal:8080']
     scrape_interval: 5s
 
-  - job_name: 'mysql'
+  - job_name: 'mysql-master'
     static_configs:
       - targets: ['host.docker.internal:9104']
+    scrape_interval: 5s
+
+  - job_name: 'mysql-slave'
+    static_configs:
+      - targets: ['host.docker.internal:9105']
     scrape_interval: 5s
 
   - job_name: 'redis'

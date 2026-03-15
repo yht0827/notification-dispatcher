@@ -107,6 +107,10 @@ public class NotificationGroup extends BaseEntity {
 		return notification;
 	}
 
+	public void initializeTotalCount(int totalCount) {
+		this.totalCount = totalCount;
+	}
+
 	public void incrementSentCount() {
 		this.sentCount++;
 	}

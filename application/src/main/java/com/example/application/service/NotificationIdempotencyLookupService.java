@@ -19,12 +19,12 @@ public class NotificationIdempotencyLookupService {
 	private final NotificationGroupRepository groupRepository;
 	private final NotificationCommandResultMapper resultMapper;
 
-	@Transactional(readOnly = true)
+	@Transactional
 	public Optional<NotificationCommandResult> findExistingResult(String clientId, String idempotencyKey) {
 		return doFindExistingResult(clientId, idempotencyKey);
 	}
 
-	@Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public Optional<NotificationCommandResult> findExistingResultAfterCollision(String clientId,
 		String idempotencyKey) {
 		return doFindExistingResult(clientId, idempotencyKey);
