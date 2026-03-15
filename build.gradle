@@ -25,6 +25,7 @@ def coverageExcludesFor = { Project project ->
 
     if (project.name == 'infrastructure') {
         excludes += [
+            'com/example/infrastructure/archive/**',
             'com/example/infrastructure/config/**',
             'com/example/infrastructure/*/config/**'
         ]
