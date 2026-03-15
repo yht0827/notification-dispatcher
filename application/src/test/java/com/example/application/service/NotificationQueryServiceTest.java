@@ -64,12 +64,13 @@ class NotificationQueryServiceTest {
 			org.mockito.ArgumentMatchers.eq("order-service"),
 			any(java.time.LocalDateTime.class),
 			org.mockito.ArgumentMatchers.isNull(),
+			org.mockito.ArgumentMatchers.isNull(),
 			org.mockito.ArgumentMatchers.eq(3)
 		)).thenReturn(List.of(first, second, third));
 
 		// when
 		CursorSlice<NotificationGroupResult> slice =
-			queryService.getGroupsByClientId("order-service", null, 2);
+			queryService.getGroupsByClientId("order-service", null, 2, null);
 
 		// then
 		assertThat(slice.items()).hasSize(2);
@@ -88,12 +89,13 @@ class NotificationQueryServiceTest {
 			org.mockito.ArgumentMatchers.eq("order-service"),
 			any(java.time.LocalDateTime.class),
 			org.mockito.ArgumentMatchers.eq(50L),
+			org.mockito.ArgumentMatchers.isNull(),
 			org.mockito.ArgumentMatchers.eq(3)
 		)).thenReturn(List.of(only));
 
 		// when
 		CursorSlice<NotificationGroupResult> slice =
-			queryService.getGroupsByClientId("order-service", 50L, 2);
+			queryService.getGroupsByClientId("order-service", 50L, 2, null);
 
 		// then
 		assertThat(slice.items()).hasSize(1);

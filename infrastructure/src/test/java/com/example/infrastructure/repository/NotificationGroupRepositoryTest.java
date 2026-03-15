@@ -49,7 +49,7 @@ class NotificationGroupRepositoryTest extends IntegrationTestSupport {
 
         // when
         java.time.LocalDateTime from = java.time.LocalDateTime.now().minusDays(7);
-        List<NotificationGroup> groups = groupRepository.findByClientIdWithCursor("service-a", from, null, 10);
+        List<NotificationGroup> groups = groupRepository.findByClientIdWithCursor("service-a", from, null, null, 10);
 
         // then
         assertThat(groups).hasSize(2);
@@ -145,7 +145,7 @@ class NotificationGroupRepositoryTest extends IntegrationTestSupport {
 
         // when
         LocalDateTime from = LocalDateTime.now().minusDays(7);
-        List<NotificationGroup> groups = groupRepository.findByClientIdWithCursor("old-test", from, null, 10);
+        List<NotificationGroup> groups = groupRepository.findByClientIdWithCursor("old-test", from, null, null, 10);
 
         // then
         assertThat(groups).hasSize(1);
@@ -162,9 +162,9 @@ class NotificationGroupRepositoryTest extends IntegrationTestSupport {
 
         // when
         LocalDateTime from = LocalDateTime.now().minusDays(7);
-        List<NotificationGroup> firstPage = groupRepository.findByClientIdWithCursor("cursor-test", from, null, 2);
+        List<NotificationGroup> firstPage = groupRepository.findByClientIdWithCursor("cursor-test", from, null, null, 2);
         Long cursorId = firstPage.get(1).getId();
-        List<NotificationGroup> secondPage = groupRepository.findByClientIdWithCursor("cursor-test", from, cursorId, 2);
+        List<NotificationGroup> secondPage = groupRepository.findByClientIdWithCursor("cursor-test", from, cursorId, null, 2);
 
         // then
         assertThat(firstPage).hasSize(2);
@@ -181,7 +181,7 @@ class NotificationGroupRepositoryTest extends IntegrationTestSupport {
 
         // when
         LocalDateTime from = LocalDateTime.now().minusDays(7);
-        List<NotificationGroup> groups = groupRepository.findByClientIdWithCursor("my-service", from, null, 10);
+        List<NotificationGroup> groups = groupRepository.findByClientIdWithCursor("my-service", from, null, null, 10);
 
         // then
         assertThat(groups).hasSize(1);
