@@ -70,9 +70,12 @@
 | 개별 알림 조회 | GET | `/api/v1/notifications/{notificationId}` |
 | 알림 읽음 처리 | PATCH | `/api/v1/notifications/{notificationId}/read` |
 | 읽지 않은 알림 수 조회 | GET | `/api/v1/notifications/unread-count` |
+| 수신자별 메시지 내역 조회 | GET | `/api/v1/notifications/receiver` |
 | 그룹 상세 조회 | GET | `/api/v1/notifications/groups/{groupId}` |
 | 그룹 목록 조회 (커서 페이징) | GET | `/api/v1/notifications/groups` |
 | 그룹 전체 읽음 처리 | PATCH | `/api/v1/notifications/groups/{groupId}/read` |
+| 전체 알림 통계 조회 | GET | `/api/admin/v1/stats` |
+| 클라이언트별 알림 통계 조회 | GET | `/api/admin/v1/stats/{clientId}` |
 
 Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 
@@ -87,6 +90,7 @@ Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 | Separate Read Status | `notification_read_status` 별도 테이블로 읽음 상태 관리 |
 | Monthly Archive | 보관 정책 경과 + 종결 알림을 월별 RANGE 파티션 archive 테이블로 이관 |
 | Idempotency Key | `(clientId, idempotencyKey)` 기반 중복 요청 방지 |
+| Redis Stats Cache | 관리자 통계 Redis 캐시 (`cache.stats.enabled`, TTL 설정) |
 
 ## 디렉토리 구조
 

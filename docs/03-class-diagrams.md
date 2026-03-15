@@ -22,7 +22,9 @@ classDiagram
       +getNotification(notificationId)
       +markAsRead(notificationId)
       +getGroup(groupId)
-      +getGroupsByClientId(clientId)
+      +getGroupsByClientId(clientId, request)
+      +getNotificationsByReceiver(clientId, request)
+      +getUnreadCount(clientId, receiver)
       +markGroupAsRead(groupId)
     }
 
@@ -37,8 +39,10 @@ classDiagram
       <<interface>>
       +getGroup(groupId) Optional~NotificationGroupResult~
       +getGroupDetail(groupId) Optional~NotificationGroupDetailResult~
-      +getGroupsByClientId(clientId, cursorId, size) CursorSlice
+      +getGroupsByClientId(clientId, cursorId, size, completed) CursorSlice
+      +getNotificationsByReceiver(clientId, receiver, cursorId, size) CursorSlice
       +getNotification(notificationId) Optional~NotificationResult~
+      +getUnreadCount(clientId, receiver) NotificationUnreadCountResult
     }
 
     class NotificationDispatchUseCase {
@@ -361,13 +365,53 @@ classDiagram
 
 ---
 
+## 캐시 및 데이터소스
+
+```mermaid
+classDiagram
+    class AdminNotificationController {
+      +getStats()
+      +getStatsByClientId(clientId)
+    }
+
+    class AdminNotificationStatsUseCase {
+      <<interface>>
+      +getStats() NotificationStatsResult
+      +getStatsByClientId(clientId) NotificationStatsResult
+    }
+
+    class RedisStatsCache {
+      +get(key, loader) NotificationStatsResult
+      +evict(key)
+      +evictAll()
+    }
+
+    class DataSourceRoutingConfig {
+      <<ConditionalOnProperty routing.enabled=true>>
+      +masterDataSource() DataSource
+      +slaveDataSource() DataSource
+      +dataSource() DataSource
+    }
+
+    class RoutingDataSource {
+      +determineCurrentLookupKey() Object
+    }
+
+    AdminNotificationController --> AdminNotificationStatsUseCase
+    AdminNotificationStatsUseCase --> RedisStatsCache
+    DataSourceRoutingConfig --> RoutingDataSource
+```
+
+---
+
 ## 핵심 클래스 책임 요약
 
 | 클래스 | 레이어 | 주요 책임 |
 |-------|--------|-----------|
 | `NotificationController` | API | 요청 검증/DTO 변환/응답 생성 |
+| `AdminNotificationController` | API | 관리자 통계 API (전체/클라이언트별) |
 | `NotificationWriteService` | Application | 멱등성 검사, 그룹 생성, Outbox 저장, 읽음 처리 |
-| `NotificationQueryService` | Application | 그룹/알림 조회, 커서 페이지 계산 |
+| `NotificationQueryService` | Application | 그룹/알림/수신자별 조회, 커서 페이지 계산 |
 | `NotificationDispatchService` | Application | 발송 상태 전이, 채널 발송 위임, 배치 발송 |
 | `OutboxPoller` | Infrastructure | Outbox → WORK 큐 발행 |
 | `RabbitMQBatchConsumer` | Infrastructure | WORK 메시지 배치 소비, 유효성 검사, DLQ/WAIT 분기 |
@@ -375,6 +419,7 @@ classDiagram
 | `NotificationRecoveryPoller` | Infrastructure | 장시간 PENDING 알림 재발행 |
 | `NotificationSenderImpl` | Infrastructure | 채널별 Sender 전략 선택 |
 | `DispatchLockManagerImpl` | Infrastructure | notificationId 단위 락 획득/해제 |
+| `RedisStatsCache` | Infrastructure | 관리자 통계 Redis 캐시 (cache.stats.enabled) |
 | `NotificationArchiveService` | Infrastructure | 만료 알림 archive 테이블 이관 |
 | `NotificationPartitionManager` | Infrastructure | 월별 파티션 생성 및 오래된 파티션 삭제 |
 | `NotificationArchiveScheduler` | Infrastructure | 아카이브 배치 및 파티션 관리 스케줄 실행 |

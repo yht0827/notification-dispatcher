@@ -99,9 +99,12 @@ Client
 | 알림 | 개별 알림 조회 | GET | `/api/v1/notifications/{notificationId}` | O |
 | 알림 | 알림 읽음 처리 | PATCH | `/api/v1/notifications/{notificationId}/read` | O |
 | 알림 | 읽지 않은 알림 개수 조회 | GET | `/api/v1/notifications/unread-count` | O |
+| 수신자 | 수신자별 메시지 내역 조회 | GET | `/api/v1/notifications/receiver` | O |
 | 그룹 | 그룹 상세 조회 | GET | `/api/v1/notifications/groups/{groupId}` | O |
 | 그룹 | 클라이언트별 그룹 목록 조회 | GET | `/api/v1/notifications/groups` | O |
 | 그룹 | 그룹 전체 읽음 처리 | PATCH | `/api/v1/notifications/groups/{groupId}/read` | O |
+| 관리자 | 전체 알림 통계 조회 | GET | `/api/admin/v1/stats` | O |
+| 관리자 | 클라이언트별 알림 통계 조회 | GET | `/api/admin/v1/stats/{clientId}` | O |
 
 ---
 
@@ -194,6 +197,27 @@ X-Api-Key: order-service
 
 ## 알림 조회
 
+### 수신자별 메시지 내역 조회
+
+| METHOD | URI | 설명 |
+|--------|-----|------|
+| GET | `/api/v1/notifications/receiver` | 수신자 기준 알림 내역 조회 (최근 7일, 커서 페이징) |
+
+#### 쿼리 파라미터
+
+| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
+|----------|------|------|--------|------|
+| `receiver` | String | O | - | 수신자 식별자 (이메일 등) |
+| `cursorId` | Long | X | - | 이전 페이지 마지막 알림 ID |
+| `size` | Integer | X | 20 | 조회 크기 (`1~100`) |
+
+#### 응답 규칙
+
+- 최근 7일 이내 알림만 조회한다.
+- 응답에 sender, title, channelType 등 그룹 정보를 포함한다.
+
+---
+
 ### 클라이언트별 그룹 조회
 
 | METHOD | URI | 설명 |
@@ -208,6 +232,7 @@ X-Api-Key: order-service
 |----------|------|------|--------|------|
 | `cursorId` | Long | X | - | 이전 페이지 마지막 그룹 ID |
 | `size` | Integer | X | 20 | 조회 크기 (`1~100`) |
+| `completed` | Boolean | X | - | 완료 여부 필터 (null: 전체, true: 완료, false: 미완료) |
 
 #### 응답 규칙
 
@@ -324,6 +349,37 @@ X-Api-Key: order-service
     "groupId": 10,
     "readCount": 2,
     "readAt": "2026-03-08T10:00:00"
+  }
+}
+```
+
+---
+
+## 관리자 API
+
+### 알림 통계 조회
+
+| METHOD | URI | 설명 |
+|--------|-----|------|
+| GET | `/api/admin/v1/stats` | 전체 알림 통계 조회 |
+| GET | `/api/admin/v1/stats/{clientId}` | 클라이언트별 알림 통계 조회 |
+
+#### 기능적 요구사항
+
+- Redis 캐시 적용 (`cache.stats.enabled`, TTL: `cache.stats.ttl-seconds`)
+- 통계 항목: 총 알림 수, 발송 성공/실패/대기 건수
+- 인증 필요: `X-Api-Key` 헤더 (선택사항, 구성에 따라 다름)
+
+#### Response Body
+
+```json
+{
+  "success": true,
+  "data": {
+    "totalCount": 1000,
+    "sentCount": 950,
+    "failedCount": 30,
+    "pendingCount": 20
   }
 }
 ```
