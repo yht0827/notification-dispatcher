@@ -15,7 +15,7 @@ import lombok.RequiredArgsConstructor;
 public class CachedAdminNotificationStatsService implements AdminNotificationStatsUseCase {
 
 	private final NotificationStatsRepository statsRepository;
-	private final TwoLevelStatsCache cache;
+	private final RedisStatsCache cache;
 	private final CacheProperties cacheProperties;
 
 	@Override
@@ -23,7 +23,7 @@ public class CachedAdminNotificationStatsService implements AdminNotificationSta
 		if (!cacheProperties.enabled()) {
 			return NotificationStatsResult.from(statsRepository.countByStatus());
 		}
-		return cache.get(TwoLevelStatsCache.allKey(),
+		return cache.get(RedisStatsCache.allKey(),
 			() -> NotificationStatsResult.from(statsRepository.countByStatus()));
 	}
 
@@ -32,7 +32,7 @@ public class CachedAdminNotificationStatsService implements AdminNotificationSta
 		if (!cacheProperties.enabled()) {
 			return NotificationStatsResult.from(statsRepository.countByStatusAndClientId(clientId));
 		}
-		return cache.get(TwoLevelStatsCache.clientKey(clientId),
+		return cache.get(RedisStatsCache.clientKey(clientId),
 			() -> NotificationStatsResult.from(statsRepository.countByStatusAndClientId(clientId)));
 	}
 }

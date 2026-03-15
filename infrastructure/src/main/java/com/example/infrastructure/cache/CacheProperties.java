@@ -5,14 +5,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "cache.stats")
 public record CacheProperties(
 	boolean enabled,
-	int l1TtlSeconds,
-	int l2TtlSeconds
+	int ttlSeconds
 ) {
-	public int resolveL1TtlSeconds() {
-		return l1TtlSeconds > 0 ? l1TtlSeconds : 10;
-	}
-
-	public int resolveL2TtlSeconds() {
-		return l2TtlSeconds > 0 ? l2TtlSeconds : 60;
+	public int resolveTtlSeconds() {
+		return ttlSeconds > 0 ? ttlSeconds : 60;
 	}
 }

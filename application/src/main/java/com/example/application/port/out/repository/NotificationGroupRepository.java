@@ -19,7 +19,7 @@ public interface NotificationGroupRepository {
 
 	Optional<NotificationGroup> findByClientIdAndIdempotencyKey(String clientId, String idempotencyKey);
 
-	List<NotificationGroup> findByClientIdWithCursor(String clientId, LocalDateTime from, Long cursorId, int limit);
+	List<NotificationGroup> findByClientIdWithCursor(String clientId, LocalDateTime from, Long cursorId, Boolean completed, int limit);
 
 	List<NotificationGroup> findByGroupType(GroupType groupType);
 

@@ -53,4 +53,13 @@ public interface NotificationJpaRepository extends JpaRepository<Notification, L
 		LocalDateTime threshold,
 		Pageable pageable
 	);
+
+	@Query("select n from Notification n left join fetch n.group where n.group.clientId = :clientId and n.receiver = :receiver and n.createdAt >= :from and (:cursorId is null or n.id < :cursorId) order by n.id desc")
+	List<Notification> findByClientIdAndReceiverWithCursor(
+		@Param("clientId") String clientId,
+		@Param("receiver") String receiver,
+		@Param("from") LocalDateTime from,
+		@Param("cursorId") Long cursorId,
+		Pageable pageable
+	);
 }

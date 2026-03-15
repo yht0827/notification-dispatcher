@@ -57,6 +57,14 @@ public class NotificationRepositoryImpl implements NotificationRepository {
 	}
 
 	@Override
+	public List<Notification> findByClientIdAndReceiverWithCursor(String clientId, String receiver, LocalDateTime from,
+		Long cursorId, int limit) {
+		int normalizedLimit = normalizeLimit(limit);
+		return jpaRepository.findByClientIdAndReceiverWithCursor(clientId, receiver, from, cursorId,
+			PageRequest.of(0, normalizedLimit));
+	}
+
+	@Override
 	public List<Notification> findByStatus(NotificationStatus status) {
 		return jpaRepository.findByStatus(status);
 	}
