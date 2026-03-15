@@ -14,7 +14,16 @@ import java.util.Optional;
 
 public interface NotificationGroupJpaRepository extends JpaRepository<NotificationGroup, Long> {
 
-    @Query("select g from NotificationGroup g where g.clientId = :clientId and g.createdAt >= :from and (:cursorId is null or g.id < :cursorId) and (:completed is null or g.completed = :completed) order by g.id desc")
+    @Query("""
+        select g from NotificationGroup g
+        where g.clientId = :clientId
+          and g.createdAt >= :from
+          and (:cursorId is null or g.id < :cursorId)
+          and (:completed is null
+               or (true = :completed and g.totalCount = g.sentCount + g.failedCount)
+               or (false = :completed and g.totalCount <> g.sentCount + g.failedCount))
+        order by g.id desc
+        """)
     List<NotificationGroup> findByClientIdWithCursor(
         @Param("clientId") String clientId,
         @Param("from") LocalDateTime from,
