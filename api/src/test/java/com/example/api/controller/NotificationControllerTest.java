@@ -134,7 +134,7 @@ class NotificationControllerTest {
 	@Test
 	@DisplayName("요청자별 그룹 목록 조회는 기본 size 20을 사용한다")
 	void getGroupsByClientId_usesDefaultSize() {
-		NotificationGroupQueryRequest request = new NotificationGroupQueryRequest(null, null);
+		NotificationGroupQueryRequest request = new NotificationGroupQueryRequest(null, null, null);
 		CursorSlice<NotificationGroupResult> slice = new CursorSlice<>(
 			List.of(new NotificationGroupResult(
 				1L,
@@ -153,13 +153,13 @@ class NotificationControllerTest {
 			false,
 			null
 		);
-		when(queryUseCase.getGroupsByClientId("order-service", null, 20)).thenReturn(slice);
+		when(queryUseCase.getGroupsByClientId("order-service", null, 20, null)).thenReturn(slice);
 
 		ApiResponse<NotificationGroupSliceResponse> response = controller.getGroupsByClientId("order-service", request);
 
 		assertThat(response.success()).isTrue();
 		assertThat(response.data().items()).hasSize(1);
-		verify(queryUseCase).getGroupsByClientId("order-service", null, 20);
+		verify(queryUseCase).getGroupsByClientId("order-service", null, 20, null);
 	}
 
 	@Test
