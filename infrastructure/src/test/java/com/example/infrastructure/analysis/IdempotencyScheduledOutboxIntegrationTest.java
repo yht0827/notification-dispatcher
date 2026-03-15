@@ -15,19 +15,18 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.example.application.port.in.NotificationWriteUseCase;
 import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
+import com.example.application.service.NotificationWriteExecutor;
 import com.example.domain.notification.ChannelType;
 import com.example.infrastructure.support.IntegrationTestSupportNoTx;
 
-@TestPropertySource(properties = {
-	"notification.messaging.enabled=true"
-})
 class IdempotencyScheduledOutboxIntegrationTest extends IntegrationTestSupportNoTx {
 
 	private static final String CLIENT_ID = "idem-scheduled-client";
@@ -39,9 +38,18 @@ class IdempotencyScheduledOutboxIntegrationTest extends IntegrationTestSupportNo
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
+	@Autowired
+	private NotificationWriteExecutor notificationWriteExecutor;
+
 	@BeforeEach
 	void setUp() {
+		ReflectionTestUtils.setField(notificationWriteExecutor, "messagingEnabled", true);
 		truncateTables();
+	}
+
+	@AfterEach
+	void tearDown() {
+		ReflectionTestUtils.setField(notificationWriteExecutor, "messagingEnabled", false);
 	}
 
 	@Test
