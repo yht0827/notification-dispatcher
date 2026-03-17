@@ -62,8 +62,8 @@ resilience4j:
   retry:
     configs:
       channel:
-        max-attempts: 2
-        wait-duration: 200ms
+        max-attempts: 1
+        wait-duration: 0ms
         retry-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiRetryableException
         ignore-exceptions:
@@ -103,13 +103,13 @@ resilience4j:
     instances:
       email-api:
         base-config: channel
-        limit-for-period: 30
+        limit-for-period: 60
       sms-api:
         base-config: channel
-        limit-for-period: 50
+        limit-for-period: 60
       kakao-api:
         base-config: channel
-        limit-for-period: 30
+        limit-for-period: 60
 # ─────────────────────────────────────────
 # Actuator / Metrics
 # ─────────────────────────────────────────

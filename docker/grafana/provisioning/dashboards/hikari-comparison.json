@@ -1,0 +1,583 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      },
+      {
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": false,
+        "iconColor": "rgba(255, 96, 96, 1)",
+        "name": "Hikari Runs",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [
+            "hikari-comparison"
+          ],
+          "type": "tags"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Hikari pool-size comparison dashboard for 10/20/30/50/80 runs. Use the quick links in the text panels to jump to each recorded run window.",
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "Run Guide",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 7
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "## Hikari Comparison\n\n- 기본 sweep: `2026-03-16`, `pool=10/20/30/50/80`\n- 컨텍스트 스위칭 보강: `2026-03-17`, `pool=30/50/80`\n- 상단 링크로 각 run 시간으로 바로 이동하고, 아래 그래프는 선택한 시간 구간을 보여준다.\n- `Host / Process Context Switches` 패널은 `2026-03-17` 보강 구간에서만 값이 나온다.\n\n### Quick Links\n\n- [pool=10](http://54.180.143.124:3000/d/hikari-comparison/hikari-comparison?from=2026-03-15T16:23:13.000Z&to=2026-03-15T16:24:14.000Z&timezone=browser)\n- [pool=20](http://54.180.143.124:3000/d/hikari-comparison/hikari-comparison?from=2026-03-15T16:25:03.000Z&to=2026-03-15T16:26:04.000Z&timezone=browser)\n- [pool=30](http://54.180.143.124:3000/d/hikari-comparison/hikari-comparison?from=2026-03-15T16:26:52.000Z&to=2026-03-15T16:27:53.000Z&timezone=browser)\n- [pool=50](http://54.180.143.124:3000/d/hikari-comparison/hikari-comparison?from=2026-03-15T16:28:42.000Z&to=2026-03-15T16:29:42.000Z&timezone=browser)\n- [pool=80](http://54.180.143.124:3000/d/hikari-comparison/hikari-comparison?from=2026-03-15T16:30:31.000Z&to=2026-03-15T16:31:32.000Z&timezone=browser)\n\n### Context Sweep Links\n\n- [context pool=30](http://54.180.143.124:3000/d/hikari-comparison/hikari-comparison?from=2026-03-17T03:33:05.000Z&to=2026-03-17T03:34:06.000Z&timezone=browser)\n- [context pool=50](http://54.180.143.124:3000/d/hikari-comparison/hikari-comparison?from=2026-03-17T03:35:03.000Z&to=2026-03-17T03:36:04.000Z&timezone=browser)\n- [context pool=80](http://54.180.143.124:3000/d/hikari-comparison/hikari-comparison?from=2026-03-17T03:37:01.000Z&to=2026-03-17T03:38:01.000Z&timezone=browser)"
+      }
+    },
+    {
+      "id": 2,
+      "type": "text",
+      "title": "Summary Table",
+      "gridPos": {
+        "x": 0,
+        "y": 7,
+        "w": 24,
+        "h": 8
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "| pool | RPS | avg | p95 | pending max | threads_connected max | notes |\n| ---: | ---: | ---: | ---: | ---: | ---: | --- |\n| `10` | `82.52/s` | `101.22ms` | `271.35ms` | `16` | `11` | 부족 |\n| `20` | `89.46/s` | `55.37ms` | `152.22ms` | `3` | `22` | 개선 |\n| `30` | `93.22/s` | `33.11ms` | `84.03ms` | `3` | `22` | knee point |\n| `50` | `92.88/s` | `33.10ms` | `89.17ms` | `1` | `21` | 이득 작음 |\n| `80` | `93.58/s` | `31.21ms` | `74.59ms` | `0` | `22` | 미세 개선 |\n\n### Context Sweep (`2026-03-17`)\n\n| pool | RPS | avg | p95 | host ctxt/s max | mysql voluntary | mysql nonvoluntary |\n| ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n| `30` | `58.61/s` | `348.62ms` | `823.47ms` | `29218.65` | `4081.75` | `1132.97` |\n| `50` | `65.28/s` | `262.03ms` | `545.10ms` | `29044.17` | `4053.87` | `1374.85` |\n| `80` | `74.77/s` | `162.59ms` | `354.71ms` | `29942.91` | `4206.13` | `1520.73` |"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "TPS",
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": {
+            "fixedColor": "blue",
+            "mode": "fixed"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))",
+          "legendFormat": "TPS"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "P95 응답시간",
+      "gridPos": {
+        "x": 4,
+        "y": 15,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 1.0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
+          "legendFormat": "P95"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Pending Max (selected window)",
+      "gridPos": {
+        "x": 8,
+        "y": 15,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "max"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "expr": "hikaricp_connections_pending{application=\"notification-dispatcher\"}",
+          "legendFormat": "Pending"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Threads Connected Max",
+      "gridPos": {
+        "x": 12,
+        "y": 15,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "max"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "expr": "mysql_global_status_threads_connected",
+          "legendFormat": "Threads Connected"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Host Context Switches/s Max",
+      "gridPos": {
+        "x": 16,
+        "y": 15,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "max"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "expr": "rate(node_context_switches_total[1m])",
+          "legendFormat": "Host ctxt/s"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "MySQL Nonvoluntary ctxt/s Max",
+      "gridPos": {
+        "x": 20,
+        "y": 15,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "max"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(namedprocess_namegroup_context_switches_total{ctxswitchtype=\"nonvoluntary\",groupname=\"mysql\"}[1m]))",
+          "legendFormat": "mysql nonvoluntary"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "HTTP Response Time (Selected Window)",
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "avg(rate(http_server_requests_seconds_sum{application=\"notification-dispatcher\"}[1m]) / rate(http_server_requests_seconds_count{application=\"notification-dispatcher\"}[1m]))",
+          "legendFormat": "Avg"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
+          "legendFormat": "P95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{application=\"notification-dispatcher\"}[1m])) by (le))",
+          "legendFormat": "P99"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "HikariCP Connection Pool (Selected Window)",
+      "gridPos": {
+        "x": 12,
+        "y": 19,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "hikaricp_connections_active{application=\"notification-dispatcher\"}",
+          "legendFormat": "Active"
+        },
+        {
+          "expr": "hikaricp_connections_idle{application=\"notification-dispatcher\"}",
+          "legendFormat": "Idle"
+        },
+        {
+          "expr": "hikaricp_connections_pending{application=\"notification-dispatcher\"}",
+          "legendFormat": "Pending"
+        },
+        {
+          "expr": "hikaricp_connections_max{application=\"notification-dispatcher\"}",
+          "legendFormat": "Max"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "MySQL Connections & Threads (Selected Window)",
+      "gridPos": {
+        "x": 0,
+        "y": 27,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "mysql_global_status_threads_running",
+          "legendFormat": "Threads Running"
+        },
+        {
+          "expr": "mysql_global_status_threads_connected",
+          "legendFormat": "Threads Connected"
+        },
+        {
+          "expr": "mysql_global_variables_max_connections",
+          "legendFormat": "Max Connections"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Host Context Switches/s (Selected Window)",
+      "gridPos": {
+        "x": 12,
+        "y": 27,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(node_context_switches_total[1m])",
+          "legendFormat": "Host ctxt/s"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "App Context Switches/s (Selected Window)",
+      "gridPos": {
+        "x": 0,
+        "y": 35,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(namedprocess_namegroup_context_switches_total{ctxswitchtype=\"voluntary\",groupname=\"notification-app\"}[1m]))",
+          "legendFormat": "app voluntary"
+        },
+        {
+          "expr": "sum(rate(namedprocess_namegroup_context_switches_total{ctxswitchtype=\"nonvoluntary\",groupname=\"notification-app\"}[1m]))",
+          "legendFormat": "app nonvoluntary"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "MySQL Context Switches/s (Selected Window)",
+      "gridPos": {
+        "x": 12,
+        "y": 35,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(namedprocess_namegroup_context_switches_total{ctxswitchtype=\"voluntary\",groupname=\"mysql\"}[1m]))",
+          "legendFormat": "mysql voluntary"
+        },
+        {
+          "expr": "sum(rate(namedprocess_namegroup_context_switches_total{ctxswitchtype=\"nonvoluntary\",groupname=\"mysql\"}[1m]))",
+          "legendFormat": "mysql nonvoluntary"
+        }
+      ]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "tags": [
+    "notification-dispatcher",
+    "hikari",
+    "comparison"
+  ],
+  "time": {
+    "from": "2026-03-15T16:26:52.000Z",
+    "to": "2026-03-15T16:27:53.000Z"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Hikari Comparison",
+  "uid": "hikari-comparison",
+  "version": 1
+}
