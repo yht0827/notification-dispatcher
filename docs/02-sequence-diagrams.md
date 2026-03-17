@@ -3,8 +3,6 @@
 > Notification Dispatcher 주요 런타임 흐름
 
 ## 목차
-
-- [알림 발송 요청 (동기)](#알림-발송-요청-동기)
 - [Outbox 발행 (DB -> RabbitMQ)](#outbox-발행-db---rabbitmq)
 - [WORK 소비 및 발송 성공](#work-소비-및-발송-성공)
 - [발송 실패 재시도 (WAIT) 및 최종 실패 (DLQ)](#발송-실패-재시도-wait-및-최종-실패-dlq)
@@ -13,51 +11,6 @@
 - [애플리케이션 시작 시 Pending 복구](#애플리케이션-시작-시-pending-복구)
 
 ---
-
-## 알림 발송 요청 (동기)
-
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant API as NotificationController
-    participant CMD as NotificationWriteService
-    participant GR as NotificationGroupRepository
-    participant OR as OutboxRepository
-    participant DB as MySQL
-
-    C->>API: POST /api/v1/notifications
-    API->>CMD: request(SendCommand)
-    CMD->>GR: findByClientIdAndIdempotencyKey(clientId, key)
-    GR->>DB: SELECT notification_group
-    DB-->>GR: existing or empty
-    GR-->>CMD: Optional<NotificationGroup>
-
-    alt 기존 멱등 요청 존재
-        CMD-->>API: existingGroup
-        API-->>C: 201 Created (existing groupId)
-    else 신규 요청
-        CMD->>GR: save(NotificationGroup + Notifications)
-        GR->>DB: INSERT notification_group / notification
-        DB-->>GR: savedGroup
-        GR-->>CMD: savedGroup
-
-        CMD->>OR: saveAll(Outbox events)
-        OR->>DB: INSERT outbox
-        DB-->>OR: saved outboxes
-        OR-->>CMD: saved outboxes
-
-        CMD-->>API: savedGroup
-        API-->>C: 201 Created (groupId, totalCount)
-    end
-```
-
-핵심 포인트
-
-- 멱등 키가 유효하면 그룹 재생성 없이 기존 그룹을 반환한다.
-- 신규 요청은 그룹/알림 저장과 Outbox 저장이 동일 트랜잭션에서 처리된다.
-
----
-
 ## Outbox 발행 (DB -> RabbitMQ)
 
 ```mermaid
