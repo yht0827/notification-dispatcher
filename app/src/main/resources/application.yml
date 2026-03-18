@@ -87,7 +87,7 @@ resilience4j:
       channel:
         sliding-window-size: 20
         minimum-number-of-calls: 20
-        failure-rate-threshold: 30 # mixed-latency VU15 재검증(r1~r3) 기준
+        failure-rate-threshold: 50 # 17-resilience 재측정(single consumer) 기준
         wait-duration-in-open-state: 10s
         record-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiRetryableException
