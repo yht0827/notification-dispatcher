@@ -40,6 +40,7 @@ import com.example.infrastructure.messaging.outbound.WaitPublisher;
 
 @Configuration
 @ConditionalOnProperty(name = RabbitPropertyKeys.MESSAGING_ENABLED, havingValue = "true")
+@ConditionalOnProperty(name = "app.consumer.enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(NotificationRabbitProperties.class)
 public class NotificationRabbitConfig {
 

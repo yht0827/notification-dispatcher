@@ -1,5 +1,6 @@
 package com.example.api.config;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -10,6 +11,7 @@ import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 
 @Configuration
+@ConditionalOnProperty(name = "app.web.enabled", havingValue = "true", matchIfMissing = true)
 public class SwaggerConfig {
 
 	@Bean

@@ -2,6 +2,7 @@ package com.example.api.exception;
 
 import java.util.List;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
@@ -21,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RestControllerAdvice
+@ConditionalOnProperty(name = "app.web.enabled", havingValue = "true", matchIfMissing = true)
 public class GlobalExceptionHandler {
 
 	@ExceptionHandler(NotificationException.class)

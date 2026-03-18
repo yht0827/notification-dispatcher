@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @RequiredArgsConstructor
 @ConditionalOnProperty(name = RabbitPropertyKeys.MESSAGING_ENABLED, havingValue = "true")
+@ConditionalOnProperty(name = "app.consumer.enabled", havingValue = "true", matchIfMissing = true)
 public class OutboxPoller {
 
 	private final OutboxRepository outboxRepository;

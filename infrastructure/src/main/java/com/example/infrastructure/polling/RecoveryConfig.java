@@ -11,6 +11,7 @@ import com.example.infrastructure.config.rabbitmq.RabbitPropertyKeys;
 
 @Configuration
 @ConditionalOnProperty(name = RabbitPropertyKeys.MESSAGING_ENABLED, havingValue = "true")
+@ConditionalOnProperty(name = "app.consumer.enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(RecoveryProperties.class)
 public class RecoveryConfig {
 

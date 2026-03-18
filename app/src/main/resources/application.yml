@@ -24,6 +24,12 @@ spring:
         order_inserts: true
         order_updates: true
 
+app:
+  web:
+    enabled: true
+  consumer:
+    enabled: true
+
 # ─────────────────────────────────────────
 # Notification Messaging (공통 기본값)
 # ─────────────────────────────────────────

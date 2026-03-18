@@ -4,6 +4,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import com.example.api.dto.response.ApiResponse;
 import com.example.api.dto.response.NotificationStatsResponse;
@@ -17,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/admin/v1")
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "app.web.enabled", havingValue = "true", matchIfMissing = true)
 public class AdminNotificationController {
 
 	private final AdminNotificationStatsUseCase statsUseCase;
