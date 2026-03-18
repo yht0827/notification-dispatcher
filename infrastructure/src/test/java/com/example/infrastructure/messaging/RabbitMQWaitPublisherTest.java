@@ -44,9 +44,6 @@ class RabbitMQWaitPublisherTest {
 			10,
 			1,
 			null,
-			false,
-			50,
-			200,
 			0.0d
 		);
 		waitPublisher = new RabbitMQWaitPublisher(rabbitTemplate, properties);
@@ -126,9 +123,6 @@ class RabbitMQWaitPublisherTest {
 			10,
 			1,
 			null,
-			false,
-			50,
-			200,
 			0.2d
 		);
 		RabbitMQWaitPublisher jitterPublisher = new RabbitMQWaitPublisher(rabbitTemplate, jitterProperties);

@@ -22,7 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "notification.rabbitmq.batch-listener-enabled", havingValue = "false")
 @ConditionalOnProperty(name = "app.consumer.enabled", havingValue = "true", matchIfMissing = true)
 public class RabbitMQSingleConsumer {
 
@@ -66,7 +65,7 @@ public class RabbitMQSingleConsumer {
 		try {
 			List<RecordProcessResult> results = recordHandler.processBatch(List.of(request));
 			if (!results.isEmpty()) {
-				applyDecision(channel, context, results.get(0));
+				applyDecision(channel, context, results.getFirst());
 			}
 		} catch (RuntimeException e) {
 			log.error("단건 처리 중 예기치 못한 오류", e);
@@ -85,7 +84,8 @@ public class RabbitMQSingleConsumer {
 			channel.basicAck(context.deliveryTag(), false);
 			meterRegistry.counter(METRIC_DISPATCH_RESULT, TAG_OUTCOME, "dlq").increment();
 		} else if (result.isRetryableFailure()) {
-			waitPublisher.publish(result.notificationId(), result.retryCount(), result.reason(), result.retryDelayMillis());
+			waitPublisher.publish(result.notificationId(), result.retryCount(), result.reason(),
+				result.retryDelayMillis());
 			channel.basicAck(context.deliveryTag(), false);
 			meterRegistry.counter(METRIC_DISPATCH_RESULT, TAG_OUTCOME, "wait").increment();
 		} else {

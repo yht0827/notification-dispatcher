@@ -210,7 +210,6 @@ spring:
 
 notification:
   rabbitmq:
-    batch-listener-enabled: true               # true: 배치 소비, false: 단건 소비
     work-queue: notification.work              # Work 큐 이름
     work-exchange: notification.work.exchange  # Work Exchange
     wait-queue: notification.wait              # Wait 큐 이름
@@ -222,8 +221,6 @@ notification:
     concurrency: 2
     max-concurrency: 2
     prefetch: 5
-    batch-size: 50                             # 배치 수집 크기
-    batch-receive-timeout-millis: 200          # 배치 수집 대기(ms)
   external:
     mock:
       enabled: true

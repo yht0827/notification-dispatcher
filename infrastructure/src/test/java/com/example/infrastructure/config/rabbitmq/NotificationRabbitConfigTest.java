@@ -48,10 +48,10 @@ class NotificationRabbitConfigTest {
 	}
 
 	@Test
-	@DisplayName("batch listener container factory는 주입된 executor를 그대로 사용한다")
-	void rabbitBatchListenerContainerFactory_usesInjectedExecutor() {
+	@DisplayName("single listener container factory는 주입된 executor를 그대로 사용한다")
+	void rabbitSingleListenerContainerFactory_usesInjectedExecutor() {
 		Executor executor = config.rabbitListenerTaskExecutor(createProperties(Boolean.FALSE), false);
-		SimpleRabbitListenerContainerFactory factory = config.rabbitBatchListenerContainerFactory(
+		SimpleRabbitListenerContainerFactory factory = config.rabbitSingleListenerContainerFactory(
 			org.mockito.Mockito.mock(ConnectionFactory.class),
 			new Jackson2JsonMessageConverter(),
 			createProperties(Boolean.FALSE),
@@ -78,9 +78,6 @@ class NotificationRabbitConfigTest {
 			10,
 			1,
 			listenerVirtualThreads,
-			false,
-			50,
-			200,
 			0.0d
 		);
 	}

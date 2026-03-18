@@ -109,6 +109,13 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 		if (preparedById.isEmpty()) {
 			return Map.of();
 		}
+
+		List<Notification> notifications = List.copyOf(preparedById.values());
+		Map<Long, SendResult> batchResults = notificationSender.sendBatch(notifications);
+		if (batchResults != null && batchResults.size() == notifications.size()) {
+			return batchResults;
+		}
+
 		return sendBatchSequential(preparedById);
 	}
 

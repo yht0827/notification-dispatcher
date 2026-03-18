@@ -30,7 +30,6 @@ import com.example.application.port.in.NotificationDispatchUseCase;
 import com.example.application.port.out.DispatchLockManager;
 import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.repository.NotificationRepository;
-import com.example.infrastructure.messaging.inbound.RabbitMQBatchConsumer;
 import com.example.infrastructure.messaging.inbound.RabbitMQRecordHandler;
 import com.example.infrastructure.messaging.outbound.RabbitMQDlqPublisher;
 import com.example.infrastructure.messaging.outbound.RabbitMQPublisher;
@@ -40,7 +39,6 @@ import com.example.infrastructure.messaging.outbound.WaitPublisher;
 
 @Configuration
 @ConditionalOnProperty(name = RabbitPropertyKeys.MESSAGING_ENABLED, havingValue = "true")
-@ConditionalOnProperty(name = "app.consumer.enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(NotificationRabbitProperties.class)
 public class NotificationRabbitConfig {
 
@@ -61,25 +59,8 @@ public class NotificationRabbitConfig {
 		return template;
 	}
 
-	@Bean(name = RabbitBeanNames.BATCH_LISTENER_CONTAINER_FACTORY)
-	@ConditionalOnProperty(name = "notification.rabbitmq.batch-listener-enabled", havingValue = "true", matchIfMissing = true)
-	public SimpleRabbitListenerContainerFactory rabbitBatchListenerContainerFactory(
-		ConnectionFactory cf,
-		MessageConverter mc,
-		NotificationRabbitProperties p,
-		@Qualifier(RabbitBeanNames.LISTENER_TASK_EXECUTOR) Executor listenerTaskExecutor
-	) {
-		SimpleRabbitListenerContainerFactory factory = createBaseListenerContainerFactory(cf, mc, p,
-			listenerTaskExecutor);
-		factory.setConsumerBatchEnabled(true);
-		factory.setBatchListener(true);
-		factory.setBatchSize(p.resolveBatchSize());
-		factory.setReceiveTimeout(p.resolveBatchReceiveTimeoutMillis());
-		return factory;
-	}
-
 	@Bean(name = RabbitBeanNames.SINGLE_LISTENER_CONTAINER_FACTORY)
-	@ConditionalOnProperty(name = "notification.rabbitmq.batch-listener-enabled", havingValue = "false")
+	@ConditionalOnProperty(name = "app.consumer.enabled", havingValue = "true", matchIfMissing = true)
 	public SimpleRabbitListenerContainerFactory rabbitSingleListenerContainerFactory(
 		ConnectionFactory cf,
 		MessageConverter mc,
@@ -90,6 +71,7 @@ public class NotificationRabbitConfig {
 	}
 
 	@Bean(name = RabbitBeanNames.LISTENER_TASK_EXECUTOR)
+	@ConditionalOnProperty(name = "app.consumer.enabled", havingValue = "true", matchIfMissing = true)
 	public Executor rabbitListenerTaskExecutor(
 		NotificationRabbitProperties properties,
 		@Value("${spring.threads.virtual.enabled:false}") boolean appVirtualThreadsEnabled
@@ -259,6 +241,7 @@ public class NotificationRabbitConfig {
 
 	// ─── 핸들러 / 컨슈머 ───────────────────────
 	@Bean
+	@ConditionalOnProperty(name = "app.consumer.enabled", havingValue = "true", matchIfMissing = true)
 	public RabbitMQRecordHandler rabbitMQRecordHandler(
 		NotificationRepository notificationRepository,
 		NotificationDispatchUseCase dispatchService,
@@ -266,14 +249,4 @@ public class NotificationRabbitConfig {
 		return new RabbitMQRecordHandler(notificationRepository, dispatchService, lockManager);
 	}
 
-	@Bean
-	@ConditionalOnProperty(name = "notification.rabbitmq.batch-listener-enabled", havingValue = "true", matchIfMissing = true)
-	public RabbitMQBatchConsumer rabbitMQBatchConsumer(
-		RabbitMQRecordHandler recordHandler,
-		DeadLetterPublisher dlqPublisher,
-		WaitPublisher waitPublisher,
-		io.micrometer.core.instrument.MeterRegistry meterRegistry,
-		MessageConverter messageConverter) {
-		return new RabbitMQBatchConsumer(recordHandler, dlqPublisher, waitPublisher, meterRegistry, messageConverter);
-	}
 }
