@@ -61,6 +61,19 @@
 
 `api` → `application (port)` → `domain` ← `infrastructure (adapter)`
 
+## 실행 구조
+
+기본 실행은 단일 프로세스지만, 운영에서는 역할을 나눠 실행할 수 있습니다.
+
+- `API 프로세스`
+  - HTTP 요청 수신
+  - 알림 생성/조회/읽음 처리
+- `Consumer 프로세스`
+  - Outbox Poller
+  - RabbitMQ Consumer
+  - 백그라운드 발송 처리
+
+같은 `app` 모듈을 설정만 다르게 실행하는 방식입니다.
 
 ## API
 
@@ -108,7 +121,9 @@ notification-dispatcher/
 └── settings.gradle       # 멀티 모듈 설정
 ```
 
-## 로컬 실행
+## 실행 방법
+
+### 로컬 실행
 
 ```bash
 # 인프라 시작 (MySQL + Redis + RabbitMQ)
@@ -125,3 +140,58 @@ make up-all
 ```
 
 필수 환경변수: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `REDIS_HOST`, `REDIS_PORT`
+
+### 역할 분리 실행
+
+```bash
+# API 전용
+java -jar app/build/libs/app-0.0.1-SNAPSHOT.jar \
+  --spring.profiles.active=local \
+  --app.consumer.enabled=false
+
+# Consumer 전용
+java -jar app/build/libs/app-0.0.1-SNAPSHOT.jar \
+  --spring.profiles.active=local \
+  --app.web.enabled=false \
+  --spring.main.web-application-type=none
+```
+
+## CI/CD
+
+### CI
+
+GitHub Actions 기반으로 빌드와 테스트를 자동 검증합니다.
+
+- 대상
+  - `main`, `develop`, `feature/*` 브랜치 push / PR
+- 실행 내용
+  - `./gradlew check jacocoAggregateReport`
+  - 모듈별 테스트
+  - 커버리지 검증
+
+### CD
+
+배포는 현재 **완전 자동 배포가 아닌 수동 배포** 기준입니다.
+
+- 애플리케이션 JAR 빌드
+- EC2에 JAR 업로드
+- 대상 프로세스 재기동
+- Grafana / Prometheus로 상태 확인
+
+즉 현재 단계의 운영 흐름은:
+
+```text
+GitHub Actions로 CI 검증
+        ↓
+수동으로 EC2 배포
+        ↓
+Grafana / Prometheus로 확인
+```
+
+## 운영 환경
+
+- App: AWS EC2
+- DB: MySQL / RDS Primary + Read Replica
+- Cache / Lock: Redis
+- Broker: RabbitMQ
+- Monitoring: Prometheus + Grafana
