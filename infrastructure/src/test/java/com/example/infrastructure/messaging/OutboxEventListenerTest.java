@@ -36,7 +36,7 @@ class OutboxEventListenerTest {
 	@DisplayName("커밋 후 메시징으로 즉시 발행하고 Outbox를 삭제한다")
 	void onOutboxSaved_publishesAndDeletes() {
 		// given
-		OutboxSavedEvent event = new OutboxSavedEvent(List.of(100L, 200L));
+		OutboxSavedEvent event = new OutboxSavedEvent(10L, List.of(100L, 200L));
 
 		// when
 		listener.onOutboxSaved(event);
@@ -44,15 +44,14 @@ class OutboxEventListenerTest {
 		// then
 		verify(eventPublisher).publish(100L);
 		verify(eventPublisher).publish(200L);
-		verify(outboxRepository).deleteByAggregateId(100L);
-		verify(outboxRepository).deleteByAggregateId(200L);
+		verify(outboxRepository).deleteByAggregateId(10L);
 	}
 
 	@Test
 	@DisplayName("발행 실패 시 해당 Outbox는 삭제하지 않는다")
 	void onOutboxSaved_doesNotDeleteOnPublishFailure() {
 		// given
-		OutboxSavedEvent event = new OutboxSavedEvent(List.of(100L, 200L));
+		OutboxSavedEvent event = new OutboxSavedEvent(10L, List.of(100L, 200L));
 		doThrow(new RuntimeException("messaging publish failed")).when(eventPublisher).publish(100L);
 
 		// when
@@ -61,15 +60,14 @@ class OutboxEventListenerTest {
 		// then
 		verify(eventPublisher).publish(100L);
 		verify(eventPublisher).publish(200L);
-		verify(outboxRepository, never()).deleteByAggregateId(100L);
-		verify(outboxRepository).deleteByAggregateId(200L);
+		verify(outboxRepository, never()).deleteByAggregateId(10L);
 	}
 
 	@Test
 	@DisplayName("빈 이벤트는 아무 작업도 하지 않는다")
 	void onOutboxSaved_doesNothingForEmptyEvent() {
 		// given
-		OutboxSavedEvent event = new OutboxSavedEvent(List.of());
+		OutboxSavedEvent event = new OutboxSavedEvent(10L, List.of());
 
 		// when
 		listener.onOutboxSaved(event);

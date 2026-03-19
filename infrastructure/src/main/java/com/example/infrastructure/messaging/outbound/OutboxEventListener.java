@@ -1,6 +1,7 @@
 package com.example.infrastructure.messaging.outbound;
 
 import java.util.List;
+import java.util.ArrayList;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -27,26 +28,34 @@ public class OutboxEventListener {
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onOutboxSaved(OutboxSavedEvent event) {
 		List<Long> ids = event.notificationIds();
+		if (ids.isEmpty()) {
+			return;
+		}
 
-		long success = ids.stream()
-			.filter(this::publishAndDeleteIfPossible)
-			.count();
+		List<Long> publishedIds = new ArrayList<>(ids.size());
+		boolean allPublished = true;
+		for (Long notificationId : ids) {
+			if (publishIfPossible(notificationId)) {
+				publishedIds.add(notificationId);
+				continue;
+			}
+			allPublished = false;
+		}
 
-		if (success > 0) {
-			log.info("즉시 발행 완료: success={}, total={}", success, ids.size());
+		if (allPublished) {
+			outboxRepository.deleteByAggregateId(event.groupId());
+		}
+
+		if (!publishedIds.isEmpty()) {
+			log.info("즉시 발행 완료: success={}, total={}", publishedIds.size(), ids.size());
 		}
 	}
 
-	private boolean publishAndDeleteIfPossible(Long notificationId) {
+	private boolean publishIfPossible(Long notificationId) {
 		try {
-			// 메시지 발행 시도
 			eventPublisher.publish(notificationId);
-
-			// 발행 성공 시에만 Outbox 삭제
-			outboxRepository.deleteByAggregateId(notificationId);
 			return true;
 		} catch (Exception e) {
-			// 발행 실패 → Outbox 유지
 			log.debug("즉시 발행 실패(재시도 예정): notificationId={}, reason={}",
 				notificationId, e.getMessage());
 			return false;

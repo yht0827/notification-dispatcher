@@ -32,7 +32,15 @@ class OutboxTypeTest {
 		assertThatThrownBy(() -> OutboxAggregateType.fromValue("bad-type"))
 			.isInstanceOf(UnsupportedOutboxTypeException.class)
 			.hasMessageContaining("지원하지 않는 아웃박스 집계 타입입니다")
-			.hasMessageContaining("지원 값: Notification");
+			.hasMessageContaining("지원 값: Notification, Group");
+	}
+
+	@Test
+	@DisplayName("OutboxAggregateType은 Group value를 역직렬화한다")
+	void aggregateType_fromGroupValue() {
+		OutboxAggregateType type = OutboxAggregateType.fromValue("Group");
+
+		assertThat(type).isEqualTo(OutboxAggregateType.GROUP);
 	}
 
 	@Test

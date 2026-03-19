@@ -7,7 +7,8 @@ import com.example.domain.exception.UnsupportedOutboxTypeException;
 
 public enum OutboxAggregateType {
 
-	NOTIFICATION("Notification");
+	NOTIFICATION("Notification"),
+	GROUP("Group");
 
 	private static final String TYPE_NAME = "아웃박스 집계 타입";
 	private static final String SUPPORTED_VALUES = Arrays.stream(values())

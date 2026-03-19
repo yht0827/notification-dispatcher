@@ -73,6 +73,11 @@ public class Outbox extends BaseEntity {
 			null, scheduledAt);
 	}
 
+	public static Outbox createGroupNotificationEvent(Long groupId, String payload, LocalDateTime scheduledAt) {
+		return new Outbox(OutboxAggregateType.GROUP, groupId, OutboxEventType.NOTIFICATION_CREATED, payload,
+			scheduledAt);
+	}
+
 	public void markAsProcessed() {
 		this.status = OutboxStatus.PROCESSED;
 		this.processedAt = LocalDateTime.now();

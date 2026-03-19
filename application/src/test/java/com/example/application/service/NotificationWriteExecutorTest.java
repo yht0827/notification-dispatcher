@@ -91,8 +91,8 @@ class NotificationWriteExecutorTest {
 
 		assertThat(result.groupId()).isEqualTo(99L);
 		assertThat(result.totalCount()).isEqualTo(2);
-		verify(outboxRepository).bulkInsertNotificationCreatedEvents(eq(List.of(101L, 102L)), isNull(), any());
-		verify(eventPublisher).publishEvent(new OutboxSavedEvent(List.of(101L, 102L)));
+		verify(outboxRepository).saveGroupNotificationCreatedEvent(eq(99L), eq(List.of(101L, 102L)), isNull(), any());
+		verify(eventPublisher).publishEvent(new OutboxSavedEvent(99L, List.of(101L, 102L)));
 		verify(eventPublisher).publishEvent(new AdminStatsChangedEvent());
 	}
 
@@ -122,7 +122,7 @@ class NotificationWriteExecutorTest {
 
 		assertThat(result.groupId()).isEqualTo(100L);
 		assertThat(result.totalCount()).isZero();
-		verify(outboxRepository).bulkInsertNotificationCreatedEvents(eq(List.of()), isNull(), any());
+		verify(outboxRepository).saveGroupNotificationCreatedEvent(eq(100L), eq(List.of()), isNull(), any());
 		verify(eventPublisher, never()).publishEvent(any());
 	}
 
@@ -154,7 +154,8 @@ class NotificationWriteExecutorTest {
 
 		assertThat(result.groupId()).isEqualTo(101L);
 		assertThat(result.totalCount()).isEqualTo(3);
-		verify(outboxRepository).bulkInsertNotificationCreatedEvents(eq(List.of(201L, 202L, 203L)), eq(scheduledAt), any());
+		verify(outboxRepository).saveGroupNotificationCreatedEvent(eq(101L), eq(List.of(201L, 202L, 203L)),
+			eq(scheduledAt), any());
 		verify(eventPublisher, never()).publishEvent(any(OutboxSavedEvent.class));
 		verify(eventPublisher).publishEvent(new AdminStatsChangedEvent());
 	}
@@ -188,7 +189,7 @@ class NotificationWriteExecutorTest {
 
 		assertThat(result.groupId()).isEqualTo(102L);
 		assertThat(result.totalCount()).isEqualTo(2);
-		verify(outboxRepository, never()).bulkInsertNotificationCreatedEvents(any(), any(), any());
+		verify(outboxRepository, never()).saveGroupNotificationCreatedEvent(any(), any(), any(), any());
 		verify(eventPublisher).publishEvent(new SyncDispatchEvent(List.of(301L, 302L)));
 		verify(eventPublisher).publishEvent(new AdminStatsChangedEvent());
 	}

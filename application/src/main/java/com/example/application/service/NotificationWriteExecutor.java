@@ -50,7 +50,7 @@ public class NotificationWriteExecutor {
 		);
 
 		if (messagingEnabled) {
-			saveOutboxEvents(notificationIds, command.scheduledAt(), now);
+			saveOutboxEvents(savedGroup.getId(), notificationIds, command.scheduledAt(), now);
 		} else {
 			publishSyncDispatch(notificationIds);
 		}
@@ -59,12 +59,13 @@ public class NotificationWriteExecutor {
 		return resultMapper.toResult(savedGroup);
 	}
 
-	private void saveOutboxEvents(List<Long> notificationIds, LocalDateTime scheduledAt, LocalDateTime createdAt) {
-		outboxRepository.bulkInsertNotificationCreatedEvents(notificationIds, scheduledAt, createdAt);
+	private void saveOutboxEvents(Long groupId, List<Long> notificationIds, LocalDateTime scheduledAt,
+		LocalDateTime createdAt) {
+		outboxRepository.saveGroupNotificationCreatedEvent(groupId, notificationIds, scheduledAt, createdAt);
 
 		// 즉시 발송만 OutboxSavedEvent 발행 (예약 발송은 OutboxPoller가 처리)
 		if (scheduledAt == null && !notificationIds.isEmpty()) {
-			eventPublisher.publishEvent(new OutboxSavedEvent(notificationIds));
+			eventPublisher.publishEvent(new OutboxSavedEvent(groupId, notificationIds));
 		}
 		log.debug("Outbox 저장 완료: total={}, scheduled={}", notificationIds.size(), scheduledAt != null);
 	}

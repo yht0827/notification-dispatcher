@@ -4,6 +4,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
@@ -76,6 +77,38 @@ public class OutboxRepositoryImpl implements OutboxRepository {
 	}
 
 	@Override
+	public void saveGroupNotificationCreatedEvent(Long groupId, List<Long> notificationIds, LocalDateTime scheduledAt,
+		LocalDateTime createdAt) {
+		if (groupId == null || notificationIds == null || notificationIds.isEmpty()) {
+			return;
+		}
+
+		jdbcTemplate.update("""
+			INSERT INTO outbox (
+			    aggregate_type,
+			    aggregate_id,
+			    event_type,
+			    payload,
+			    status,
+			    scheduled_at,
+			    processed_at,
+			    created_at,
+			    updated_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			""",
+			OutboxAggregateType.GROUP.value(),
+			groupId,
+			OutboxEventType.NOTIFICATION_CREATED.value(),
+			serializeNotificationIds(notificationIds),
+			OutboxStatus.PENDING.name(),
+			scheduledAt,
+			null,
+			createdAt,
+			createdAt
+		);
+	}
+
+	@Override
 	public List<Outbox> findByStatus(OutboxStatus status, int limit) {
 		int normalizedLimit = normalizeLimit(limit);
 		return jpaRepository.findReadyByStatus(status, LocalDateTime.now(), PageRequest.of(0, normalizedLimit));
@@ -96,7 +129,21 @@ public class OutboxRepositoryImpl implements OutboxRepository {
 		jpaRepository.deleteByAggregateId(aggregateId);
 	}
 
+	@Override
+	public void deleteByAggregateIds(List<Long> aggregateIds) {
+		if (aggregateIds == null || aggregateIds.isEmpty()) {
+			return;
+		}
+		jpaRepository.deleteByAggregateIdIn(aggregateIds);
+	}
+
 	private int normalizeLimit(int limit) {
 		return Math.max(limit, 1);
+	}
+
+	private String serializeNotificationIds(List<Long> notificationIds) {
+		return notificationIds.stream()
+			.map(String::valueOf)
+			.collect(Collectors.joining(","));
 	}
 }

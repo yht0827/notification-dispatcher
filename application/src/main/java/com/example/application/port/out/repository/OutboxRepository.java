@@ -15,6 +15,9 @@ public interface OutboxRepository {
 	void bulkInsertNotificationCreatedEvents(List<Long> notificationIds, LocalDateTime scheduledAt,
 		LocalDateTime createdAt);
 
+	void saveGroupNotificationCreatedEvent(Long groupId, List<Long> notificationIds, LocalDateTime scheduledAt,
+		LocalDateTime createdAt);
+
 	List<Outbox> findByStatus(OutboxStatus status, int limit);
 
 	void delete(Outbox outbox);
@@ -22,4 +25,6 @@ public interface OutboxRepository {
 	void deleteAll(List<Outbox> outboxes);
 
 	void deleteByAggregateId(Long aggregateId);
+
+	void deleteByAggregateIds(List<Long> aggregateIds);
 }
