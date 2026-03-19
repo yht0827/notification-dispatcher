@@ -53,8 +53,8 @@
 | 03 | [시퀀스 다이어그램](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%EC%8B%9C%ED%80%80%EC%8A%A4-%EB%8B%A4%EC%9D%B4%EC%96%B4%EA%B7%B8%EB%9E%A8) | 주요 런타임 흐름 (발송/읽음/아카이브) |
 | 04 | [클래스 다이어그램](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%ED%81%B4%EB%9E%98%EC%8A%A4-%EB%8B%A4%EC%9D%B4%EC%96%B4%EA%B7%B8%EB%9E%A8) | 계층 구조 및 핵심 클래스 관계 |
 | 05 | [ERD](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-ERD-(Entity-Relationship-Diagram)) | 테이블 설계 및 파티션 구조 |
-| 06 | [성능 최적화](https://github.com/yht0827/notification-dispatcher/wiki/%5B%ED%8A%9C%EB%8B%9D%5D-%EC%84%B1%EB%8A%A5-%EA%B0%9C%EC%84%A0-%EB%B0%8F-%EC%B5%9C%EC%A0%81%ED%99%94) | 부하 테스트 기반 튜닝  |
-| 07 | [테스트](https://github.com/yht0827/notification-dispatcher/wiki/%5B%ED%85%8C%EC%8A%A4%ED%8A%B8%5D-%ED%85%8C%EC%8A%A4%ED%8A%B8-%EC%A0%84%EB%9E%B5-%EB%B0%8F-%EC%BB%A4%EB%B2%84%EB%A6%AC%EC%A7%80-%EB%AA%A9%ED%91%9C) | 테스트 전략 및 커버리지 |
+| 06 | [성능 최적화](https://github.com/yht0827/notification-dispatcher/wiki/%5B%ED%8A%9C%EB%8B%9D%5D-%EC%84%B1%EB%8A%A5-%EC%B5%9C%EC%A0%81%ED%99%94) | 부하 테스트 기반 튜닝  |
+| 07 | [테스트](https://github.com/yht0827/notification-dispatcher/wiki/%5B%ED%85%8C%EC%8A%A4%ED%8A%B8%5D-%ED%85%8C%EC%8A%A4%ED%8A%B8-%EC%A0%84%EB%9E%B5-%EB%B0%8F-%EC%BB%A4%EB%B2%84%EB%A6%AC%EC%A7%80) | 테스트 전략 및 커버리지 |
 | 08 | [CI/CD](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EB%B0%B0%ED%8F%AC%5D-GitHub-Actions-%EB%B9%8C%EB%93%9C-%EB%B0%8F-%EB%B0%B0%ED%8F%AC-%ED%8C%8C%EC%9D%B4%ED%94%84%EB%9D%BC%EC%9D%B8) | CI/CD 구성 |
 
 ## 아키텍처
