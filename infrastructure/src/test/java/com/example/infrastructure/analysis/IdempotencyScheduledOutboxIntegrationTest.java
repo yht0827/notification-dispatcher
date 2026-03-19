@@ -94,8 +94,8 @@ class IdempotencyScheduledOutboxIntegrationTest extends IntegrationTestSupportNo
 
 		assertThat(countRows("notification_group")).isEqualTo(1);
 		assertThat(countRows("notification")).isEqualTo(5);
-		assertThat(countRows("outbox")).isEqualTo(5);
-		assertThat(countScheduledOutboxRows()).isEqualTo(5);
+		assertThat(countRows("outbox")).isEqualTo(1);
+		assertThat(countScheduledOutboxRows()).isEqualTo(1);
 	}
 
 	private List<Object> executeConcurrently(Callable<Object> first, Callable<Object> second) throws Exception {
