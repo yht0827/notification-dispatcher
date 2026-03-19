@@ -31,8 +31,8 @@ classDiagram
     class NotificationWriteUseCase {
       <<interface>>
       +request(command) NotificationCommandResult
-      +markAsRead(notificationId) Optional~NotificationReadResult~
-      +markGroupAsRead(groupId) Optional~NotificationGroupReadResult~
+      +markAsRead(clientId, notificationId) Optional~NotificationReadResult~
+      +markGroupAsRead(clientId, groupId) Optional~NotificationGroupReadResult~
     }
 
     class NotificationQueryUseCase {
@@ -47,14 +47,15 @@ classDiagram
 
     class NotificationDispatchUseCase {
       <<interface>>
-      +dispatch(notification) NotificationDispatchResult
-      +dispatchBatch(notifications) BatchDispatchResult
+      +dispatchBatch(notifications) List~BatchDispatchResult~
       +markAsFailed(notificationId, reason)
     }
 
     class NotificationWriteService
     class NotificationQueryService
     class NotificationDispatchService
+    class NotificationWriteExecutor
+    class NotificationIdempotencyLookupService
 
     class NotificationGroupRepository {
       <<interface>>
@@ -70,9 +71,11 @@ classDiagram
 
     class NotificationReadStatusRepository {
       <<interface>>
-      +findById(notificationId)
-      +save(notificationId, readAt)
-      +saveAll(notificationIds, readAt)
+      +markAsRead(notificationId, readAt)
+      +markAllAsRead(notificationIds, readAt)
+      +existsByNotificationId(notificationId) boolean
+      +findReadAtByNotificationId(notificationId) LocalDateTime
+      +findReadNotificationIds(notificationIds) Set~Long~
     }
 
     class NotificationSender {
@@ -94,8 +97,12 @@ classDiagram
     NotificationDispatchUseCase <|.. NotificationDispatchService
 
     NotificationWriteService --> NotificationGroupRepository
-    NotificationWriteService --> OutboxRepository
     NotificationWriteService --> NotificationReadStatusRepository
+    NotificationWriteService --> NotificationWriteExecutor
+    NotificationWriteService --> NotificationIdempotencyLookupService
+    NotificationWriteExecutor --> NotificationGroupRepository
+    NotificationWriteExecutor --> NotificationRepository
+    NotificationWriteExecutor --> OutboxRepository
     NotificationQueryService --> NotificationGroupRepository
     NotificationQueryService --> NotificationRepository
     NotificationDispatchService --> NotificationRepository
@@ -245,7 +252,7 @@ classDiagram
     }
 
     class NotificationRabbitProperties {
-      +resolveMaxRetryCount()
+      +maxRetryCount int
       +calculateRetryDelayMillis(retryCount, overrideMillis)
     }
 
@@ -265,6 +272,12 @@ classDiagram
 
     NotificationRecoveryPoller --> NotificationRepository
     NotificationRecoveryPoller --> RabbitMQPublisher
+
+    class SyncDispatchEventListener {
+      +onOutboxSaved(event)
+    }
+
+    SyncDispatchEventListener --> NotificationDispatchUseCase
 ```
 
 ---
@@ -337,6 +350,10 @@ classDiagram
       +export(tableName, partitionName)
     }
 
+    class S3ArchiveStorage {
+      +export(tableName, partitionName)
+    }
+
     class ArchiveRunResult {
       <<record>>
       +cutoff LocalDateTime
@@ -361,6 +378,7 @@ classDiagram
     NotificationPartitionManager --> ArchiveProperties
 
     ArchiveStorage <|.. NoOpArchiveStorage
+    ArchiveStorage <|.. S3ArchiveStorage
 ```
 
 ---
@@ -380,14 +398,23 @@ classDiagram
       +getStatsByClientId(clientId) NotificationStatsResult
     }
 
+    class CachedAdminNotificationStatsService {
+      +getStats() NotificationStatsResult
+      +getStatsByClientId(clientId) NotificationStatsResult
+    }
+
     class RedisStatsCache {
       +get(key, loader) NotificationStatsResult
       +evict(key)
       +evictAll()
     }
 
+    class AdminStatsCacheEvictionListener {
+      +onAdminStatsChanged(event)
+    }
+
     class DataSourceRoutingConfig {
-      <<ConditionalOnProperty routing.enabled=true>>
+      <<ConditionalOnProperty datasource.routing.enabled=true>>
       +masterDataSource() DataSource
       +slaveDataSource() DataSource
       +dataSource() DataSource
@@ -398,7 +425,9 @@ classDiagram
     }
 
     AdminNotificationController --> AdminNotificationStatsUseCase
-    AdminNotificationStatsUseCase --> RedisStatsCache
+    AdminNotificationStatsUseCase <|.. CachedAdminNotificationStatsService
+    CachedAdminNotificationStatsService --> RedisStatsCache
+    AdminStatsCacheEvictionListener --> RedisStatsCache
     DataSourceRoutingConfig --> RoutingDataSource
 ```
 
@@ -423,3 +452,9 @@ classDiagram
 | `NotificationArchiveService` | Infrastructure | 만료 알림 archive 테이블 이관 |
 | `NotificationPartitionManager` | Infrastructure | 월별 파티션 생성 및 오래된 파티션 삭제 |
 | `NotificationArchiveScheduler` | Infrastructure | 아카이브 배치 및 파티션 관리 스케줄 실행 |
+| `NotificationWriteExecutor` | Application | 그룹 생성, 알림 bulk insert, Outbox 저장 및 발행 위임 |
+| `NotificationIdempotencyLookupService` | Application | 멱등성 키 기반 기존 그룹 조회 |
+| `CachedAdminNotificationStatsService` | Infrastructure | 관리자 통계 조회 (Redis 캐시 적용) |
+| `AdminStatsCacheEvictionListener` | Infrastructure | 통계 변경 이벤트 수신 → 캐시 무효화 |
+| `SyncDispatchEventListener` | Infrastructure | 동기 발송 모드에서 Outbox 저장 이벤트 수신 → 직접 발송 |
+| `S3ArchiveStorage` | Infrastructure | 파티션 데이터를 S3로 Export (archive.s3.enabled=true) |

@@ -376,10 +376,12 @@ X-Api-Key: order-service
 {
   "success": true,
   "data": {
-    "totalCount": 1000,
-    "sentCount": 950,
-    "failedCount": 30,
-    "pendingCount": 20
+    "total": 1000,
+    "pending": 20,
+    "sending": 5,
+    "sent": 950,
+    "failed": 20,
+    "canceled": 5
   }
 }
 ```
@@ -398,6 +400,14 @@ X-Api-Key: order-service
 ### RabbitMQ 소비
 
 `RabbitMQSingleConsumer`가 WORK 큐를 단건씩 소비한다. `app.consumer.enabled=true`(기본값) 설정 시 활성화된다.
+
+### 주요 프로퍼티
+
+| 프로퍼티 | 기본값 | 설명 |
+|----------|--------|------|
+| `app.web.enabled` | true | `true`면 `NotificationController`, `AdminNotificationController` 활성화 |
+| `app.consumer.enabled` | true | `true`면 `RabbitMQSingleConsumer`, `OutboxPoller` 등 소비자 인프라 활성화 |
+| `notification.messaging.enabled` | true | `true`면 Outbox/RabbitMQ 비동기 발행 경로 활성화, `false`면 동기 발송 |
 
 처리 흐름:
 - WORK 큐에서 단건 수신 (manual ACK)
