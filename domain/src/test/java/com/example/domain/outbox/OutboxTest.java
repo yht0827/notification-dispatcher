@@ -38,6 +38,17 @@ class OutboxTest {
 	}
 
 	@Test
+	@DisplayName("Group 단위 Outbox 생성 시 payload를 저장한다")
+	void createGroupNotificationEvent_storesPayload() {
+		Outbox outbox = Outbox.createGroupNotificationEvent(10L, "1,2,3", null);
+
+		assertThat(outbox.getAggregateType()).isEqualTo(OutboxAggregateType.GROUP);
+		assertThat(outbox.getAggregateId()).isEqualTo(10L);
+		assertThat(outbox.getPayload()).isEqualTo("1,2,3");
+		assertThat(outbox.getStatus()).isEqualTo(OutboxStatus.PENDING);
+	}
+
+	@Test
 	@DisplayName("처리 완료로 표시하면 상태가 PROCESSED가 되고 processedAt이 설정된다")
 	void markAsProcessed_setsStatusAndProcessedAt() {
 		Outbox outbox = Outbox.createNotificationEvent(300L);

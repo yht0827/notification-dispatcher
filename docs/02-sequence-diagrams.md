@@ -3,61 +3,14 @@
 > Notification Dispatcher 주요 런타임 흐름
 
 ## 목차
-
-- [알림 발송 요청 (동기)](#알림-발송-요청-동기)
 - [Outbox 발행 (DB -> RabbitMQ)](#outbox-발행-db---rabbitmq)
 - [WORK 소비 및 발송 성공](#work-소비-및-발송-성공)
 - [발송 실패 재시도 (WAIT) 및 최종 실패 (DLQ)](#발송-실패-재시도-wait-및-최종-실패-dlq)
 - [알림 읽음 처리](#알림-읽음-처리)
 - [아카이브 배치](#아카이브-배치)
-- [애플리케이션 시작 시 Pending 복구](#애플리케이션-시작-시-pending-복구)
+- [주기적 Pending 복구 (5분 간격)](#주기적-pending-복구-5분-간격)
 
 ---
-
-## 알림 발송 요청 (동기)
-
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant API as NotificationController
-    participant CMD as NotificationWriteService
-    participant GR as NotificationGroupRepository
-    participant OR as OutboxRepository
-    participant DB as MySQL
-
-    C->>API: POST /api/v1/notifications
-    API->>CMD: request(SendCommand)
-    CMD->>GR: findByClientIdAndIdempotencyKey(clientId, key)
-    GR->>DB: SELECT notification_group
-    DB-->>GR: existing or empty
-    GR-->>CMD: Optional<NotificationGroup>
-
-    alt 기존 멱등 요청 존재
-        CMD-->>API: existingGroup
-        API-->>C: 201 Created (existing groupId)
-    else 신규 요청
-        CMD->>GR: save(NotificationGroup + Notifications)
-        GR->>DB: INSERT notification_group / notification
-        DB-->>GR: savedGroup
-        GR-->>CMD: savedGroup
-
-        CMD->>OR: saveAll(Outbox events)
-        OR->>DB: INSERT outbox
-        DB-->>OR: saved outboxes
-        OR-->>CMD: saved outboxes
-
-        CMD-->>API: savedGroup
-        API-->>C: 201 Created (groupId, totalCount)
-    end
-```
-
-핵심 포인트
-
-- 멱등 키가 유효하면 그룹 재생성 없이 기존 그룹을 반환한다.
-- 신규 요청은 그룹/알림 저장과 Outbox 저장이 동일 트랜잭션에서 처리된다.
-
----
-
 ## Outbox 발행 (DB -> RabbitMQ)
 
 ```mermaid
@@ -76,8 +29,15 @@ sequenceDiagram
     OR-->>OP: pendingOutboxes
 
     loop each outbox
-        OP->>PUB: publish(outbox.aggregateId)
-        PUB->>RS: WORK 큐 메시지 발행 {notificationId, retryCount=0}
+        alt aggregateType = GROUP
+            loop each notificationId in payload
+                OP->>PUB: publish(notificationId)
+                PUB->>RS: WORK 큐 메시지 발행 {notificationId, retryCount=0}
+            end
+        else aggregateType = NOTIFICATION
+            OP->>PUB: publish(outbox.aggregateId)
+            PUB->>RS: WORK 큐 메시지 발행 {notificationId, retryCount=0}
+        end
         alt 발행 성공
             OP->>OP: outbox.markAsProcessed()
         else 발행 실패
@@ -93,17 +53,18 @@ sequenceDiagram
 
 - 발행 성공 건만 삭제하여 최소 1회 이상(at-least-once) 전달을 보장한다.
 - 발행 실패 건은 Outbox에 남겨 다음 주기에 재시도한다.
+- `aggregateType=GROUP`인 경우 payload에서 notificationId 목록을 파싱해 개별 발행한다.
 
 ---
 
 ## WORK 소비 및 발송 성공
 
-`RabbitMQBatchConsumer`가 배치 단위로 WORK 큐를 소비한다.
+`RabbitMQSingleConsumer`가 단건씩 WORK 큐를 소비한다.
 
 ```mermaid
 sequenceDiagram
     participant RS as RabbitMQ WORK Queue
-    participant C as RabbitMQBatchConsumer
+    participant C as RabbitMQSingleConsumer
     participant H as RabbitMQRecordHandler
     participant L as DispatchLockManager
     participant NR as NotificationRepository
@@ -149,7 +110,7 @@ sequenceDiagram
 
 핵심 포인트
 
-- `RabbitMQBatchConsumer`가 유효성 검사, 분기, DLQ/WAIT 발행을 모두 직접 처리한다.
+- `RabbitMQSingleConsumer`가 유효성 검사, 분기, DLQ/WAIT 발행을 모두 직접 처리한다.
 - `notificationId` 단위 분산 락으로 다중 컨슈머 중복 발송을 방지한다.
 - 성공 시 `SENT` 상태로 저장 후 WORK 메시지를 ACK한다.
 
@@ -160,7 +121,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant RS as RabbitMQ WORK Queue
-    participant C as RabbitMQBatchConsumer
+    participant C as RabbitMQSingleConsumer
     participant H as RabbitMQRecordHandler
     participant DS as NotificationDispatchService
     participant W as WaitPublisher
@@ -280,18 +241,18 @@ sequenceDiagram
 
 ---
 
-## 애플리케이션 시작 시 Pending 복구
+## 주기적 Pending 복구 (5분 간격)
 
 ```mermaid
 sequenceDiagram
-    participant APP as Application Startup
+    participant APP as Scheduler (5분 간격)
     participant RP as NotificationRecoveryPoller
     participant NR as NotificationRepository
     participant DB as MySQL
     participant PUB as NotificationEventPublisher
     participant MQ as RabbitMQ WORK Queue
 
-    APP->>RP: recoverStuckNotifications()
+    APP->>RP: recoverStuckNotifications() every 5min
     RP->>NR: findByStatusAndCreatedAtBefore(PENDING, threshold, batchSize)
     NR->>DB: SELECT pending notifications
     DB-->>NR: stuck notifications
@@ -305,5 +266,5 @@ sequenceDiagram
 
 핵심 포인트
 
-- 장시간 PENDING 상태 알림을 주기적으로 회수해 WORK 큐로 재발행한다.
+- 장시간 PENDING 상태 알림을 5분 주기로 회수해 WORK 큐로 재발행한다.
 - 일부 복구 실패가 발생해도 나머지 알림 복구는 계속 진행한다.

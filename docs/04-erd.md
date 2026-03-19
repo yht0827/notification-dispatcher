@@ -1,9 +1,5 @@
 # ERD (Entity Relationship Diagram)
 
-> 기준
-> - `infrastructure/src/main/resources/db/migration/V1__init_schema.sql`
-> - `domain/src/main/java/com/example/domain/`
-
 ## 목차
 
 - [메인 테이블 ERD](#메인-테이블-erd)

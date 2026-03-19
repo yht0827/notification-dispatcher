@@ -2,6 +2,7 @@ package com.example.infrastructure.polling;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Arrays;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -11,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.repository.OutboxRepository;
 import com.example.domain.outbox.Outbox;
+import com.example.domain.outbox.OutboxAggregateType;
 import com.example.domain.outbox.OutboxStatus;
 import com.example.infrastructure.config.rabbitmq.RabbitPropertyKeys;
 
@@ -22,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @RequiredArgsConstructor
 @ConditionalOnProperty(name = RabbitPropertyKeys.MESSAGING_ENABLED, havingValue = "true")
+@ConditionalOnProperty(name = "app.consumer.enabled", havingValue = "true", matchIfMissing = true)
 public class OutboxPoller {
 
 	private final OutboxRepository outboxRepository;
@@ -60,7 +63,13 @@ public class OutboxPoller {
 
 	private boolean publishEvent(Outbox outbox) {
 		try {
-			eventPublisher.publish(outbox.getAggregateId());
+			if (outbox.getAggregateType() == OutboxAggregateType.GROUP) {
+				for (Long notificationId : parseNotificationIds(outbox.getPayload())) {
+					eventPublisher.publish(notificationId);
+				}
+			} else {
+				eventPublisher.publish(outbox.getAggregateId());
+			}
 			return true;
 		} catch (Exception e) {
 			meterRegistry.counter("notification.outbox.publish_failed").increment();
@@ -68,5 +77,17 @@ public class OutboxPoller {
 				outbox.getId(), outbox.getAggregateId(), e.getMessage());
 			return false;
 		}
+	}
+
+	private List<Long> parseNotificationIds(String payload) {
+		if (payload == null || payload.isBlank()) {
+			return List.of();
+		}
+
+		return Arrays.stream(payload.split(","))
+			.map(String::trim)
+			.filter(value -> !value.isEmpty())
+			.map(Long::parseLong)
+			.toList();
 	}
 }

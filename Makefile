@@ -1,6 +1,7 @@
 .PHONY: up down logs clean build test run \
         up-monitoring down-monitoring \
-        up-all down-all
+        up-all down-all \
+        seed-read-compare replica-status
 
 COMPOSE_LOCAL      = docker compose -f docker/docker-compose.local.yml
 COMPOSE_MONITORING = docker compose -f docker/docker-compose.monitoring.yml
@@ -64,6 +65,12 @@ load:
 
 stress:
 	k6 run k6/stress-test.js
+
+seed-read-compare:
+	./scripts/seed_read_compare_data.sh
+
+replica-status:
+	./scripts/check_replica_status.sh
 
 compare-platform:
 	k6 run --env LABEL=platform-thread k6/virtual-thread-compare.js

@@ -1,0 +1,20 @@
+process_names:
+  - name: "notification-app"
+    cmdline:
+      - ".*app\\.jar.*"
+
+  - name: "notification-mock"
+    cmdline:
+      - ".*mock-0\\.0\\.1-SNAPSHOT\\.jar.*"
+
+  - name: "mysql"
+    comm:
+      - "mysqld"
+
+  - name: "redis"
+    comm:
+      - "redis-server"
+
+  - name: "rabbitmq"
+    comm:
+      - "beam.smp"

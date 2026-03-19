@@ -18,4 +18,6 @@ public interface OutboxJpaRepository extends JpaRepository<Outbox, Long> {
 		Pageable pageable);
 
 	void deleteByAggregateId(Long aggregateId);
+
+	void deleteByAggregateIdIn(List<Long> aggregateIds);
 }

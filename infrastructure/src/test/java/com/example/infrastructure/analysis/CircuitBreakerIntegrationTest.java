@@ -26,6 +26,7 @@ import com.example.infrastructure.sender.mock.http.MockApiCaller;
 import com.example.infrastructure.sender.mock.http.MockApiClient;
 import com.example.infrastructure.sender.mock.dto.MockApiSendRequest;
 import com.example.infrastructure.sender.mock.dto.MockApiSendSuccessResponse;
+import com.example.infrastructure.support.EnabledIfDockerAvailable;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
@@ -39,7 +40,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
  * <p>테스트 전용 설정으로 circuit breaker 파라미터를 단축해 실행 시간을 최소화한다:
  * sliding-window=5, min-calls=5, wait-duration=2s, permitted-in-half-open=1</p>
  */
-	@SpringBootTest(
+@SpringBootTest(
 	classes = TestApplication.class,
 	properties = {
 		"resilience4j.circuitbreaker.instances.email-api.sliding-window-size=5",
@@ -49,6 +50,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 		"resilience4j.retry.instances.email-api.max-attempts=1"
 	}
 )
+@EnabledIfDockerAvailable
 @ActiveProfiles("test")
 @Import({TestcontainersConfig.class, MockMessagingConfig.class})
 class CircuitBreakerIntegrationTest {

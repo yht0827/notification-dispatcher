@@ -24,6 +24,12 @@ spring:
         order_inserts: true
         order_updates: true
 
+app:
+  web:
+    enabled: true
+  consumer:
+    enabled: true
+
 # ─────────────────────────────────────────
 # Notification Messaging (공통 기본값)
 # ─────────────────────────────────────────
@@ -53,7 +59,7 @@ api:
 cache:
   stats:
     enabled: true         # true: Redis 캐시, false: DB 직접 조회
-    ttl-seconds: 60       # Redis TTL (초)
+    ttl-seconds: 60       # Redis TTL (초) - 관리자 통계 캐시 기본값
 
 # ─────────────────────────────────────────
 # Resilience4j
@@ -62,8 +68,8 @@ resilience4j:
   retry:
     configs:
       channel:
-        max-attempts: 2
-        wait-duration: 200ms
+        max-attempts: 1
+        wait-duration: 0ms
         retry-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiRetryableException
         ignore-exceptions:
@@ -81,7 +87,7 @@ resilience4j:
       channel:
         sliding-window-size: 20
         minimum-number-of-calls: 20
-        failure-rate-threshold: 30 # mixed-latency VU15 재검증(r1~r3) 기준
+        failure-rate-threshold: 50 # 17-resilience 재측정(single consumer) 기준
         wait-duration-in-open-state: 10s
         record-exceptions:
           - com.example.infrastructure.sender.mock.exception.MockApiRetryableException
@@ -103,13 +109,13 @@ resilience4j:
     instances:
       email-api:
         base-config: channel
-        limit-for-period: 30
+        limit-for-period: 60
       sms-api:
         base-config: channel
-        limit-for-period: 50
+        limit-for-period: 60
       kakao-api:
         base-config: channel
-        limit-for-period: 30
+        limit-for-period: 60
 # ─────────────────────────────────────────
 # Actuator / Metrics
 # ─────────────────────────────────────────
@@ -204,7 +210,6 @@ spring:
 
 notification:
   rabbitmq:
-    batch-listener-enabled: true               # true: 배치 소비, false: 단건 소비
     work-queue: notification.work              # Work 큐 이름
     work-exchange: notification.work.exchange  # Work Exchange
     wait-queue: notification.wait              # Wait 큐 이름
@@ -216,8 +221,6 @@ notification:
     concurrency: 2
     max-concurrency: 2
     prefetch: 5
-    batch-size: 50                             # 배치 수집 크기
-    batch-receive-timeout-millis: 200          # 배치 수집 대기(ms)
   external:
     mock:
       enabled: true
@@ -232,8 +235,8 @@ datasource:
     url: jdbc:mysql://localhost:3307/notification?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
     username: application
     password: application
-    maximum-pool-size: 10
-    minimum-idle: 5
+    maximum-pool-size: 30
+    minimum-idle: 10
 
 ---
 # ─────────────────────────────────────────

@@ -15,17 +15,12 @@ public record NotificationRabbitProperties(
 	int maxConcurrency,            // 최대 10
 	int prefetch,                  // 기본 concurrency와 동일
 	Boolean listenerVirtualThreads,// null이면 spring.threads.virtual.enabled 상속
-	boolean batchListenerEnabled,  // 배치 리스너 ON/OFF
-	int batchSize,                 // 배치 리스너 크기
-	int batchReceiveTimeoutMillis, // 배치 수집 대기 시간(ms)
 	double retryJitterFactor       // 재시도 지연 랜덤화 비율
 ) {
 
 	private static final int DEFAULT_RETRY_BASE_DELAY_MILLIS = 5000;
 	private static final int DEFAULT_CONCURRENCY = 1;
 	private static final int DEFAULT_MAX_CONCURRENCY = 10;
-	private static final int DEFAULT_BATCH_SIZE = 50;
-	private static final int DEFAULT_BATCH_RECEIVE_TIMEOUT_MILLIS = 200;
 	private static final double DEFAULT_RETRY_JITTER_FACTOR = 0.0d;
 	private static final int MAX_RETRY_BACKOFF_SHIFT = 10;
 	private static final String WAIT_EXCHANGE_SUFFIX = ".exchange";
@@ -63,16 +58,6 @@ public record NotificationRabbitProperties(
 
 	public boolean resolveListenerVirtualThreads(boolean appVirtualThreadsEnabled) {
 		return listenerVirtualThreads != null ? listenerVirtualThreads : appVirtualThreadsEnabled;
-	}
-
-	public int resolveBatchSize() {
-		return batchSize > 0 ? batchSize : DEFAULT_BATCH_SIZE;
-	}
-
-	public long resolveBatchReceiveTimeoutMillis() {
-		return batchReceiveTimeoutMillis > 0
-			? batchReceiveTimeoutMillis
-			: DEFAULT_BATCH_RECEIVE_TIMEOUT_MILLIS;
 	}
 
 	public double resolveRetryJitterFactor() {

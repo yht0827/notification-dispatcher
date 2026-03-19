@@ -18,12 +18,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.example.application.port.in.result.BatchDispatchResult;
 import com.example.application.port.out.NotificationSender;
 import com.example.application.port.out.SendResult;
+import com.example.application.port.out.event.AdminStatsChangedEvent;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationRepository;
 import com.example.domain.notification.ChannelType;
@@ -45,6 +47,9 @@ class NotificationDispatchServiceTest {
 	@Mock
 	private TransactionTemplate transactionTemplate;
 
+	@Mock
+	private ApplicationEventPublisher eventPublisher;
+
 	private NotificationDispatchService dispatchService;
 
 	@BeforeEach
@@ -56,7 +61,8 @@ class NotificationDispatchServiceTest {
 			notificationRepository,
 			notificationGroupRepository,
 			notificationSender,
-			transactionTemplate
+			transactionTemplate,
+			eventPublisher
 		);
 	}
 
@@ -76,6 +82,7 @@ class NotificationDispatchServiceTest {
 		verify(notificationRepository).bulkMarkAsSent(eq(List.of(1L, 2L)), any(), any());
 		verify(notificationSender, times(2)).send(any(Notification.class));
 		verify(notificationGroupRepository).bulkApplyDispatchCounts(anyList());
+		verify(eventPublisher, times(2)).publishEvent(any(AdminStatsChangedEvent.class));
 	}
 
 	@Test
@@ -110,6 +117,7 @@ class NotificationDispatchServiceTest {
 		});
 		verify(notificationRepository).bulkStartSending(eq(List.of(10L)), any());
 		verify(notificationRepository).bulkMarkAsFailed(anyList(), any());
+		verify(eventPublisher, times(2)).publishEvent(any(AdminStatsChangedEvent.class));
 	}
 
 	@Test
@@ -123,6 +131,7 @@ class NotificationDispatchServiceTest {
 		dispatchService.markAsFailed(5L, "최종 실패 사유");
 
 		verify(notificationRepository).save(notification);
+		verify(eventPublisher).publishEvent(any(AdminStatsChangedEvent.class));
 	}
 
 	private Notification createNotification(Long id, String receiver) {

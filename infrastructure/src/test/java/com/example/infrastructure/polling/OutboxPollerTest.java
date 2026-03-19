@@ -158,12 +158,40 @@ class OutboxPollerTest {
 		verify(outbox, never()).markAsProcessed();
 	}
 
+	@Test
+	@DisplayName("GROUP outbox는 payload의 notification ids를 모두 발행한 뒤 삭제한다")
+	void pollAndPublish_groupOutbox_publishesPayloadNotifications() {
+		Outbox groupOutbox = spy(createGroupOutbox(10L, 999L, "100,200,300"));
+
+		when(outboxRepository.findByStatus(OutboxStatus.PENDING, BATCH_SIZE))
+			.thenReturn(List.of(groupOutbox));
+
+		outboxPoller.pollAndPublish();
+
+		verify(eventPublisher).publish(100L);
+		verify(eventPublisher).publish(200L);
+		verify(eventPublisher).publish(300L);
+		verify(outboxRepository).deleteAll(List.of(groupOutbox));
+		verify(groupOutbox).markAsProcessed();
+	}
+
 	private Outbox createOutbox(Long id, Long aggregateId) {
 		Outbox outbox = Outbox.create(
 			OutboxAggregateType.NOTIFICATION,
 			aggregateId,
 			OutboxEventType.NOTIFICATION_CREATED,
 			"{}"
+		);
+		setOutboxId(outbox, id);
+		return outbox;
+	}
+
+	private Outbox createGroupOutbox(Long id, Long aggregateId, String payload) {
+		Outbox outbox = Outbox.create(
+			OutboxAggregateType.GROUP,
+			aggregateId,
+			OutboxEventType.NOTIFICATION_CREATED,
+			payload
 		);
 		setOutboxId(outbox, id);
 		return outbox;

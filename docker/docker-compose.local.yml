@@ -20,6 +20,9 @@ services:
       --server-id=1
       --log-bin=mysql-bin
       --binlog-format=ROW
+      --gtid-mode=ON
+      --enforce-gtid-consistency=ON
+      --log-replica-updates=ON
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -27,9 +30,8 @@ services:
       retries: 5
 
   # ─────────────────────────────────────────
-  # MySQL Slave (읽기 전용 라우팅 테스트용)
-  # datasource.routing.enabled=true 일 때 Slave로 라우팅
-  # 실제 복제 없이 독립 인스턴스로 운영 (라우팅 패턴 검증 목적)
+  # MySQL Replica (read-only)
+  # datasource.routing.enabled=true 일 때 readOnly 트랜잭션을 Replica로 라우팅
   # ─────────────────────────────────────────
   mysql-slave:
     image: mysql:8.0
@@ -50,6 +52,15 @@ services:
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci
       --server-id=2
+      --log-bin=mysql-bin
+      --binlog-format=ROW
+      --gtid-mode=ON
+      --enforce-gtid-consistency=ON
+      --log-replica-updates=ON
+      --relay-log=relay-bin
+      --read-only=ON
+      --super-read-only=ON
+      --skip-replica-start=ON
     depends_on:
       mysql:
         condition: service_healthy
@@ -58,6 +69,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  mysql-replica-setup:
+    image: mysql:8.0
+    container_name: notification-mysql-replica-setup
+    env_file:
+      - .env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mysql-slave:
+        condition: service_healthy
+    volumes:
+      - ./mysql-init:/replica-init:ro
+    command: ["/bin/sh", "/replica-init/03-replica-setup.sh"]
+    restart: "no"
 
   redis:
     image: redis:7-alpine
@@ -85,6 +111,21 @@ services:
       - "--collect.info_schema.innodb_metrics"
     depends_on:
       mysql:
+        condition: service_healthy
+
+  mysqld-exporter-slave:
+    image: prom/mysqld-exporter:latest
+    container_name: notification-mysqld-exporter-slave
+    ports:
+      - "9105:9104"
+    volumes:
+      - ./mysqld-exporter/my.cnf:/etc/mysqld-exporter/my.cnf:ro
+    command:
+      - "--config.my-cnf=/etc/mysqld-exporter/my.cnf"
+      - "--mysqld.address=notification-mysql-slave:3306"
+      - "--collect.info_schema.innodb_metrics"
+    depends_on:
+      mysql-slave:
         condition: service_healthy
 
   rabbitmq:

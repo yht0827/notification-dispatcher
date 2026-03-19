@@ -28,6 +28,32 @@ services:
     privileged: true
     restart: unless-stopped
 
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: notification-node-exporter
+    command:
+      - '--path.rootfs=/host'
+    ports:
+      - "9100:9100"
+    volumes:
+      - /:/host:ro,rslave
+    pid: host
+    restart: unless-stopped
+
+  process-exporter:
+    image: ncabatoff/process-exporter:latest
+    container_name: notification-process-exporter
+    command:
+      - '--procfs=/host/proc'
+      - '--config.path=/config/process-exporter.yml'
+    ports:
+      - "9256:9256"
+    volumes:
+      - /proc:/host/proc:ro
+      - ./process-exporter/process-exporter.yml:/config/process-exporter.yml:ro
+    pid: host
+    restart: unless-stopped
+
   grafana:
     image: grafana/grafana:latest
     container_name: notification-grafana
@@ -43,6 +69,8 @@ services:
     depends_on:
       - prometheus
       - cadvisor
+      - node-exporter
+      - process-exporter
     restart: unless-stopped
 
 volumes:

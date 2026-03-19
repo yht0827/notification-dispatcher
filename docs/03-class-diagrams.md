@@ -22,35 +22,40 @@ classDiagram
       +getNotification(notificationId)
       +markAsRead(notificationId)
       +getGroup(groupId)
-      +getGroupsByClientId(clientId)
+      +getGroupsByClientId(clientId, request)
+      +getNotificationsByReceiver(clientId, request)
+      +getUnreadCount(clientId, receiver)
       +markGroupAsRead(groupId)
     }
 
     class NotificationWriteUseCase {
       <<interface>>
       +request(command) NotificationCommandResult
-      +markAsRead(notificationId) Optional~NotificationReadResult~
-      +markGroupAsRead(groupId) Optional~NotificationGroupReadResult~
+      +markAsRead(clientId, notificationId) Optional~NotificationReadResult~
+      +markGroupAsRead(clientId, groupId) Optional~NotificationGroupReadResult~
     }
 
     class NotificationQueryUseCase {
       <<interface>>
       +getGroup(groupId) Optional~NotificationGroupResult~
       +getGroupDetail(groupId) Optional~NotificationGroupDetailResult~
-      +getGroupsByClientId(clientId, cursorId, size) CursorSlice
+      +getGroupsByClientId(clientId, cursorId, size, completed) CursorSlice
+      +getNotificationsByReceiver(clientId, receiver, cursorId, size) CursorSlice
       +getNotification(notificationId) Optional~NotificationResult~
+      +getUnreadCount(clientId, receiver) NotificationUnreadCountResult
     }
 
     class NotificationDispatchUseCase {
       <<interface>>
-      +dispatch(notification) NotificationDispatchResult
-      +dispatchBatch(notifications) BatchDispatchResult
+      +dispatchBatch(notifications) List~BatchDispatchResult~
       +markAsFailed(notificationId, reason)
     }
 
     class NotificationWriteService
     class NotificationQueryService
     class NotificationDispatchService
+    class NotificationWriteExecutor
+    class NotificationIdempotencyLookupService
 
     class NotificationGroupRepository {
       <<interface>>
@@ -66,9 +71,11 @@ classDiagram
 
     class NotificationReadStatusRepository {
       <<interface>>
-      +findById(notificationId)
-      +save(notificationId, readAt)
-      +saveAll(notificationIds, readAt)
+      +markAsRead(notificationId, readAt)
+      +markAllAsRead(notificationIds, readAt)
+      +existsByNotificationId(notificationId) boolean
+      +findReadAtByNotificationId(notificationId) LocalDateTime
+      +findReadNotificationIds(notificationIds) Set~Long~
     }
 
     class NotificationSender {
@@ -90,8 +97,12 @@ classDiagram
     NotificationDispatchUseCase <|.. NotificationDispatchService
 
     NotificationWriteService --> NotificationGroupRepository
-    NotificationWriteService --> OutboxRepository
     NotificationWriteService --> NotificationReadStatusRepository
+    NotificationWriteService --> NotificationWriteExecutor
+    NotificationWriteService --> NotificationIdempotencyLookupService
+    NotificationWriteExecutor --> NotificationGroupRepository
+    NotificationWriteExecutor --> NotificationRepository
+    NotificationWriteExecutor --> OutboxRepository
     NotificationQueryService --> NotificationGroupRepository
     NotificationQueryService --> NotificationRepository
     NotificationDispatchService --> NotificationRepository
@@ -209,8 +220,8 @@ classDiagram
       +publish(notificationId)
     }
 
-    class RabbitMQBatchConsumer {
-      +onMessages(messages, channel)
+    class RabbitMQSingleConsumer {
+      +onMessage(message, channel)
     }
 
     class DeadLetterPublisher {
@@ -241,15 +252,15 @@ classDiagram
     }
 
     class NotificationRabbitProperties {
-      +resolveMaxRetryCount()
+      +maxRetryCount int
       +calculateRetryDelayMillis(retryCount, overrideMillis)
     }
 
     OutboxPoller --> RabbitMQPublisher
 
-    RabbitMQBatchConsumer --> RabbitMQRecordHandler
-    RabbitMQBatchConsumer --> DeadLetterPublisher
-    RabbitMQBatchConsumer --> WaitPublisher
+    RabbitMQSingleConsumer --> RabbitMQRecordHandler
+    RabbitMQSingleConsumer --> DeadLetterPublisher
+    RabbitMQSingleConsumer --> WaitPublisher
 
     DeadLetterPublisher <|.. RabbitMQDlqPublisher
     WaitPublisher <|.. RabbitMQWaitPublisher
@@ -261,6 +272,12 @@ classDiagram
 
     NotificationRecoveryPoller --> NotificationRepository
     NotificationRecoveryPoller --> RabbitMQPublisher
+
+    class SyncDispatchEventListener {
+      +onOutboxSaved(event)
+    }
+
+    SyncDispatchEventListener --> NotificationDispatchUseCase
 ```
 
 ---
@@ -333,6 +350,10 @@ classDiagram
       +export(tableName, partitionName)
     }
 
+    class S3ArchiveStorage {
+      +export(tableName, partitionName)
+    }
+
     class ArchiveRunResult {
       <<record>>
       +cutoff LocalDateTime
@@ -357,6 +378,57 @@ classDiagram
     NotificationPartitionManager --> ArchiveProperties
 
     ArchiveStorage <|.. NoOpArchiveStorage
+    ArchiveStorage <|.. S3ArchiveStorage
+```
+
+---
+
+## 캐시 및 데이터소스
+
+```mermaid
+classDiagram
+    class AdminNotificationController {
+      +getStats()
+      +getStatsByClientId(clientId)
+    }
+
+    class AdminNotificationStatsUseCase {
+      <<interface>>
+      +getStats() NotificationStatsResult
+      +getStatsByClientId(clientId) NotificationStatsResult
+    }
+
+    class CachedAdminNotificationStatsService {
+      +getStats() NotificationStatsResult
+      +getStatsByClientId(clientId) NotificationStatsResult
+    }
+
+    class RedisStatsCache {
+      +get(key, loader) NotificationStatsResult
+      +evict(key)
+      +evictAll()
+    }
+
+    class AdminStatsCacheEvictionListener {
+      +onAdminStatsChanged(event)
+    }
+
+    class DataSourceRoutingConfig {
+      <<ConditionalOnProperty datasource.routing.enabled=true>>
+      +masterDataSource() DataSource
+      +slaveDataSource() DataSource
+      +dataSource() DataSource
+    }
+
+    class RoutingDataSource {
+      +determineCurrentLookupKey() Object
+    }
+
+    AdminNotificationController --> AdminNotificationStatsUseCase
+    AdminNotificationStatsUseCase <|.. CachedAdminNotificationStatsService
+    CachedAdminNotificationStatsService --> RedisStatsCache
+    AdminStatsCacheEvictionListener --> RedisStatsCache
+    DataSourceRoutingConfig --> RoutingDataSource
 ```
 
 ---
@@ -366,15 +438,23 @@ classDiagram
 | 클래스 | 레이어 | 주요 책임 |
 |-------|--------|-----------|
 | `NotificationController` | API | 요청 검증/DTO 변환/응답 생성 |
+| `AdminNotificationController` | API | 관리자 통계 API (전체/클라이언트별) |
 | `NotificationWriteService` | Application | 멱등성 검사, 그룹 생성, Outbox 저장, 읽음 처리 |
-| `NotificationQueryService` | Application | 그룹/알림 조회, 커서 페이지 계산 |
+| `NotificationQueryService` | Application | 그룹/알림/수신자별 조회, 커서 페이지 계산 |
 | `NotificationDispatchService` | Application | 발송 상태 전이, 채널 발송 위임, 배치 발송 |
 | `OutboxPoller` | Infrastructure | Outbox → WORK 큐 발행 |
-| `RabbitMQBatchConsumer` | Infrastructure | WORK 메시지 배치 소비, 유효성 검사, DLQ/WAIT 분기 |
+| `RabbitMQSingleConsumer` | Infrastructure | WORK 메시지 단건 소비, 유효성 검사, DLQ/WAIT 분기 |
 | `RabbitMQRecordHandler` | Infrastructure | 분산 락 획득, 발송 위임, 재시도/실패 결과 반환 |
 | `NotificationRecoveryPoller` | Infrastructure | 장시간 PENDING 알림 재발행 |
 | `NotificationSenderImpl` | Infrastructure | 채널별 Sender 전략 선택 |
 | `DispatchLockManagerImpl` | Infrastructure | notificationId 단위 락 획득/해제 |
+| `RedisStatsCache` | Infrastructure | 관리자 통계 Redis 캐시 (cache.stats.enabled) |
 | `NotificationArchiveService` | Infrastructure | 만료 알림 archive 테이블 이관 |
 | `NotificationPartitionManager` | Infrastructure | 월별 파티션 생성 및 오래된 파티션 삭제 |
 | `NotificationArchiveScheduler` | Infrastructure | 아카이브 배치 및 파티션 관리 스케줄 실행 |
+| `NotificationWriteExecutor` | Application | 그룹 생성, 알림 bulk insert, Outbox 저장 및 발행 위임 |
+| `NotificationIdempotencyLookupService` | Application | 멱등성 키 기반 기존 그룹 조회 |
+| `CachedAdminNotificationStatsService` | Infrastructure | 관리자 통계 조회 (Redis 캐시 적용) |
+| `AdminStatsCacheEvictionListener` | Infrastructure | 통계 변경 이벤트 수신 → 캐시 무효화 |
+| `SyncDispatchEventListener` | Infrastructure | 동기 발송 모드에서 Outbox 저장 이벤트 수신 → 직접 발송 |
+| `S3ArchiveStorage` | Infrastructure | 파티션 데이터를 S3로 Export (archive.s3.enabled=true) |

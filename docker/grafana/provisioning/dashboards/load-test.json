@@ -1463,6 +1463,114 @@
           "legendFormat": "Misses/s"
         }
       ]
+    },
+    {
+      "id": 36,
+      "type": "timeseries",
+      "title": "Host Context Switches/s",
+      "gridPos": {
+        "x": 0,
+        "y": 85,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(node_context_switches_total[1m])",
+          "legendFormat": "Host ctxt/s"
+        }
+      ]
+    },
+    {
+      "id": 37,
+      "type": "timeseries",
+      "title": "Process Voluntary Context Switches/s",
+      "gridPos": {
+        "x": 8,
+        "y": 85,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (groupname) (rate(namedprocess_namegroup_context_switches_total{ctxswitchtype=\"voluntary\",groupname=~\"notification-app|mysql|rabbitmq|redis\"}[1m]))",
+          "legendFormat": "{{groupname}} voluntary"
+        }
+      ]
+    },
+    {
+      "id": 38,
+      "type": "timeseries",
+      "title": "Process Nonvoluntary Context Switches/s",
+      "gridPos": {
+        "x": 16,
+        "y": 85,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (groupname) (rate(namedprocess_namegroup_context_switches_total{ctxswitchtype=\"nonvoluntary\",groupname=~\"notification-app|mysql|rabbitmq|redis\"}[1m]))",
+          "legendFormat": "{{groupname}} nonvoluntary"
+        }
+      ]
     }
   ],
   "refresh": "5s",
@@ -1479,5 +1587,5 @@
   "timezone": "browser",
   "title": "Notification Dispatcher - Load Test",
   "uid": "notification-dispatcher-lt",
-  "version": 2
+  "version": 3
 }

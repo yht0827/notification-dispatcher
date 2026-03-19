@@ -1,8 +1,13 @@
 package com.example.infrastructure.sender;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,6 +47,26 @@ class NotificationSenderImplTest {
 		assertThat(actual).isEqualTo(expected);
 		verify(senderFactory).getSender(ChannelType.EMAIL);
 		verify(channelSender).send(notification);
+	}
+
+	@Test
+	@DisplayName("동일 채널 알림 묶음은 sender 한 번 선택 후 sendBatch로 위임한다")
+	void sendBatch_delegatesToChannelSenderBatch() {
+		Notification first = createNotification(ChannelType.EMAIL);
+		Notification second = createNotification(ChannelType.EMAIL);
+
+		Map<Long, SendResult> expected = new LinkedHashMap<>();
+		expected.put(first.getId(), SendResult.success());
+		expected.put(second.getId(), SendResult.failRetryable("temporary"));
+
+		when(senderFactory.getSender(ChannelType.EMAIL)).thenReturn(channelSender);
+		when(channelSender.sendBatch(anyList())).thenReturn(expected);
+
+		Map<Long, SendResult> actual = notificationSender.sendBatch(List.of(first, second));
+
+		assertThat(actual).isEqualTo(expected);
+		verify(senderFactory).getSender(ChannelType.EMAIL);
+		verify(channelSender).sendBatch(List.of(first, second));
 	}
 
 	private Notification createNotification(ChannelType channelType) {

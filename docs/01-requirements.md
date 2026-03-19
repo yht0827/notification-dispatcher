@@ -50,7 +50,7 @@ Client
   -> DB 저장 (notification_group, notification, outbox)
   -> OutboxPoller
   -> RabbitMQ WORK Queue
-  -> RabbitMQBatchConsumer
+  -> RabbitMQSingleConsumer
   -> RabbitMQRecordHandler
   -> NotificationDispatchService
   -> ChannelSender(EMAIL/SMS/KAKAO)
@@ -99,9 +99,12 @@ Client
 | 알림 | 개별 알림 조회 | GET | `/api/v1/notifications/{notificationId}` | O |
 | 알림 | 알림 읽음 처리 | PATCH | `/api/v1/notifications/{notificationId}/read` | O |
 | 알림 | 읽지 않은 알림 개수 조회 | GET | `/api/v1/notifications/unread-count` | O |
+| 수신자 | 수신자별 메시지 내역 조회 | GET | `/api/v1/notifications/receiver` | O |
 | 그룹 | 그룹 상세 조회 | GET | `/api/v1/notifications/groups/{groupId}` | O |
 | 그룹 | 클라이언트별 그룹 목록 조회 | GET | `/api/v1/notifications/groups` | O |
 | 그룹 | 그룹 전체 읽음 처리 | PATCH | `/api/v1/notifications/groups/{groupId}/read` | O |
+| 관리자 | 전체 알림 통계 조회 | GET | `/api/admin/v1/stats` | O |
+| 관리자 | 클라이언트별 알림 통계 조회 | GET | `/api/admin/v1/stats/{clientId}` | O |
 
 ---
 
@@ -144,7 +147,7 @@ Client
 6. Notification별 Outbox 이벤트 N건 저장
 7. 201 Created 응답 (groupId, totalCount)
 8. OutboxPoller가 Outbox를 WORK 큐로 발행
-9. RabbitMQBatchConsumer가 WORK를 읽어 RabbitMQRecordHandler로 채널 발송 수행
+9. RabbitMQSingleConsumer가 WORK를 읽어 RabbitMQRecordHandler로 채널 발송 수행
 ```
 
 #### Request
@@ -194,6 +197,27 @@ X-Api-Key: order-service
 
 ## 알림 조회
 
+### 수신자별 메시지 내역 조회
+
+| METHOD | URI | 설명 |
+|--------|-----|------|
+| GET | `/api/v1/notifications/receiver` | 수신자 기준 알림 내역 조회 (최근 7일, 커서 페이징) |
+
+#### 쿼리 파라미터
+
+| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
+|----------|------|------|--------|------|
+| `receiver` | String | O | - | 수신자 식별자 (이메일 등) |
+| `cursorId` | Long | X | - | 이전 페이지 마지막 알림 ID |
+| `size` | Integer | X | 20 | 조회 크기 (`1~100`) |
+
+#### 응답 규칙
+
+- 최근 7일 이내 알림만 조회한다.
+- 응답에 sender, title, channelType 등 그룹 정보를 포함한다.
+
+---
+
 ### 클라이언트별 그룹 조회
 
 | METHOD | URI | 설명 |
@@ -208,6 +232,7 @@ X-Api-Key: order-service
 |----------|------|------|--------|------|
 | `cursorId` | Long | X | - | 이전 페이지 마지막 그룹 ID |
 | `size` | Integer | X | 20 | 조회 크기 (`1~100`) |
+| `completed` | Boolean | X | - | 완료 여부 필터 (null: 전체, true: 완료, false: 미완료) |
 
 #### 응답 규칙
 
@@ -330,6 +355,39 @@ X-Api-Key: order-service
 
 ---
 
+## 관리자 API
+
+### 알림 통계 조회
+
+| METHOD | URI | 설명 |
+|--------|-----|------|
+| GET | `/api/admin/v1/stats` | 전체 알림 통계 조회 |
+| GET | `/api/admin/v1/stats/{clientId}` | 클라이언트별 알림 통계 조회 |
+
+#### 기능적 요구사항
+
+- Redis 캐시 적용 (`cache.stats.enabled`, TTL: `cache.stats.ttl-seconds`)
+- 통계 항목: 총 알림 수, 발송 성공/실패/대기 건수
+- 인증 필요: `X-Api-Key` 헤더 (선택사항, 구성에 따라 다름)
+
+#### Response Body
+
+```json
+{
+  "success": true,
+  "data": {
+    "total": 1000,
+    "pending": 20,
+    "sending": 5,
+    "sent": 950,
+    "failed": 20,
+    "canceled": 5
+  }
+}
+```
+
+---
+
 ## 비동기 처리 규칙
 
 ### Outbox Poller
@@ -341,11 +399,19 @@ X-Api-Key: order-service
 
 ### RabbitMQ 소비
 
-`RabbitMQBatchConsumer`가 WORK 큐를 배치로 소비한다. `notification.rabbitmq.messaging-enabled=true` 설정 시 활성화된다.
+`RabbitMQSingleConsumer`가 WORK 큐를 단건씩 소비한다. `app.consumer.enabled=true`(기본값) 설정 시 활성화된다.
+
+### 주요 프로퍼티
+
+| 프로퍼티 | 기본값 | 설명 |
+|----------|--------|------|
+| `app.web.enabled` | true | `true`면 `NotificationController`, `AdminNotificationController` 활성화 |
+| `app.consumer.enabled` | true | `true`면 `RabbitMQSingleConsumer`, `OutboxPoller` 등 소비자 인프라 활성화 |
+| `notification.messaging.enabled` | true | `true`면 Outbox/RabbitMQ 비동기 발행 경로 활성화, `false`면 동기 발송 |
 
 처리 흐름:
-- WORK 큐에서 배치(최대 `batch-size`건) 수신 (manual ACK)
-- 메시지별 `MessageProcessContext` 생성 및 유효성 검사
+- WORK 큐에서 단건 수신 (manual ACK)
+- `MessageProcessContext` 생성 및 유효성 검사
 - 유효하지 않은 메시지 → `DeadLetterPublisher`로 DLQ 발행 후 ACK
 - 유효한 메시지 → `RabbitMQRecordHandler.processBatch()` 위임
 - `RabbitMQRecordHandler`에서 `DispatchLockManager.tryAcquire(notificationId)` 수행

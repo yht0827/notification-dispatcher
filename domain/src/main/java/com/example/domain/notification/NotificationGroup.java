@@ -15,12 +15,21 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "notification_group")
+@Table(
+	name = "notification_group",
+	uniqueConstraints = {
+		@UniqueConstraint(
+			name = "idx_notification_group_client_idempotency_key",
+			columnNames = {"client_id", "idempotency_key"}
+		)
+	}
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class NotificationGroup extends BaseEntity {
@@ -105,6 +114,10 @@ public class NotificationGroup extends BaseEntity {
 		this.notifications.add(notification);
 		this.totalCount++;
 		return notification;
+	}
+
+	public void initializeTotalCount(int totalCount) {
+		this.totalCount = totalCount;
 	}
 
 	public void incrementSentCount() {
