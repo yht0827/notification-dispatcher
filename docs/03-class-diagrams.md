@@ -213,8 +213,8 @@ classDiagram
       +publish(notificationId)
     }
 
-    class RabbitMQBatchConsumer {
-      +onMessages(messages, channel)
+    class RabbitMQSingleConsumer {
+      +onMessage(message, channel)
     }
 
     class DeadLetterPublisher {
@@ -251,9 +251,9 @@ classDiagram
 
     OutboxPoller --> RabbitMQPublisher
 
-    RabbitMQBatchConsumer --> RabbitMQRecordHandler
-    RabbitMQBatchConsumer --> DeadLetterPublisher
-    RabbitMQBatchConsumer --> WaitPublisher
+    RabbitMQSingleConsumer --> RabbitMQRecordHandler
+    RabbitMQSingleConsumer --> DeadLetterPublisher
+    RabbitMQSingleConsumer --> WaitPublisher
 
     DeadLetterPublisher <|.. RabbitMQDlqPublisher
     WaitPublisher <|.. RabbitMQWaitPublisher
@@ -414,7 +414,7 @@ classDiagram
 | `NotificationQueryService` | Application | 그룹/알림/수신자별 조회, 커서 페이지 계산 |
 | `NotificationDispatchService` | Application | 발송 상태 전이, 채널 발송 위임, 배치 발송 |
 | `OutboxPoller` | Infrastructure | Outbox → WORK 큐 발행 |
-| `RabbitMQBatchConsumer` | Infrastructure | WORK 메시지 배치 소비, 유효성 검사, DLQ/WAIT 분기 |
+| `RabbitMQSingleConsumer` | Infrastructure | WORK 메시지 단건 소비, 유효성 검사, DLQ/WAIT 분기 |
 | `RabbitMQRecordHandler` | Infrastructure | 분산 락 획득, 발송 위임, 재시도/실패 결과 반환 |
 | `NotificationRecoveryPoller` | Infrastructure | 장시간 PENDING 알림 재발행 |
 | `NotificationSenderImpl` | Infrastructure | 채널별 Sender 전략 선택 |

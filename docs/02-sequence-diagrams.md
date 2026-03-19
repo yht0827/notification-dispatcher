@@ -51,12 +51,12 @@ sequenceDiagram
 
 ## WORK 소비 및 발송 성공
 
-`RabbitMQBatchConsumer`가 배치 단위로 WORK 큐를 소비한다.
+`RabbitMQSingleConsumer`가 단건씩 WORK 큐를 소비한다.
 
 ```mermaid
 sequenceDiagram
     participant RS as RabbitMQ WORK Queue
-    participant C as RabbitMQBatchConsumer
+    participant C as RabbitMQSingleConsumer
     participant H as RabbitMQRecordHandler
     participant L as DispatchLockManager
     participant NR as NotificationRepository
@@ -102,7 +102,7 @@ sequenceDiagram
 
 핵심 포인트
 
-- `RabbitMQBatchConsumer`가 유효성 검사, 분기, DLQ/WAIT 발행을 모두 직접 처리한다.
+- `RabbitMQSingleConsumer`가 유효성 검사, 분기, DLQ/WAIT 발행을 모두 직접 처리한다.
 - `notificationId` 단위 분산 락으로 다중 컨슈머 중복 발송을 방지한다.
 - 성공 시 `SENT` 상태로 저장 후 WORK 메시지를 ACK한다.
 
@@ -113,7 +113,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant RS as RabbitMQ WORK Queue
-    participant C as RabbitMQBatchConsumer
+    participant C as RabbitMQSingleConsumer
     participant H as RabbitMQRecordHandler
     participant DS as NotificationDispatchService
     participant W as WaitPublisher

@@ -50,7 +50,7 @@ Client
   -> DB 저장 (notification_group, notification, outbox)
   -> OutboxPoller
   -> RabbitMQ WORK Queue
-  -> RabbitMQBatchConsumer
+  -> RabbitMQSingleConsumer
   -> RabbitMQRecordHandler
   -> NotificationDispatchService
   -> ChannelSender(EMAIL/SMS/KAKAO)
@@ -147,7 +147,7 @@ Client
 6. Notification별 Outbox 이벤트 N건 저장
 7. 201 Created 응답 (groupId, totalCount)
 8. OutboxPoller가 Outbox를 WORK 큐로 발행
-9. RabbitMQBatchConsumer가 WORK를 읽어 RabbitMQRecordHandler로 채널 발송 수행
+9. RabbitMQSingleConsumer가 WORK를 읽어 RabbitMQRecordHandler로 채널 발송 수행
 ```
 
 #### Request
@@ -397,11 +397,11 @@ X-Api-Key: order-service
 
 ### RabbitMQ 소비
 
-`RabbitMQBatchConsumer`가 WORK 큐를 배치로 소비한다. `notification.rabbitmq.messaging-enabled=true` 설정 시 활성화된다.
+`RabbitMQSingleConsumer`가 WORK 큐를 단건씩 소비한다. `app.consumer.enabled=true`(기본값) 설정 시 활성화된다.
 
 처리 흐름:
-- WORK 큐에서 배치(최대 `batch-size`건) 수신 (manual ACK)
-- 메시지별 `MessageProcessContext` 생성 및 유효성 검사
+- WORK 큐에서 단건 수신 (manual ACK)
+- `MessageProcessContext` 생성 및 유효성 검사
 - 유효하지 않은 메시지 → `DeadLetterPublisher`로 DLQ 발행 후 ACK
 - 유효한 메시지 → `RabbitMQRecordHandler.processBatch()` 위임
 - `RabbitMQRecordHandler`에서 `DispatchLockManager.tryAcquire(notificationId)` 수행
