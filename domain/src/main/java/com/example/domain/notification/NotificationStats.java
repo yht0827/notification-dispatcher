@@ -1,7 +1,9 @@
 package com.example.domain.notification;
 
 import jakarta.persistence.Embeddable;
+import lombok.Getter;
 
+@Getter
 @Embeddable
 public class NotificationStats {
 
@@ -19,18 +21,6 @@ public class NotificationStats {
 		this.totalCount = totalCount;
 		this.sentCount = sentCount;
 		this.failedCount = failedCount;
-	}
-
-	public int getTotalCount() {
-		return totalCount;
-	}
-
-	public int getSentCount() {
-		return sentCount;
-	}
-
-	public int getFailedCount() {
-		return failedCount;
 	}
 
 	public void initializeTotalCount(int totalCount) {
