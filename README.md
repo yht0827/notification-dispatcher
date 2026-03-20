@@ -2,9 +2,9 @@
 
 ## 프로젝트 개요
 
-여러 서비스에서 중복 구현되던 알림 발송 로직을 단일 서비스로 통합한 **알림 발송 전용 서버**입니다.
+여러 클라이언트의 알림 발송 요청을 받아 Mock 발송 서버로 중개하는 미들 서버입니다.
 
-`order-service`, `payment-service` 등 클라이언트 서비스는 HTTP API 한 번만 호출하면 되고, 채널 발송(EMAIL/SMS/KAKAO), 재시도, 중복 방지, 상태 추적은 이 서비스가 담당합니다.
+클라이언트는 HTTP 요청 한 번으로 발송을 위임하고, 비동기 처리·재시도·중복 방지·상태 추적은 이 서버가 전담합니다.
 
 ```
 클라이언트 서비스 → POST /api/v1/notifications
@@ -16,20 +16,6 @@
                ├── 읽음 상태 관리
                └── 7일 경과 데이터 아카이빙
 ```
-
-## 프로젝트 목표
-
-이 프로젝트는 기능 구현보다 실무 수준의 설계 원칙을 직접 적용하고 검증하는 데 초점을 둡니다.
-
-| 목표 | 적용 방식 |
-|------|-----------|
-| 메시지 유실 없는 비동기 발송 | Transactional Outbox 패턴 |
-| 다중 인스턴스 환경 중복 처리 방지 | Redis 분산 락 (Redisson) |
-| 외부 API 장애 대응 재시도 | WAIT Queue TTL + DLX 라우팅 |
-| 도메인/인프라 분리 | Hexagonal Architecture (Port/Adapter) |
-| 대규모 데이터 효율적 보관/삭제 | 월별 RANGE 파티션 + 배치 아카이빙 |
-| 핫쿼리 성능 검증 | EXPLAIN ANALYZE 기반 인덱스 벤치마크 |
-
 ## 기술 스택
 
 | 카테고리 | 기술 | 버전 |
@@ -43,19 +29,6 @@
 | Test | JUnit 5 / JaCoCo | - |
 | Container | Docker | 24.0.2 |
 | Load Test | K6 | - |
-
-## 문서
-
-|  | 문서 | 설명 |
-|---|------|------|
-| 01 | [요구사항 정의](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%EC%9A%94%EA%B5%AC%EC%82%AC%ED%95%AD-%EC%A0%95%EC%9D%98) | API 명세, 상태 전이, 비동기 처리 규칙 |
-| 02 | [아키텍처 결정](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%EC%95%84%ED%82%A4%ED%85%8D%EC%B2%98-%EA%B2%B0%EC%A0%95) | 아키텍처 선택 이유|
-| 03 | [시퀀스 다이어그램](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%EC%8B%9C%ED%80%80%EC%8A%A4-%EB%8B%A4%EC%9D%B4%EC%96%B4%EA%B7%B8%EB%9E%A8) | 주요 런타임 흐름 (발송/읽음/아카이브) |
-| 04 | [클래스 다이어그램](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%ED%81%B4%EB%9E%98%EC%8A%A4-%EB%8B%A4%EC%9D%B4%EC%96%B4%EA%B7%B8%EB%9E%A8) | 계층 구조 및 핵심 클래스 관계 |
-| 05 | [ERD](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-ERD-(Entity-Relationship-Diagram)) | 테이블 설계 및 파티션 구조 |
-| 06 | [성능 최적화](https://github.com/yht0827/notification-dispatcher/wiki/%5B%ED%8A%9C%EB%8B%9D%5D-%EC%84%B1%EB%8A%A5-%EC%B5%9C%EC%A0%81%ED%99%94) | 부하 테스트 기반 튜닝  |
-| 07 | [테스트](https://github.com/yht0827/notification-dispatcher/wiki/%5B%ED%85%8C%EC%8A%A4%ED%8A%B8%5D-%ED%85%8C%EC%8A%A4%ED%8A%B8-%EC%A0%84%EB%9E%B5-%EB%B0%8F-%EC%BB%A4%EB%B2%84%EB%A6%AC%EC%A7%80) | 테스트 전략 및 커버리지 |
-| 08 | [CI/CD](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EB%B0%B0%ED%8F%AC%5D-GitHub-Actions-%EB%B9%8C%EB%93%9C-%EB%B0%8F-%EB%B0%B0%ED%8F%AC-%ED%8C%8C%EC%9D%B4%ED%94%84%EB%9D%BC%EC%9D%B8) | CI/CD 구성 |
 
 ## 아키텍처
 
@@ -85,6 +58,18 @@
 
 같은 `app` 모듈을 설정만 다르게 실행하는 방식입니다.
 
+## 핵심 설계
+
+| 패턴 | 설명 |
+|------|------|
+| Transactional Outbox | 알림 저장 + Outbox를 동일 트랜잭션으로 처리해 메시지 유실 방지 |
+| Distributed Lock | Redis(Redisson)로 notificationId 단위 중복 발송 방지 |
+| WAIT Queue + DLX | 실패 시 지수 백오프 재시도, 한도 초과 시 DLQ 보관 |
+| Separate Read Status | `notification_read_status` 별도 테이블로 읽음 상태 관리 |
+| Monthly Archive | 보관 정책 경과 + 종결 알림을 월별 RANGE 파티션 archive 테이블로 이관 |
+| Idempotency Key | `(clientId, idempotencyKey)` 기반 중복 요청 방지 |
+| Redis Stats Cache | 관리자 통계 Redis 캐시 (`cache.stats.enabled`, TTL 설정) |
+
 ## API
 
 | 기능 | METHOD | URI |
@@ -101,19 +86,6 @@
 | 클라이언트별 알림 통계 조회 | GET | `/api/admin/v1/stats/{clientId}` |
 
 Swagger UI: `http://localhost:8080/swagger-ui/index.html`
-
-
-## 핵심 설계
-
-| 패턴 | 설명 |
-|------|------|
-| Transactional Outbox | 알림 저장 + Outbox를 동일 트랜잭션으로 처리해 메시지 유실 방지 |
-| Distributed Lock | Redis(Redisson)로 notificationId 단위 중복 발송 방지 |
-| WAIT Queue + DLX | 실패 시 지수 백오프 재시도, 한도 초과 시 DLQ 보관 |
-| Separate Read Status | `notification_read_status` 별도 테이블로 읽음 상태 관리 |
-| Monthly Archive | 보관 정책 경과 + 종결 알림을 월별 RANGE 파티션 archive 테이블로 이관 |
-| Idempotency Key | `(clientId, idempotencyKey)` 기반 중복 요청 방지 |
-| Redis Stats Cache | 관리자 통계 Redis 캐시 (`cache.stats.enabled`, TTL 설정) |
 
 ## 디렉토리 구조
 
@@ -172,23 +144,12 @@ java -jar app/build/libs/app-0.0.1-SNAPSHOT.jar \
 
 GitHub Actions 기반으로 빌드와 테스트를 자동 검증합니다.
 
-- 대상
-  - `main`, `develop`, `feature/*` 브랜치 push / PR
-- 실행 내용
-  - `./gradlew check jacocoAggregateReport`
-  - 모듈별 테스트
-  - 커버리지 검증
+- 대상: `main`, `develop`, `feature/*` 브랜치 push / PR
+- 실행 내용: `./gradlew check jacocoAggregateReport` (모듈별 테스트 + 커버리지 검증)
 
 ### CD
 
-배포는 현재 **완전 자동 배포가 아닌 수동 배포** 기준입니다.
-
-- 애플리케이션 JAR 빌드
-- EC2에 JAR 업로드
-- 대상 프로세스 재기동
-- Grafana / Prometheus로 상태 확인
-
-즉 현재 단계의 운영 흐름은:
+현재 수동 배포 기준입니다.
 
 ```text
 GitHub Actions로 CI 검증
@@ -205,3 +166,16 @@ Grafana / Prometheus로 확인
 - Cache / Lock: Redis
 - Broker: RabbitMQ
 - Monitoring: Prometheus + Grafana
+
+## 문서
+
+|  | 문서 | 설명 |
+|---|------|------|
+| 01 | [요구사항 정의](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%EC%9A%94%EA%B5%AC%EC%82%AC%ED%95%AD-%EC%A0%95%EC%9D%98) | API 명세, 상태 전이, 비동기 처리 규칙 |
+| 02 | [아키텍처 결정](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%EC%95%84%ED%82%A4%ED%85%8D%EC%B2%98-%EA%B2%B0%EC%A0%95) | 아키텍처 선택 이유 |
+| 03 | [시퀀스 다이어그램](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%EC%8B%9C%ED%80%80%EC%8A%A4-%EB%8B%A4%EC%9D%B4%EC%96%B4%EA%B7%B8%EB%9E%A8) | 주요 런타임 흐름 (발송/읽음/아카이브) |
+| 04 | [클래스 다이어그램](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%ED%81%B4%EB%9E%98%EC%8A%A4-%EB%8B%A4%EC%9D%B4%EC%96%B4%EA%B7%B8%EB%9E%A8) | 계층 구조 및 핵심 클래스 관계 |
+| 05 | [ERD](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-ERD-(Entity-Relationship-Diagram)) | 테이블 설계 및 파티션 구조 |
+| 06 | [성능 최적화](https://github.com/yht0827/notification-dispatcher/wiki/%5B%ED%8A%9C%EB%8B%9D%5D-%EC%84%B1%EB%8A%A5-%EC%B5%9C%EC%A0%81%ED%99%94) | 부하 테스트 기반 튜닝 |
+| 07 | [테스트](https://github.com/yht0827/notification-dispatcher/wiki/%5B%ED%85%8C%EC%8A%A4%ED%8A%B8%5D-%ED%85%8C%EC%8A%A4%ED%8A%B8-%EC%A0%84%EB%9E%B5-%EB%B0%8F-%EC%BB%A4%EB%B2%84%EB%A6%AC%EC%A7%80) | 테스트 전략 및 커버리지 |
+| 08 | [CI/CD](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EB%B0%B0%ED%8F%AC%5D-GitHub-Actions-%EB%B9%8C%EB%93%9C-%EB%B0%8F-%EB%B0%B0%ED%8F%AC-%ED%8C%8C%EC%9D%B4%ED%94%84%EB%9D%BC%EC%9D%B8) | CI/CD 구성 |
