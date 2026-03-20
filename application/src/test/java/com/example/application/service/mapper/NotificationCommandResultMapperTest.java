@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.domain.notification.NotificationGroup;
+import com.example.domain.notification.NotificationStats;
 
 class NotificationCommandResultMapperTest {
 
@@ -19,7 +20,7 @@ class NotificationCommandResultMapperTest {
 	void toResult() {
 		NotificationGroup group = mock(NotificationGroup.class);
 		when(group.getId()).thenReturn(10L);
-		when(group.getTotalCount()).thenReturn(3);
+		when(group.getStats()).thenReturn(new NotificationStats(3, 0, 0));
 
 		NotificationCommandResult result = mapper.toResult(group);
 

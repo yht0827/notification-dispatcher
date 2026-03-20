@@ -15,9 +15,9 @@ class NotificationGroupTest {
                 "test-service", "MyShop", "테스트 제목", "테스트 내용", ChannelType.EMAIL, 3);
 
         // then
-        assertThat(group.getTotalCount()).isZero();
-        assertThat(group.getSentCount()).isZero();
-        assertThat(group.getFailedCount()).isZero();
+        assertThat(group.getStats().getTotalCount()).isZero();
+        assertThat(group.getStats().getSentCount()).isZero();
+        assertThat(group.getStats().getFailedCount()).isZero();
         assertThat(group.getNotifications()).isEmpty();
     }
 
@@ -33,7 +33,7 @@ class NotificationGroupTest {
         group.addNotification("user3@example.com");
 
         // then
-        assertThat(group.getTotalCount()).isEqualTo(3);
+        assertThat(group.getStats().getTotalCount()).isEqualTo(3);
         assertThat(group.getNotifications()).hasSize(3);
     }
 
@@ -49,7 +49,7 @@ class NotificationGroupTest {
         notification.markAsSent();
 
         // then
-        assertThat(group.getSentCount()).isEqualTo(1);
+        assertThat(group.getStats().getSentCount()).isEqualTo(1);
     }
 
     @Test
@@ -64,7 +64,7 @@ class NotificationGroupTest {
         notification.markAsFailed("전송 실패");
 
         // then
-        assertThat(group.getFailedCount()).isEqualTo(1);
+        assertThat(group.getStats().getFailedCount()).isEqualTo(1);
     }
 
     @Test
@@ -82,7 +82,7 @@ class NotificationGroupTest {
         n2.markAsFailed("실패");
 
         // then
-        assertThat(group.getPendingCount()).isEqualTo(1);
+        assertThat(group.getStats().getPendingCount()).isEqualTo(1);
     }
 
     @Test
@@ -100,7 +100,7 @@ class NotificationGroupTest {
         n2.markAsFailed("실패");
 
         // then
-        assertThat(group.isCompleted()).isTrue();
+        assertThat(group.getStats().isCompleted()).isTrue();
     }
 
     @Test
@@ -113,7 +113,7 @@ class NotificationGroupTest {
         processed.startSending();
         processed.markAsSent();
 
-        assertThat(group.isCompleted()).isFalse();
+        assertThat(group.getStats().isCompleted()).isFalse();
     }
 
     private NotificationGroup createBulkGroup() {

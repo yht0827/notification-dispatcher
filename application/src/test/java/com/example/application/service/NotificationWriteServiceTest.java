@@ -87,7 +87,7 @@ class NotificationWriteServiceTest {
 			2
 		);
 		NotificationCommandResult existingResult =
-			new NotificationCommandResult(existingGroup.getId(), existingGroup.getTotalCount());
+			new NotificationCommandResult(existingGroup.getId(), existingGroup.getStats().getTotalCount());
 
 		when(idempotencyLookupService.findExistingResult("order-service", "idem-order-1001"))
 			.thenReturn(Optional.of(existingResult));
@@ -97,7 +97,7 @@ class NotificationWriteServiceTest {
 
 		// then
 		assertThat(result.groupId()).isEqualTo(existingGroup.getId());
-		assertThat(result.totalCount()).isEqualTo(existingGroup.getTotalCount());
+		assertThat(result.totalCount()).isEqualTo(existingGroup.getStats().getTotalCount());
 		verifyNoInteractions(notificationWriteExecutor);
 	}
 
@@ -182,7 +182,7 @@ class NotificationWriteServiceTest {
 			2
 		);
 		NotificationCommandResult existingResult =
-			new NotificationCommandResult(existingGroup.getId(), existingGroup.getTotalCount());
+			new NotificationCommandResult(existingGroup.getId(), existingGroup.getStats().getTotalCount());
 
 		when(idempotencyLookupService.findExistingResult("order-service", "idem-order-3001"))
 			.thenReturn(Optional.empty());
@@ -194,7 +194,7 @@ class NotificationWriteServiceTest {
 		NotificationCommandResult result = commandService.request(command);
 
 		assertThat(result.groupId()).isEqualTo(existingGroup.getId());
-		assertThat(result.totalCount()).isEqualTo(existingGroup.getTotalCount());
+		assertThat(result.totalCount()).isEqualTo(existingGroup.getStats().getTotalCount());
 		verify(idempotencyLookupService).findExistingResult("order-service", "idem-order-3001");
 		verify(idempotencyLookupService)
 			.findExistingResultAfterCollision("order-service", "idem-order-3001");

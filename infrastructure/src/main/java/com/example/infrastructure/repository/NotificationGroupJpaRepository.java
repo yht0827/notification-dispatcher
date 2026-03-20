@@ -20,8 +20,8 @@ public interface NotificationGroupJpaRepository extends JpaRepository<Notificati
           and g.createdAt >= :from
           and (:cursorId is null or g.id < :cursorId)
           and (:completed is null
-               or (true = :completed and g.totalCount = g.sentCount + g.failedCount)
-               or (false = :completed and g.totalCount <> g.sentCount + g.failedCount))
+               or (true = :completed and g.stats.totalCount = g.stats.sentCount + g.stats.failedCount)
+               or (false = :completed and g.stats.totalCount <> g.stats.sentCount + g.stats.failedCount))
         order by g.id desc
         """)
     List<NotificationGroup> findByClientIdWithCursor(

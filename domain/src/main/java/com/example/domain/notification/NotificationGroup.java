@@ -7,6 +7,7 @@ import com.example.domain.common.BaseEntity;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -61,11 +62,8 @@ public class NotificationGroup extends BaseEntity {
 	@Column(nullable = false)
 	private ChannelType channelType;
 
-	private int totalCount;
-
-	private int sentCount;
-
-	private int failedCount;
+	@Embedded
+	private NotificationStats stats = new NotificationStats();
 
 	@OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<Notification> notifications = new ArrayList<>();
@@ -86,9 +84,7 @@ public class NotificationGroup extends BaseEntity {
 		this.content = content;
 		this.groupType = groupType;
 		this.channelType = channelType;
-		this.totalCount = 0;
-		this.sentCount = 0;
-		this.failedCount = 0;
+		this.stats = new NotificationStats();
 	}
 
 	public static NotificationGroup create(String clientId, String sender, String title,
@@ -112,35 +108,23 @@ public class NotificationGroup extends BaseEntity {
 	public Notification addNotification(String receiver) {
 		Notification notification = Notification.create(this, receiver);
 		this.notifications.add(notification);
-		this.totalCount++;
+		this.stats.incrementTotal();
 		return notification;
 	}
 
 	public void initializeTotalCount(int totalCount) {
-		this.totalCount = totalCount;
+		this.stats.initializeTotalCount(totalCount);
 	}
 
 	public void incrementSentCount() {
-		this.sentCount++;
+		this.stats.incrementSent();
 	}
 
 	public void incrementFailedCount() {
-		this.failedCount++;
-	}
-
-	public int getPendingCount() {
-		return totalCount - processedCount();
-	}
-
-	public boolean isCompleted() {
-		return totalCount == processedCount();
+		this.stats.incrementFailed();
 	}
 
 	private static GroupType resolveGroupType(int receiverCount) {
 		return receiverCount == 1 ? GroupType.SINGLE : GroupType.BULK;
-	}
-
-	private int processedCount() {
-		return sentCount + failedCount;
 	}
 }

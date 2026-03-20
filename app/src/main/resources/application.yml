@@ -109,13 +109,13 @@ resilience4j:
     instances:
       email-api:
         base-config: channel
-        limit-for-period: 60
+        limit-for-period: 120
       sms-api:
         base-config: channel
-        limit-for-period: 60
+        limit-for-period: 120
       kakao-api:
         base-config: channel
-        limit-for-period: 60
+        limit-for-period: 120
 # ─────────────────────────────────────────
 # Actuator / Metrics
 # ─────────────────────────────────────────
@@ -138,8 +138,8 @@ management:
 # Outbox / Recovery
 # ─────────────────────────────────────────
 outbox:
-  poll-interval-millis: 1000        # 1초마다 폴링
-  batch-size: 100                   # 1회당 100개씩 처리
+  poll-interval-millis: 500         # 1초마다 폴링
+  batch-size: 200                   # 1회당 100개씩 처리
 
 recovery:
   poll-interval-millis: 300000      # 5분마다 폴링
@@ -218,8 +218,8 @@ notification:
     max-retry-count: 3                         # 최대 재시도 횟수
     retry-base-delay-millis: 5000              # 기본 재시도 지연 (ms)
     retry-jitter-factor: 0.20                  # 재시도 대기 지터 비율 (20%)
-    concurrency: 2
-    max-concurrency: 2
+    concurrency: 4
+    max-concurrency: 4
     prefetch: 5
   external:
     mock:
