@@ -109,7 +109,7 @@ class NotificationGroupRepositoryTest extends IntegrationTestSupport {
         NotificationGroup saved = groupRepository.save(group);
 
         // then
-        assertThat(saved.getTotalCount()).isEqualTo(2);
+        assertThat(saved.getStats().getTotalCount()).isEqualTo(2);
         assertThat(saved.getNotifications()).hasSize(2);
     }
 

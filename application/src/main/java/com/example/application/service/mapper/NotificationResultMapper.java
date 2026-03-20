@@ -25,11 +25,11 @@ public class NotificationResultMapper {
 			group.getTitle(),
 			group.getGroupType(),
 			group.getChannelType(),
-			group.getTotalCount(),
-			group.getSentCount(),
-			group.getFailedCount(),
-			group.getPendingCount(),
-			group.isCompleted(),
+			group.getStats().getTotalCount(),
+			group.getStats().getSentCount(),
+			group.getStats().getFailedCount(),
+			group.getStats().getPendingCount(),
+			group.getStats().isCompleted(),
 			group.getCreatedAt()
 		);
 	}
@@ -55,11 +55,11 @@ public class NotificationResultMapper {
 			group.getContent(),
 			group.getGroupType(),
 			group.getChannelType(),
-			group.getTotalCount(),
-			group.getSentCount(),
-			group.getFailedCount(),
-			group.getPendingCount(),
-			group.isCompleted(),
+			group.getStats().getTotalCount(),
+			group.getStats().getSentCount(),
+			group.getStats().getFailedCount(),
+			group.getStats().getPendingCount(),
+			group.getStats().isCompleted(),
 			group.getCreatedAt(),
 			notifications
 		);

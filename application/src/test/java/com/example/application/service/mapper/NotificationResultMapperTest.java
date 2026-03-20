@@ -16,6 +16,7 @@ import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.GroupType;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
+import com.example.domain.notification.NotificationStats;
 import com.example.domain.notification.NotificationStatus;
 
 class NotificationResultMapperTest {
@@ -27,17 +28,14 @@ class NotificationResultMapperTest {
 	void toGroupResult() {
 		// given
 		NotificationGroup group = mock(NotificationGroup.class);
+		NotificationStats stats = new NotificationStats(10, 5, 2);
 		when(group.getId()).thenReturn(1L);
 		when(group.getClientId()).thenReturn("client-1");
 		when(group.getSender()).thenReturn("sender");
 		when(group.getTitle()).thenReturn("title");
 		when(group.getGroupType()).thenReturn(GroupType.SINGLE);
 		when(group.getChannelType()).thenReturn(ChannelType.SMS);
-		when(group.getTotalCount()).thenReturn(10);
-		when(group.getSentCount()).thenReturn(5);
-		when(group.getFailedCount()).thenReturn(2);
-		when(group.getPendingCount()).thenReturn(3);
-		when(group.isCompleted()).thenReturn(false);
+		when(group.getStats()).thenReturn(stats);
 		when(group.getCreatedAt()).thenReturn(LocalDateTime.now());
 
 		// when
@@ -81,6 +79,7 @@ class NotificationResultMapperTest {
 	void toGroupDetailResult() {
 		NotificationGroup group = mock(NotificationGroup.class);
 		Notification notification = mock(Notification.class);
+		NotificationStats stats = new NotificationStats(1, 0, 0);
 		when(group.getId()).thenReturn(1L);
 		when(group.getClientId()).thenReturn("client-1");
 		when(group.getSender()).thenReturn("sender");
@@ -88,11 +87,7 @@ class NotificationResultMapperTest {
 		when(group.getContent()).thenReturn("content");
 		when(group.getGroupType()).thenReturn(GroupType.BULK);
 		when(group.getChannelType()).thenReturn(ChannelType.EMAIL);
-		when(group.getTotalCount()).thenReturn(1);
-		when(group.getSentCount()).thenReturn(0);
-		when(group.getFailedCount()).thenReturn(0);
-		when(group.getPendingCount()).thenReturn(1);
-		when(group.isCompleted()).thenReturn(false);
+		when(group.getStats()).thenReturn(stats);
 		when(group.getNotifications()).thenReturn(Collections.singletonList(notification));
 		when(notification.getId()).thenReturn(101L);
 		when(notification.getReceiver()).thenReturn("user@example.com");

@@ -31,6 +31,7 @@ import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.GroupType;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
+import com.example.domain.notification.NotificationStats;
 import com.example.domain.notification.NotificationStatus;
 
 @ExtendWith(MockitoExtension.class)
@@ -58,8 +59,12 @@ class NotificationQueryServiceTest {
 		NotificationGroup first = org.mockito.Mockito.mock(NotificationGroup.class);
 		NotificationGroup second = org.mockito.Mockito.mock(NotificationGroup.class);
 		NotificationGroup third = org.mockito.Mockito.mock(NotificationGroup.class);
+		NotificationStats emptyStats = new NotificationStats(0, 0, 0);
 		when(first.getId()).thenReturn(300L);
+		when(first.getStats()).thenReturn(emptyStats);
 		when(second.getId()).thenReturn(200L);
+		when(second.getStats()).thenReturn(emptyStats);
+		when(third.getStats()).thenReturn(emptyStats);
 		when(groupRepository.findByClientIdWithCursor(
 			org.mockito.ArgumentMatchers.eq("order-service"),
 			any(java.time.LocalDateTime.class),
@@ -85,6 +90,7 @@ class NotificationQueryServiceTest {
 	void getGroupsByClientId_returnsSliceWithoutNextCursor() {
 		// given
 		NotificationGroup only = org.mockito.Mockito.mock(NotificationGroup.class);
+		when(only.getStats()).thenReturn(new NotificationStats(0, 0, 0));
 		when(groupRepository.findByClientIdWithCursor(
 			org.mockito.ArgumentMatchers.eq("order-service"),
 			any(java.time.LocalDateTime.class),
@@ -113,11 +119,7 @@ class NotificationQueryServiceTest {
 		when(group.getTitle()).thenReturn("title");
 		when(group.getGroupType()).thenReturn(GroupType.BULK);
 		when(group.getChannelType()).thenReturn(ChannelType.EMAIL);
-		when(group.getTotalCount()).thenReturn(3);
-		when(group.getSentCount()).thenReturn(2);
-		when(group.getFailedCount()).thenReturn(0);
-		when(group.getPendingCount()).thenReturn(1);
-		when(group.isCompleted()).thenReturn(false);
+		when(group.getStats()).thenReturn(new NotificationStats(3, 2, 0));
 		when(groupRepository.findById(10L)).thenReturn(Optional.of(group));
 
 		Optional<NotificationGroupResult> result = queryService.getGroup(10L);
@@ -139,11 +141,7 @@ class NotificationQueryServiceTest {
 		when(group.getContent()).thenReturn("content");
 		when(group.getGroupType()).thenReturn(GroupType.BULK);
 		when(group.getChannelType()).thenReturn(ChannelType.EMAIL);
-		when(group.getTotalCount()).thenReturn(1);
-		when(group.getSentCount()).thenReturn(0);
-		when(group.getFailedCount()).thenReturn(0);
-		when(group.getPendingCount()).thenReturn(1);
-		when(group.isCompleted()).thenReturn(false);
+		when(group.getStats()).thenReturn(new NotificationStats(1, 0, 0));
 		when(group.getCreatedAt()).thenReturn(LocalDateTime.now().minusDays(1));
 		when(group.getNotifications()).thenReturn(List.of(notification));
 		when(notification.getId()).thenReturn(101L);

@@ -9,6 +9,6 @@ import com.example.domain.notification.NotificationGroup;
 public class NotificationCommandResultMapper {
 
 	public NotificationCommandResult toResult(NotificationGroup group) {
-		return new NotificationCommandResult(group.getId(), group.getTotalCount());
+		return new NotificationCommandResult(group.getId(), group.getStats().getTotalCount());
 	}
 }
