@@ -183,7 +183,7 @@ Grafana / Prometheus로 확인
 | [멱등성 및 Race Condition 검증](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%EB%A9%B1%EB%93%B1%EC%84%B1-%EB%B0%8F-Race-Condition-%EA%B2%80%EC%A6%9D) | 중복 요청 보정 및 동시성 검증 |
 | [인덱스 최적화](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%EC%9D%B8%EB%8D%B1%EC%8A%A4-%EC%B5%9C%EC%A0%81%ED%99%94) | 조회 쿼리 인덱스 전략 |
 | [알림 아카이브 설계 및 운영 전략](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%EC%95%8C%EB%A6%BC-%EC%95%84%EC%B9%B4%EC%9D%B4%EB%B8%8C-%EC%84%A4%EA%B3%84-%EB%B0%8F-%EC%9A%B4%EC%98%81-%EC%A0%84%EB%9E%B5) | 데이터 수명주기 및 파티션 운영 |
-| [커서 페이지네이션 전략](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D--%EC%BB%A4%EC%84%9C-%ED%8E%98%EC%9D%B4%EC%A7%80%EB%84%A4%EC%9D%B5%EC%85%98-%EC%A0%84%EB%9E%B5) | Offset vs Cursor 비교 및 채택 근거 |
+| [커서 페이지네이션 전략](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D--%EC%BB%A4%EC%84%9C-%ED%8E%98%EC%9D%B4%EC%A7%80%EB%84%A4%EC%9D%B4%EC%85%98-%EC%A0%84%EB%9E%B5) | Offset vs Cursor 비교 및 채택 근거 |
 
 ### 성능
 
