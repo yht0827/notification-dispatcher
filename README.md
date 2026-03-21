@@ -16,6 +16,7 @@
                ├── 읽음 상태 관리
                └── 7일 경과 데이터 아카이빙
 ```
+
 ## 기술 스택
 
 | 카테고리 | 기술 | 버전 |
@@ -44,7 +45,7 @@
 
 `api` → `application (port)` → `domain` ← `infrastructure (adapter)`
 
-## 실행 구조
+### 실행 구조
 
 기본 실행은 단일 프로세스지만, 운영에서는 역할을 나눠 실행할 수 있습니다.
 
@@ -140,14 +141,14 @@ java -jar app/build/libs/app-0.0.1-SNAPSHOT.jar \
 
 ## CI/CD
 
-### CI
+### CI (Continuous Integration)
 
 GitHub Actions 기반으로 빌드와 테스트를 자동 검증합니다.
 
 - 대상: `main`, `develop`, `feature/*` 브랜치 push / PR
 - 실행 내용: `./gradlew check jacocoAggregateReport` (모듈별 테스트 + 커버리지 검증)
 
-### CD
+### CD (Continuous Deployment)
 
 현재 수동 배포 기준입니다.
 
@@ -169,13 +170,44 @@ Grafana / Prometheus로 확인
 
 ## 문서
 
-|  | 문서 | 설명 |
-|---|------|------|
-| 01 | [요구사항 정의](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%EC%9A%94%EA%B5%AC%EC%82%AC%ED%95%AD-%EC%A0%95%EC%9D%98) | API 명세, 상태 전이, 비동기 처리 규칙 |
-| 02 | [아키텍처 결정](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%EC%95%84%ED%82%A4%ED%85%8D%EC%B2%98-%EA%B2%B0%EC%A0%95) | 아키텍처 선택 이유 |
-| 03 | [시퀀스 다이어그램](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%EC%8B%9C%ED%80%80%EC%8A%A4-%EB%8B%A4%EC%9D%B4%EC%96%B4%EA%B7%B8%EB%9E%A8) | 주요 런타임 흐름 (발송/읽음/아카이브) |
-| 04 | [클래스 다이어그램](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%ED%81%B4%EB%9E%98%EC%8A%A4-%EB%8B%A4%EC%9D%B4%EC%96%B4%EA%B7%B8%EB%9E%A8) | 계층 구조 및 핵심 클래스 관계 |
-| 05 | [ERD](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-ERD-(Entity-Relationship-Diagram)) | 테이블 설계 및 파티션 구조 |
-| 06 | [성능 최적화](https://github.com/yht0827/notification-dispatcher/wiki/%5B%ED%8A%9C%EB%8B%9D%5D-%EC%84%B1%EB%8A%A5-%EC%B5%9C%EC%A0%81%ED%99%94) | 부하 테스트 기반 튜닝 |
-| 07 | [테스트](https://github.com/yht0827/notification-dispatcher/wiki/%5B%ED%85%8C%EC%8A%A4%ED%8A%B8%5D-%ED%85%8C%EC%8A%A4%ED%8A%B8-%EC%A0%84%EB%9E%B5-%EB%B0%8F-%EC%BB%A4%EB%B2%84%EB%A6%AC%EC%A7%80) | 테스트 전략 및 커버리지 |
-| 08 | [CI/CD](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EB%B0%B0%ED%8F%AC%5D-GitHub-Actions-%EB%B9%8C%EB%93%9C-%EB%B0%8F-%EB%B0%B0%ED%8F%AC-%ED%8C%8C%EC%9D%B4%ED%94%84%EB%9D%BC%EC%9D%B8) | CI/CD 구성 |
+### 설계
+
+| 문서 | 설명 |
+|------|------|
+| [요구사항 정의](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%EC%9A%94%EA%B5%AC%EC%82%AC%ED%95%AD-%EC%A0%95%EC%9D%98) | API 명세, 상태 전이, 비동기 처리 규칙 |
+| [아키텍처 결정](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%EC%95%84%ED%82%A4%ED%85%8D%EC%B2%98-%EA%B2%B0%EC%A0%95) | 아키텍처 선택 이유 |
+| [시퀀스 다이어그램](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%EC%8B%9C%ED%80%80%EC%8A%A4-%EB%8B%A4%EC%9D%B4%EC%96%B4%EA%B7%B8%EB%9E%A8) | 주요 런타임 흐름 (발송/읽음/아카이브) |
+| [클래스 다이어그램](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%ED%81%B4%EB%9E%98%EC%8A%A4-%EB%8B%A4%EC%9D%B4%EC%96%B4%EA%B7%B8%EB%9E%A8) | 계층 구조 및 핵심 클래스 관계 |
+| [ERD](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-ERD-(Entity-Relationship-Diagram)) | 테이블 설계 및 파티션 구조 |
+| [동시성 제어](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%EB%8F%99%EC%8B%9C%EC%84%B1-%EC%A0%9C%EC%96%B4) | 낙관적 락 / 분산 락 / 비관적 락 비교 |
+| [멱등성 및 Race Condition 검증](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%EB%A9%B1%EB%93%B1%EC%84%B1-%EB%B0%8F-Race-Condition-%EA%B2%80%EC%A6%9D) | 중복 요청 보정 및 동시성 검증 |
+| [인덱스 최적화](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%EC%9D%B8%EB%8D%B1%EC%8A%A4-%EC%B5%9C%EC%A0%81%ED%99%94) | 조회 쿼리 인덱스 전략 |
+| [알림 아카이브 설계 및 운영 전략](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D-%EC%95%8C%EB%A6%BC-%EC%95%84%EC%B9%B4%EC%9D%B4%EB%B8%8C-%EC%84%A4%EA%B3%84-%EB%B0%8F-%EC%9A%B4%EC%98%81-%EC%A0%84%EB%9E%B5) | 데이터 수명주기 및 파티션 운영 |
+| [커서 페이지네이션 전략](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%A4%EA%B3%84%5D--%EC%BB%A4%EC%84%9C-%ED%8E%98%EC%9D%B4%EC%A7%80%EB%84%A4%EC%9D%B5%EC%85%98-%EC%A0%84%EB%9E%B5) | Offset vs Cursor 비교 및 채택 근거 |
+
+### 성능
+
+| 문서 | 설명 |
+|------|------|
+| [비동기 처리 방식 전환](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%B1%EB%8A%A5%5D-%EB%B9%84%EB%8F%99%EA%B8%B0-%EC%B2%98%EB%A6%AC-%EB%B0%A9%EC%8B%9D-%EC%A0%84%ED%99%98) | 동기 → 비동기 전환 배경과 효과 |
+| [쓰기 성능 개선](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%B1%EB%8A%A5%5D-%EC%93%B0%EA%B8%B0-%EC%84%B1%EB%8A%A5-%EA%B0%9C%EC%84%A0) | Bulk Insert 및 배치 처리 전략 |
+| [DB 레플리카 도입](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%B1%EB%8A%A5%5D-DB-%EB%A0%88%ED%94%8C%EB%A6%AC%EC%B9%B4-%EB%8F%84%EC%9E%85) | Read/Write 분리 효과 |
+| [Redis 캐시 전략](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EC%84%B1%EB%8A%A5%5D-Redis-%EC%BA%90%EC%8B%9C-%EC%A0%84%EB%9E%B5) | 관리자 통계 캐시 설계 |
+
+### 튜닝
+
+| 문서 | 설명 |
+|------|------|
+| [성능 최적화](https://github.com/yht0827/notification-dispatcher/wiki/%5B%ED%8A%9C%EB%8B%9D%5D-%EC%84%B1%EB%8A%A5-%EC%B5%9C%EC%A0%81%ED%99%94) | 튜닝 결과 요약 |
+| [Baseline 부하 테스트](https://github.com/yht0827/notification-dispatcher/wiki/%5B%ED%8A%9C%EB%8B%9D%5D-Baseline-%EB%B6%80%ED%95%98-%ED%85%8C%EC%8A%A4%ED%8A%B8) | 기본 성능 측정 및 병목 구간 확인 |
+| [HikariCP Connection Pool Size](https://github.com/yht0827/notification-dispatcher/wiki/%5B%ED%8A%9C%EB%8B%9D%5D-HikariCP-Connection-Pool-Size) | 최적 커넥션 풀 크기 결정 |
+| [Outbox Batch Size](https://github.com/yht0827/notification-dispatcher/wiki/%5B%ED%8A%9C%EB%8B%9D%5D-Outbox-Batch%E2%80%90Size) | Outbox 폴링 배치 크기 결정 |
+| [RabbitMQ Consumer 튜닝](https://github.com/yht0827/notification-dispatcher/wiki/%5B%ED%8A%9C%EB%8B%9D%5D-RabbitMQ-Consumer) | Consumer 수 및 설정 최적화 |
+| [Resilience 설정](https://github.com/yht0827/notification-dispatcher/wiki/%5B%ED%8A%9C%EB%8B%9D%5D-Resilience-%EC%84%A4%EC%A0%95) | RateLimiter / Retry / Circuit Breaker 기본값 |
+
+### 테스트 · 가이드
+
+| 문서 | 설명 |
+|------|------|
+| [테스트 전략 및 커버리지](https://github.com/yht0827/notification-dispatcher/wiki/%5B%ED%85%8C%EC%8A%A4%ED%8A%B8%5D-%ED%85%8C%EC%8A%A4%ED%8A%B8-%EC%A0%84%EB%9E%B5-%EB%B0%8F-%EC%BB%A4%EB%B2%84%EB%A6%AC%EC%A7%80) | 모듈별 테스트 구성 및 JaCoCo 임계값 |
+| [Grafana 대시보드 구성](https://github.com/yht0827/notification-dispatcher/wiki/%5B%EA%B0%80%EC%9D%B4%EB%93%9C%5D-Grafana-%EB%8C%80%EC%8B%9C%EB%B3%B4%EB%93%9C-%EA%B5%AC%EC%84%B1) | 부하 테스트 결과 해석 가이드 |
