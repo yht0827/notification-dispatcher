@@ -23,10 +23,12 @@ import com.example.application.port.out.repository.NotificationRepository;
 import com.example.domain.exception.UnsupportedChannelException;
 import com.example.domain.notification.Notification;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class NotificationDispatchService implements NotificationDispatchUseCase {
 
 	private final NotificationRepository notificationRepository;
@@ -35,20 +37,6 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 	private final TransactionTemplate transactionTemplate;
 	private final ApplicationEventPublisher eventPublisher;
 
-	public NotificationDispatchService(
-		NotificationRepository notificationRepository,
-		NotificationGroupRepository notificationGroupRepository,
-		NotificationSender notificationSender,
-		TransactionTemplate transactionTemplate,
-		ApplicationEventPublisher eventPublisher
-	) {
-		this.notificationRepository = notificationRepository;
-		this.notificationGroupRepository = notificationGroupRepository;
-		this.notificationSender = notificationSender;
-		this.transactionTemplate = transactionTemplate;
-		this.eventPublisher = eventPublisher;
-	}
-
 	@Override
 	public List<BatchDispatchResult> dispatchBatch(List<Notification> notifications) {
 		if (notifications == null || notifications.isEmpty()) {
@@ -56,29 +44,24 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 		}
 
 		List<Notification> dispatchCandidates = notifications.stream()
-			.filter(notification -> !notification.isTerminal())
+			.filter(n -> !n.isTerminal())
 			.toList();
 
 		Map<Long, Notification> preparedById = prepareBatchForDispatch(dispatchCandidates);
 		Map<Long, SendResult> sendResults = sendBatch(preparedById);
 		Map<Long, BatchDispatchResult> finalResultsById = persistBatchDispatchResults(preparedById, sendResults);
 
-		List<BatchDispatchResult> finalResults = new ArrayList<>(notifications.size());
-		for (Notification notification : notifications) {
-			if (notification.isTerminal()) {
-				finalResults.add(BatchDispatchResult.success(notification.getId()));
-				continue;
-			}
-			finalResults.add(finalResultsById.getOrDefault(notification.getId(),
-				BatchDispatchResult.failRetryable(notification.getId(), "배치 처리 결과 누락")));
-		}
-		return finalResults;
+		return notifications.stream()
+			.map(n -> n.isTerminal()
+				? BatchDispatchResult.success(n.getId())
+				: finalResultsById.getOrDefault(n.getId(),
+				BatchDispatchResult.failRetryable(n.getId(), "배치 처리 결과 누락")))
+			.toList();
 	}
 
 	@Override
 	@Transactional
 	public void markAsFailed(Long notificationId, String reason) {
-		// SENDING → FAILED
 		notificationRepository.findById(notificationId).ifPresent(notification -> {
 			notification.markAsFailed(reason);
 			notificationRepository.save(notification);
@@ -93,13 +76,10 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 				return Map.of();
 			}
 
-			Map<Long, Notification> preparedById = new LinkedHashMap<>();
-			List<Long> notificationIds = new ArrayList<>(notifications.size());
-			for (Notification notification : notifications) {
-				notificationIds.add(notification.getId());
-				preparedById.put(notification.getId(), notification);
-			}
-			notificationRepository.bulkStartSending(notificationIds, LocalDateTime.now());
+			Map<Long, Notification> preparedById = notifications.stream()
+				.collect(LinkedHashMap::new, (map, n) -> map.put(n.getId(), n), Map::putAll);
+
+			notificationRepository.bulkStartSending(List.copyOf(preparedById.keySet()), LocalDateTime.now());
 			eventPublisher.publishEvent(new AdminStatsChangedEvent());
 			return preparedById;
 		});
@@ -130,15 +110,15 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 	private SendResult sendNotification(Notification notification) {
 		try {
 			return notificationSender.send(notification);
-		} catch (UnsupportedChannelException unsupportedChannelException) {
-			return SendResult.failNonRetryable(unsupportedChannelException.getMessage());
-		} catch (RuntimeException exception) {
-			return SendResult.fail(exception.getMessage());
+		} catch (UnsupportedChannelException e) {
+			return SendResult.failNonRetryable(e.getMessage());
+		} catch (RuntimeException e) {
+			return SendResult.fail(e.getMessage());
 		}
 	}
 
-	private Map<Long, BatchDispatchResult> persistBatchDispatchResults(Map<Long, Notification> preparedById,
-		Map<Long, SendResult> sendResults) {
+	private Map<Long, BatchDispatchResult> persistBatchDispatchResults(
+		Map<Long, Notification> preparedById, Map<Long, SendResult> sendResults) {
 		return transactionTemplate.execute(status -> {
 			if (sendResults.isEmpty()) {
 				return Map.of();
@@ -148,15 +128,18 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 			List<NotificationFailureUpdate> failedUpdates = new ArrayList<>();
 			Map<Long, NotificationGroupCountUpdate> groupCountUpdates = new LinkedHashMap<>();
 			Map<Long, BatchDispatchResult> results = new LinkedHashMap<>();
-			for (Long notificationId : sendResults.keySet()) {
+
+			for (Map.Entry<Long, SendResult> entry : sendResults.entrySet()) {
+				Long notificationId = entry.getKey();
+				SendResult sendResult = entry.getValue();
 				Notification notification = preparedById.get(notificationId);
+
 				if (notification == null) {
-					results.put(notificationId, BatchDispatchResult.failNonRetryable(notificationId,
-						"알림을 찾을 수 없음: " + notificationId));
+					results.put(notificationId,
+						BatchDispatchResult.failNonRetryable(notificationId, "알림을 찾을 수 없음: " + notificationId));
 					continue;
 				}
 
-				SendResult sendResult = sendResults.get(notificationId);
 				if (sendResult.isSuccess()) {
 					sentIds.add(notificationId);
 					accumulateGroupCount(groupCountUpdates, notification, 1, 0);
@@ -173,9 +156,9 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 				}
 			}
 
-			LocalDateTime updatedAt = LocalDateTime.now();
-			notificationRepository.bulkMarkAsSent(sentIds, updatedAt, updatedAt);
-			notificationRepository.bulkMarkAsFailed(failedUpdates, updatedAt);
+			LocalDateTime now = LocalDateTime.now();
+			notificationRepository.bulkMarkAsSent(sentIds, now, now);
+			notificationRepository.bulkMarkAsFailed(failedUpdates, now);
 			if (!groupCountUpdates.isEmpty()) {
 				notificationGroupRepository.bulkApplyDispatchCounts(List.copyOf(groupCountUpdates.values()));
 			}
@@ -189,18 +172,10 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 		if (notification.getGroup() == null || notification.getGroup().getId() == null) {
 			return;
 		}
-
 		Long groupId = notification.getGroup().getId();
-		NotificationGroupCountUpdate current = groupCountUpdates.get(groupId);
-		if (current == null) {
-			groupCountUpdates.put(groupId, new NotificationGroupCountUpdate(groupId, sentDelta, failedDelta));
-			return;
-		}
-		groupCountUpdates.put(groupId, new NotificationGroupCountUpdate(
-			groupId,
-			current.sentDelta() + sentDelta,
-			current.failedDelta() + failedDelta
-		));
+		groupCountUpdates.compute(groupId, (id, current) -> current == null
+			? new NotificationGroupCountUpdate(id, sentDelta, failedDelta)
+			:
+			new NotificationGroupCountUpdate(id, current.sentDelta() + sentDelta, current.failedDelta() + failedDelta));
 	}
-
 }

@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,73 +36,92 @@ class RabbitMQRecordHandlerTest {
 	private NotificationDispatchUseCase dispatchService;
 
 	@Mock
-    private DispatchLockManager lockManager;
+	private DispatchLockManager lockManager;
 
 	private RabbitMQRecordHandler recordHandler;
 
 	@BeforeEach
 	void setUp() {
 		lenient().when(lockManager.tryAcquire(any())).thenReturn(true);
-        recordHandler = new RabbitMQRecordHandler(notificationRepository, dispatchService, lockManager);
+		recordHandler = new RabbitMQRecordHandler(notificationRepository, dispatchService, lockManager);
 	}
 
 	@Test
-	@DisplayName("배치 처리 성공 시 성공 결과를 반환하고 락을 해제한다")
-	void processBatch_returnsSuccessAndReleasesLock() {
-		Notification first = createNotification(101L, "first@example.com");
-		Notification second = createNotification(102L, "second@example.com");
-		when(notificationRepository.findAllByIdIn(List.of(101L, 102L))).thenReturn(List.of(first, second));
-		when(dispatchService.dispatchBatch(List.of(first, second))).thenReturn(List.of(
-			BatchDispatchResult.success(101L),
-			BatchDispatchResult.success(102L)
-		));
+	@DisplayName("notificationId가 null이면 non-retryable 실패를 반환한다")
+	void process_returnsNonRetryableFailureWhenNotificationIdIsNull() {
+		RecordProcessResult result = recordHandler.process(new RecordProcessRequest(1L, null, 0));
 
-		List<RecordProcessResult> results = recordHandler.processBatch(List.of(
-			new RecordProcessRequest(1L, 101L, 0),
-			new RecordProcessRequest(2L, 102L, 1)
-		));
-
-		assertThat(results).extracting(RecordProcessResult::status)
-			.containsExactly(RecordProcessResult.Status.SUCCESS, RecordProcessResult.Status.SUCCESS);
-		verify(lockManager).release(101L);
-		verify(lockManager).release(102L);
+		assertThat(result.isNonRetryableFailure()).isTrue();
+		verify(lockManager, never()).tryAcquire(any());
 	}
 
 	@Test
-	@DisplayName("동일 배치 내 중복 notificationId는 첫 건만 처리하고 나머지는 스킵한다")
-	void processBatch_skipsDuplicateIdsWithinSingleBatch() {
-		Notification first = createNotification(201L, "duplicate@example.com");
-		when(notificationRepository.findAllByIdIn(List.of(201L))).thenReturn(List.of(first));
-		when(dispatchService.dispatchBatch(List.of(first))).thenReturn(List.of(BatchDispatchResult.success(201L)));
+	@DisplayName("락 획득 실패 시 skipped 결과를 반환한다")
+	void process_returnsSkippedWhenLockNotAcquired() {
+		when(lockManager.tryAcquire(101L)).thenReturn(false);
 
-		List<RecordProcessResult> results = recordHandler.processBatch(List.of(
-			new RecordProcessRequest(1L, 201L, 0),
-			new RecordProcessRequest(2L, 201L, 1)
-		));
+		RecordProcessResult result = recordHandler.process(new RecordProcessRequest(1L, 101L, 0));
 
-		assertThat(results.get(0).isSuccess()).isTrue();
-		assertThat(results.get(1).isSkipped()).isTrue();
-		verify(dispatchService).dispatchBatch(List.of(first));
+		assertThat(result.isSkipped()).isTrue();
+		verify(notificationRepository, never()).findById(any());
 	}
 
 	@Test
-	@DisplayName("배치 처리 재시도 실패는 retryable 결과로 반환하고 락을 해제한다")
-	void processBatch_returnsRetryableFailureAndReleasesLock() {
-		Notification notification = createNotification(301L, "retryable@example.com");
-		when(notificationRepository.findAllByIdIn(List.of(301L))).thenReturn(List.of(notification));
+	@DisplayName("알림을 찾을 수 없으면 non-retryable 실패를 반환하고 락을 해제한다")
+	void process_returnsNonRetryableFailureAndReleasesLockWhenNotificationNotFound() {
+		when(notificationRepository.findById(201L)).thenReturn(Optional.empty());
+
+		RecordProcessResult result = recordHandler.process(new RecordProcessRequest(2L, 201L, 0));
+
+		assertThat(result.isNonRetryableFailure()).isTrue();
+		verify(lockManager).release(201L);
+	}
+
+	@Test
+	@DisplayName("발송 성공 시 success를 반환하고 락을 해제한다")
+	void process_returnsSuccessAndReleasesLock() {
+		Notification notification = createNotification(301L, "test@example.com");
+		when(notificationRepository.findById(301L)).thenReturn(Optional.of(notification));
 		when(dispatchService.dispatchBatch(List.of(notification))).thenReturn(List.of(
-			BatchDispatchResult.failRetryable(301L, "일시 오류")
+			BatchDispatchResult.success(301L)
 		));
 
-		List<RecordProcessResult> results = recordHandler.processBatch(List.of(
-			new RecordProcessRequest(1L, 301L, 2)
-		));
+		RecordProcessResult result = recordHandler.process(new RecordProcessRequest(3L, 301L, 0));
 
-		assertThat(results).singleElement().satisfies(result -> {
-			assertThat(result.isRetryableFailure()).isTrue();
-			assertThat(result.reason()).isEqualTo("일시 오류");
-		});
+		assertThat(result.isSuccess()).isTrue();
 		verify(lockManager).release(301L);
+	}
+
+	@Test
+	@DisplayName("retryable 실패 시 retryable 결과를 반환하고 락을 해제한다")
+	void process_returnsRetryableFailureAndReleasesLock() {
+		Notification notification = createNotification(401L, "retry@example.com");
+		when(notificationRepository.findById(401L)).thenReturn(Optional.of(notification));
+		when(dispatchService.dispatchBatch(List.of(notification))).thenReturn(List.of(
+			BatchDispatchResult.failRetryable(401L, "일시 오류")
+		));
+
+		RecordProcessResult result = recordHandler.process(new RecordProcessRequest(4L, 401L, 1));
+
+		assertThat(result.isRetryableFailure()).isTrue();
+		assertThat(result.reason()).isEqualTo("일시 오류");
+		verify(lockManager).release(401L);
+	}
+
+	@Test
+	@DisplayName("non-retryable 실패 시 markAsFailed를 호출하고 락을 유지한다")
+	void process_callsMarkAsFailedAndKeepsLockOnNonRetryableFailure() {
+		Notification notification = createNotification(501L, "fail@example.com");
+		when(notificationRepository.findById(501L)).thenReturn(Optional.of(notification));
+		when(dispatchService.dispatchBatch(List.of(notification))).thenReturn(List.of(
+			BatchDispatchResult.failNonRetryable(501L, "주소 오류")
+		));
+
+		RecordProcessResult result = recordHandler.process(new RecordProcessRequest(5L, 501L, 0));
+
+		assertThat(result.isNonRetryableFailure()).isTrue();
+		verify(dispatchService).markAsFailed(501L, "주소 오류");
+		verify(lockManager, never()).release(501L);
 	}
 
 	private Notification createNotification(Long id, String receiver) {

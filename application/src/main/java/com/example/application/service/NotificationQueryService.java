@@ -62,7 +62,7 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 		List<Notification> fetched = notificationRepository.findByClientIdAndReceiverWithCursor(clientId, receiver,
 			from, cursorId, limit + 1);
 		List<NotificationResult> results = fetched.stream()
-			.map(n -> toNotificationDetail(n))
+			.map(this::toNotificationDetail)
 			.toList();
 		return CursorSlice.of(results, limit, NotificationResult::id);
 	}

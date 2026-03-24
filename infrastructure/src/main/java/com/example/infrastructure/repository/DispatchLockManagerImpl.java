@@ -19,12 +19,11 @@ import lombok.extern.slf4j.Slf4j;
 public class DispatchLockManagerImpl implements DispatchLockManager {
 
 	private static final String KEY_PREFIX = "dispatch-lock:";
-	private static final long LOCK_WAIT_TIME = 0;  // 대기 없이 즉시 반환
-	private static final long LOCK_LEASE_TIME = 5; // 5분 후 자동 해제
+	private static final long LOCK_WAIT_TIME = 0;      // 대기 없이 즉시 반환
+	private static final long LOCK_LEASE_TIME = 10_000; // 최대 처리 시간(3000ms) × 3 이상
 
 	private final RedissonClient redissonClient;
 
-	// 배치 처리에서는 한 스레드가 여러 notification lock을 동시에 보유할 수 있다.
 	private final ThreadLocal<Map<Long, RLock>> currentLocks = ThreadLocal.withInitial(HashMap::new);
 
 	@Override
@@ -33,7 +32,7 @@ public class DispatchLockManagerImpl implements DispatchLockManager {
 		RLock lock = redissonClient.getLock(key);
 
 		try {
-				boolean acquired = lock.tryLock(LOCK_WAIT_TIME, LOCK_LEASE_TIME, TimeUnit.MINUTES);
+				boolean acquired = lock.tryLock(LOCK_WAIT_TIME, LOCK_LEASE_TIME, TimeUnit.MILLISECONDS);
 
 				if (acquired) {
 					currentLocks.get().put(notificationId, lock);

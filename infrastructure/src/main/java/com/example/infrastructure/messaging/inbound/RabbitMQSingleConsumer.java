@@ -1,7 +1,6 @@
 package com.example.infrastructure.messaging.inbound;
 
 import java.io.IOException;
-import java.util.List;
 
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -63,10 +62,8 @@ public class RabbitMQSingleConsumer {
 		);
 
 		try {
-			List<RecordProcessResult> results = recordHandler.processBatch(List.of(request));
-			if (!results.isEmpty()) {
-				applyDecision(channel, context, results.getFirst());
-			}
+			RecordProcessResult result = recordHandler.process(request);
+			applyDecision(channel, context, result);
 		} catch (RuntimeException e) {
 			log.error("단건 처리 중 예기치 못한 오류", e);
 			channel.basicNack(context.deliveryTag(), false, false);

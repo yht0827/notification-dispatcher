@@ -3,14 +3,12 @@ package com.example.infrastructure.messaging;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
-import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -76,7 +74,7 @@ class RabbitMQSingleConsumerTest {
 
 		verify(dlqPublisher).publish("msg-1", null, null, "메시지 payload 변환 실패");
 		verify(channel).basicAck(1L, false);
-		verify(recordHandler, never()).processBatch(anyList());
+		verify(recordHandler, never()).process(any());
 	}
 
 	@Test
@@ -97,9 +95,9 @@ class RabbitMQSingleConsumerTest {
 	void onMessage_acknowledgesWhenSuccessful() throws IOException {
 		Message message = message(3L, "msg-3");
 		when(messageConverter.fromMessage(any())).thenReturn(payloadOf(30L));
-		when(recordHandler.processBatch(anyList())).thenReturn(List.of(
+		when(recordHandler.process(any())).thenReturn(
 			RecordProcessResult.success(3L, 30L, 0)
-		));
+		);
 
 		consumer.onMessage(message, channel);
 
@@ -114,9 +112,9 @@ class RabbitMQSingleConsumerTest {
 		Message message = message(4L, "msg-4");
 		NotificationMessagePayload payload = payloadOf(40L);
 		when(messageConverter.fromMessage(any())).thenReturn(payload);
-		when(recordHandler.processBatch(anyList())).thenReturn(List.of(
+		when(recordHandler.process(any())).thenReturn(
 			RecordProcessResult.nonRetryableFailure(4L, 40L, 0, "주소 오류")
-		));
+		);
 
 		consumer.onMessage(message, channel);
 
@@ -129,9 +127,9 @@ class RabbitMQSingleConsumerTest {
 	void onMessage_publishesToWaitOnRetryableFailure() throws IOException {
 		Message message = message(5L, "msg-5");
 		when(messageConverter.fromMessage(any())).thenReturn(payloadOf(50L));
-		when(recordHandler.processBatch(anyList())).thenReturn(List.of(
+		when(recordHandler.process(any())).thenReturn(
 			RecordProcessResult.retryableFailure(5L, 50L, 1, "일시적 오류", 3000L)
-		));
+		);
 
 		consumer.onMessage(message, channel);
 
@@ -144,7 +142,7 @@ class RabbitMQSingleConsumerTest {
 	void onMessage_nacksWhenUnexpectedExceptionThrown() throws IOException {
 		Message message = message(6L, "msg-6");
 		when(messageConverter.fromMessage(any())).thenReturn(payloadOf(60L));
-		when(recordHandler.processBatch(anyList())).thenThrow(new RuntimeException("unexpected"));
+		when(recordHandler.process(any())).thenThrow(new RuntimeException("unexpected"));
 
 		consumer.onMessage(message, channel);
 

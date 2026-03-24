@@ -148,8 +148,7 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 
 		Callable<Object> task = () -> {
 			try {
-				return recordHandler.processBatch(
-					List.of(new RecordProcessRequest(notificationId, notificationId, 0)));
+				return recordHandler.process(new RecordProcessRequest(notificationId, notificationId, 0));
 			} catch (Exception e) {
 				return e;
 			}
@@ -230,8 +229,7 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 			for (int i = 0; i < attemptCount; i++) {
 				tasks.add(() -> {
 					try {
-						return recordHandler.processBatch(
-							List.of(new RecordProcessRequest(notificationId, notificationId, 0)));
+						return recordHandler.process(new RecordProcessRequest(notificationId, notificationId, 0));
 					} catch (Exception e) {
 						return e;
 					}
@@ -275,16 +273,14 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 		List<Object> results = executeConcurrently(
 			() -> {
 				try {
-					return firstHandler.processBatch(
-						List.of(new RecordProcessRequest(notificationId, notificationId, 0)));
+					return firstHandler.process(new RecordProcessRequest(notificationId, notificationId, 0));
 				} catch (Exception e) {
 					return e;
 				}
 			},
 			() -> {
 				try {
-					return secondHandler.processBatch(
-						List.of(new RecordProcessRequest(notificationId, notificationId, 0)));
+					return secondHandler.process(new RecordProcessRequest(notificationId, notificationId, 0));
 				} catch (Exception e) {
 					return e;
 				}
@@ -316,8 +312,7 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 		try {
 			Future<Object> first = executor.submit(() -> {
 				try {
-					return recordHandler.processBatch(
-						List.of(new RecordProcessRequest(notificationId, notificationId, 0)));
+					return recordHandler.process(new RecordProcessRequest(notificationId, notificationId, 0));
 				} catch (Exception e) {
 					return e;
 				}
@@ -325,7 +320,7 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 
 			assertThat(senderEntered.await(3, TimeUnit.SECONDS)).isTrue();
 
-			recordHandler.processBatch(List.of(new RecordProcessRequest(notificationId, notificationId, 1)));
+			recordHandler.process(new RecordProcessRequest(notificationId, notificationId, 1));
 
 			releaseFirstSend.countDown();
 			assertThat(first.get(5, TimeUnit.SECONDS)).isNotInstanceOf(Exception.class);
@@ -346,8 +341,8 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 
 		when(notificationSender.send(any())).thenReturn(SendResult.success());
 
-		recordHandler.processBatch(List.of(new RecordProcessRequest(notificationId, notificationId, 0)));
-		recordHandler.processBatch(List.of(new RecordProcessRequest(notificationId, notificationId, 1)));
+		recordHandler.process(new RecordProcessRequest(notificationId, notificationId, 0));
+		recordHandler.process(new RecordProcessRequest(notificationId, notificationId, 1));
 
 		verify(notificationSender, times(1)).send(any());
 		Notification reloaded = notificationRepository.findById(notificationId).orElseThrow();

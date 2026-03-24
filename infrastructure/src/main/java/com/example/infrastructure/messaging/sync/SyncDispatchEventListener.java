@@ -20,8 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @ConditionalOnProperty(
 	name = "notification.messaging.sync-listener.enabled",
-	havingValue = "true",
-	matchIfMissing = false
+	havingValue = "true"
 )
 public class SyncDispatchEventListener {
 
