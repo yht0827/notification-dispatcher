@@ -29,6 +29,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 class OutboxPollerTest {
 
 	private static final Field OUTBOX_ID_FIELD = outboxIdField();
+	private static final Field OUTBOX_RETRY_COUNT_FIELD = outboxRetryCountField();
 	private static final int BATCH_SIZE = 100;
 
 	@Mock
@@ -142,8 +143,8 @@ class OutboxPollerTest {
 	}
 
 	@Test
-	@DisplayName("발행 실패 시 Outbox 상태를 변경하지 않는다")
-	void pollAndPublish_doesNotMarkAsProcessedOnFailure() {
+	@DisplayName("발행 실패 시 markAsProcessed를 호출하지 않고 retryCount를 증가시킨다")
+	void pollAndPublish_incrementsRetryCountOnFailure() {
 		// given
 		Outbox outbox = spy(createOutbox(1L, 100L));
 
@@ -156,6 +157,43 @@ class OutboxPollerTest {
 
 		// then
 		verify(outbox, never()).markAsProcessed();
+		verify(outbox).incrementRetry();
+	}
+
+	@Test
+	@DisplayName("재시도 횟수가 최대치 미만이면 FAILED로 전환하지 않는다")
+	void pollAndPublish_doesNotMarkAsFailedBeforeExhausted() {
+		// given
+		Outbox outbox = spy(createOutbox(1L, 100L));
+
+		when(outboxRepository.findByStatus(OutboxStatus.PENDING, BATCH_SIZE))
+			.thenReturn(List.of(outbox));
+		doThrow(new RuntimeException("messaging publish failed")).when(eventPublisher).publish(100L);
+
+		// when
+		outboxPoller.pollAndPublish();
+
+		// then - retryCount=1, MAX_RETRY=3 이므로 FAILED 아님
+		verify(outbox, never()).markAsFailed();
+	}
+
+	@Test
+	@DisplayName("최대 재시도 횟수 초과 시 FAILED로 전환한다")
+	void pollAndPublish_marksAsFailedAfterMaxRetry() {
+		// given - retryCount를 MAX_RETRY(3) - 1로 세팅해 이번 실패로 초과되게
+		Outbox outbox = spy(createOutboxWithRetryCount(1L, 100L, 2));
+
+		when(outboxRepository.findByStatus(OutboxStatus.PENDING, BATCH_SIZE))
+			.thenReturn(List.of(outbox));
+		doThrow(new RuntimeException("messaging publish failed")).when(eventPublisher).publish(100L);
+
+		// when
+		outboxPoller.pollAndPublish();
+
+		// then
+		verify(outbox).incrementRetry();
+		verify(outbox).markAsFailed();
+		verify(outboxRepository, never()).deleteAll(any());
 	}
 
 	@Test
@@ -207,11 +245,31 @@ class OutboxPollerTest {
 		}
 	}
 
+	private static Field outboxRetryCountField() {
+		try {
+			Field field = Outbox.class.getDeclaredField("retryCount");
+			field.setAccessible(true);
+			return field;
+		} catch (NoSuchFieldException e) {
+			throw new IllegalStateException("Outbox retryCount 필드를 찾을 수 없습니다.", e);
+		}
+	}
+
 	private void setOutboxId(Outbox outbox, Long id) {
 		try {
 			OUTBOX_ID_FIELD.set(outbox, id);
 		} catch (IllegalAccessException e) {
 			throw new IllegalStateException("Outbox id 필드 설정에 실패했습니다.", e);
 		}
+	}
+
+	private Outbox createOutboxWithRetryCount(Long id, Long aggregateId, int retryCount) {
+		Outbox outbox = createOutbox(id, aggregateId);
+		try {
+			OUTBOX_RETRY_COUNT_FIELD.set(outbox, retryCount);
+		} catch (IllegalAccessException e) {
+			throw new IllegalStateException("Outbox retryCount 필드 설정에 실패했습니다.", e);
+		}
+		return outbox;
 	}
 }

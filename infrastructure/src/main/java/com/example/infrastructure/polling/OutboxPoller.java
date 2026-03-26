@@ -32,6 +32,8 @@ public class OutboxPoller {
 	private final OutboxProperties outboxProperties;
 	private final MeterRegistry meterRegistry;
 
+	private static final int MAX_RETRY = 3;
+
 	@Scheduled(fixedDelayString = "${outbox.poll-interval-millis:1000}")
 	@Transactional
 	public void pollAndPublish() {
@@ -49,7 +51,14 @@ public class OutboxPoller {
 			// 2. 발행 시도
 			if (publishEvent(outbox)) {
 				outbox.markAsProcessed();
-				processed.add(outbox); // 성공한 것만 리스트에 추가
+				processed.add(outbox);
+			} else {
+				outbox.incrementRetry();
+				if (outbox.isExhausted(MAX_RETRY)) {
+					outbox.markAsFailed();
+					meterRegistry.counter("notification.outbox.failed").increment();
+					log.error("Outbox 최대 재시도 초과 - FAILED 처리: outboxId={}, aggregateId={}", outbox.getId(), outbox.getAggregateId());
+				}
 			}
 		}
 

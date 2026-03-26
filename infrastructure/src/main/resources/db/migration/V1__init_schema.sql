@@ -56,6 +56,7 @@ CREATE TABLE outbox
     event_type     VARCHAR(255) NOT NULL,
     payload        TEXT         NULL,
     status         VARCHAR(50)  NOT NULL,
+    retry_count    INT          NOT NULL DEFAULT 0,
     scheduled_at   DATETIME     NULL,
     processed_at   DATETIME(6)  NULL,
     created_at     DATETIME(6)  NOT NULL,

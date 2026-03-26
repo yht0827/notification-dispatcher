@@ -45,6 +45,9 @@ public class Outbox extends BaseEntity {
 	@Column(nullable = false)
 	private OutboxStatus status;
 
+	@Column(nullable = false)
+	private int retryCount;
+
 	private LocalDateTime processedAt;
 
 	private LocalDateTime scheduledAt;
@@ -81,6 +84,18 @@ public class Outbox extends BaseEntity {
 	public void markAsProcessed() {
 		this.status = OutboxStatus.PROCESSED;
 		this.processedAt = LocalDateTime.now();
+	}
+
+	public void incrementRetry() {
+		this.retryCount++;
+	}
+
+	public void markAsFailed() {
+		this.status = OutboxStatus.FAILED;
+	}
+
+	public boolean isExhausted(int maxRetry) {
+		return this.retryCount >= maxRetry;
 	}
 
 	public boolean isPending() {
