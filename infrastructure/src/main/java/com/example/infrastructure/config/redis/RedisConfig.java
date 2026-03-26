@@ -17,12 +17,11 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.util.StringUtils;
 
 import com.example.infrastructure.cache.CacheProperties;
-import com.example.infrastructure.polling.OutboxProperties;
 
 import io.lettuce.core.api.StatefulConnection;
 
 @Configuration
-@EnableConfigurationProperties({OutboxProperties.class, CacheProperties.class})
+@EnableConfigurationProperties(CacheProperties.class)
 public class RedisConfig {
 
 	@Bean

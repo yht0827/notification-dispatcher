@@ -43,7 +43,7 @@
 
 ### Hexagonal Architecture
 
-`api` → `application (port)` → `domain` ← `infrastructure (adapter)`
+`api` → `application (port)` → `domain` ← `infrastructure / worker (adapter)`
 
 ### 실행 구조
 
@@ -96,7 +96,8 @@ notification-dispatcher/
 ├── api/                  # Controller, DTO, 예외 처리, Swagger
 ├── application/          # UseCase, Service, Port
 ├── domain/               # Entity, Enum, 도메인 규칙
-├── infrastructure/       # JPA/JDBC/RabbitMQ/Outbox/Lock/Sender/Archive 구현
+├── infrastructure/       # JPA/JDBC/Redis/Lock/Cache/Archive 구현
+├── worker/               # RabbitMQ Consumer/Publisher, Polling, Sender 구현
 ├── docs/                 # 요구사항/시퀀스/클래스/ERD/Wiki 문서
 ├── docker/               # 로컬 MySQL + Redis + 모니터링 docker-compose
 ├── http/                 # API 호출 예시 (.http)

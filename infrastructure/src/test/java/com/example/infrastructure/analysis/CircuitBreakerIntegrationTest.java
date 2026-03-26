@@ -22,10 +22,10 @@ import com.example.domain.notification.ChannelType;
 import com.example.infrastructure.TestApplication;
 import com.example.infrastructure.config.MockMessagingConfig;
 import com.example.infrastructure.config.TestcontainersConfig;
-import com.example.infrastructure.sender.mock.http.MockApiCaller;
-import com.example.infrastructure.sender.mock.http.MockApiClient;
-import com.example.infrastructure.sender.mock.dto.MockApiSendRequest;
-import com.example.infrastructure.sender.mock.dto.MockApiSendSuccessResponse;
+import com.example.worker.sender.mock.http.MockApiCaller;
+import com.example.worker.sender.mock.http.MockApiClient;
+import com.example.worker.sender.mock.dto.MockApiSendRequest;
+import com.example.worker.sender.mock.dto.MockApiSendSuccessResponse;
 import com.example.infrastructure.support.EnabledIfDockerAvailable;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;

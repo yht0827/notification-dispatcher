@@ -8,6 +8,7 @@ dependencies {
     implementation project(':domain')
     implementation project(':application')
     implementation project(':infrastructure')
+    implementation project(':worker')
     implementation project(':api')
 
     implementation 'org.springframework.boot:spring-boot-starter'

@@ -71,10 +71,10 @@ resilience4j:
         max-attempts: 1
         wait-duration: 0ms
         retry-exceptions:
-          - com.example.infrastructure.sender.mock.exception.MockApiRetryableException
+          - com.example.worker.sender.mock.exception.MockApiRetryableException
         ignore-exceptions:
-          - com.example.infrastructure.sender.mock.exception.MockApiNonRetryableException
-          - com.example.infrastructure.sender.mock.exception.MockApiRateLimitException
+          - com.example.worker.sender.mock.exception.MockApiNonRetryableException
+          - com.example.worker.sender.mock.exception.MockApiRateLimitException
     instances:
       email-api:
         base-config: channel
@@ -90,10 +90,10 @@ resilience4j:
         failure-rate-threshold: 50 # 17-resilience 재측정(single consumer) 기준
         wait-duration-in-open-state: 10s
         record-exceptions:
-          - com.example.infrastructure.sender.mock.exception.MockApiRetryableException
-          - com.example.infrastructure.sender.mock.exception.MockApiRateLimitException
+          - com.example.worker.sender.mock.exception.MockApiRetryableException
+          - com.example.worker.sender.mock.exception.MockApiRateLimitException
         ignore-exceptions:
-          - com.example.infrastructure.sender.mock.exception.MockApiNonRetryableException
+          - com.example.worker.sender.mock.exception.MockApiNonRetryableException
     instances:
       email-api:
         base-config: channel

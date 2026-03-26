@@ -1,4 +1,4 @@
-// Infrastructure 모듈: JPA, Redis, RabbitMQ, HTTP Client, Scheduler 구현체
+// Infrastructure 모듈: JPA, Redis, HTTP Client 구현체
 
 dependencies {
     implementation project(':domain')
@@ -6,11 +6,7 @@ dependencies {
 
     implementation 'org.springframework.boot:spring-boot-starter-web'
 
-    // OpenFeign
-    implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
-
-    // Resilience
-    implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
+    // Micrometer
     implementation 'io.micrometer:micrometer-core'
 
     // JPA
@@ -26,11 +22,12 @@ dependencies {
     implementation 'org.apache.commons:commons-pool2'
     implementation 'org.redisson:redisson-spring-boot-starter:3.27.0'
 
-    // RabbitMQ (AMQP)
-    implementation 'org.springframework.boot:spring-boot-starter-amqp'
-
     // AWS SDK v2 S3
     implementation 'software.amazon.awssdk:s3:2.25.6'
+
+    // Worker (integration tests that validate lock + consumer behavior)
+    testImplementation project(':worker')
+    testImplementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
 
     // Testcontainers
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'

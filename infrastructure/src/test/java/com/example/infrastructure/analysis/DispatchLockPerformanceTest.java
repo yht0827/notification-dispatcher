@@ -34,8 +34,8 @@ import com.example.application.service.NotificationWriteService;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
-import com.example.infrastructure.messaging.inbound.RabbitMQRecordHandler;
-import com.example.infrastructure.messaging.inbound.RecordProcessRequest;
+import com.example.worker.messaging.inbound.RabbitMQRecordHandler;
+import com.example.worker.messaging.inbound.RecordProcessRequest;
 import com.example.infrastructure.repository.DispatchLockManagerImpl;
 import com.example.infrastructure.support.IntegrationTestSupportNoTx;
 
