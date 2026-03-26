@@ -1,7 +1,3 @@
-import org.gradle.api.tasks.SourceSetContainer
-import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
-import org.gradle.testing.jacoco.tasks.JacocoReport
-
 plugins {
     id 'java'
     id 'jacoco'
@@ -10,24 +6,32 @@ plugins {
 }
 
 def coverageThresholds = [
-    domain        : 0.80,
-    application   : 0.80,
-    api           : 0.70,
-    infrastructure: 0.60
+        domain        : 0.80,
+        application   : 0.80,
+        api           : 0.70,
+        infrastructure: 0.60,
+        worker        : 0.60
 ]
 
 def coverageExcludesFor = { Project project ->
     def excludes = [
-        '**/config/**',
-        '**/*Application*',
-        '**/*Properties*'
+            '**/config/**',
+            '**/*Application*',
+            '**/*Properties*'
     ]
 
     if (project.name == 'infrastructure') {
         excludes += [
-            'com/example/infrastructure/archive/**',
-            'com/example/infrastructure/config/**',
-            'com/example/infrastructure/*/config/**'
+                'com/example/infrastructure/archive/**',
+                'com/example/infrastructure/config/**',
+                'com/example/infrastructure/*/config/**'
+        ]
+    }
+
+    if (project.name == 'worker') {
+        excludes += [
+                'com/example/worker/config/**',
+                'com/example/worker/*/config/**'
         ]
     }
 
@@ -101,15 +105,15 @@ subprojects {
 
         sourceDirectories.setFrom(files(projectSourceSets.main.allSource.srcDirs))
         classDirectories.setFrom(
-            files(projectSourceSets.main.output).asFileTree.matching {
-                exclude coverageExcludesFor(project)
-            }
+                files(projectSourceSets.main.output).asFileTree.matching {
+                    exclude coverageExcludesFor(project)
+                }
         )
         executionData.setFrom(
-            fileTree(project.layout.buildDirectory.asFile).include(
-                'jacoco/test.exec',
-                'jacoco/test*.exec'
-            )
+                fileTree(project.layout.buildDirectory.asFile).include(
+                        'jacoco/test.exec',
+                        'jacoco/test*.exec'
+                )
         )
 
         onlyIf {
@@ -125,15 +129,15 @@ subprojects {
 
             sourceDirectories.setFrom(files(projectSourceSets.main.allSource.srcDirs))
             classDirectories.setFrom(
-                files(projectSourceSets.main.output).asFileTree.matching {
-                    exclude coverageExcludesFor(project)
-                }
+                    files(projectSourceSets.main.output).asFileTree.matching {
+                        exclude coverageExcludesFor(project)
+                    }
             )
             executionData.setFrom(
-                fileTree(project.layout.buildDirectory.asFile).include(
-                    'jacoco/test.exec',
-                    'jacoco/test*.exec'
-                )
+                    fileTree(project.layout.buildDirectory.asFile).include(
+                            'jacoco/test.exec',
+                            'jacoco/test*.exec'
+                    )
             )
 
             violationRules {
@@ -158,10 +162,11 @@ subprojects {
 }
 
 def coverageProjects = [
-    project(':domain'),
-    project(':application'),
-    project(':api'),
-    project(':infrastructure')
+        project(':domain'),
+        project(':application'),
+        project(':api'),
+        project(':infrastructure'),
+        project(':worker')
 ]
 
 def readCoverageCounters = { File xmlFile ->
@@ -170,7 +175,7 @@ def readCoverageCounters = { File xmlFile ->
     }
 
     def sanitizedXml = xmlFile.getText('UTF-8')
-        .replaceFirst(/<!DOCTYPE report PUBLIC .*?>/, '')
+            .replaceFirst(/<!DOCTYPE report PUBLIC .*?>/, '')
     def report = new groovy.xml.XmlSlurper().parseText(sanitizedXml)
     def metrics = [:]
 
@@ -182,9 +187,9 @@ def readCoverageCounters = { File xmlFile ->
         def ratio = total > 0 ? (covered / total) : 0G
 
         metrics[counterType] = [
-            covered: covered,
-            missed : missed,
-            ratio  : ratio
+                covered: covered,
+                missed : missed,
+                ratio  : ratio
         ]
     }
 
@@ -214,8 +219,8 @@ tasks.register('jacocoAggregateReport', JacocoReport) {
     }))
     executionData.setFrom(files(coverageProjects.collect { proj ->
         fileTree(proj.layout.buildDirectory.asFile).include(
-            'jacoco/test.exec',
-            'jacoco/test*.exec'
+                'jacoco/test.exec',
+                'jacoco/test*.exec'
         )
     }))
 

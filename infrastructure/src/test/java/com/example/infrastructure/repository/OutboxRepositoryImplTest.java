@@ -38,6 +38,7 @@ class OutboxRepositoryImplTest {
 			eq("NotificationCreated"),
 			eq("101,102,103"),
 			eq("PENDING"),
+			eq(0),
 			eq(null),
 			eq(null),
 			eq(now),
@@ -55,7 +56,7 @@ class OutboxRepositoryImplTest {
 		repository.saveGroupNotificationCreatedEvent(10L, List.of(), null, now);
 
 		verify(jdbcTemplate, never()).update(any(String.class), any(), any(), any(), any(), any(), any(), any(),
-			any(), any());
+			any(), any(), any());
 	}
 
 	@Test

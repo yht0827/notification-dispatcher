@@ -50,11 +50,12 @@ public class OutboxRepositoryImpl implements OutboxRepository {
 			    event_type,
 			    payload,
 			    status,
+			    retry_count,
 			    scheduled_at,
 			    processed_at,
 			    created_at,
 			    updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			""", new BatchPreparedStatementSetter() {
 			@Override
 			public void setValues(PreparedStatement ps, int index) throws SQLException {
@@ -63,10 +64,11 @@ public class OutboxRepositoryImpl implements OutboxRepository {
 				ps.setString(3, OutboxEventType.NOTIFICATION_CREATED.value());
 				ps.setObject(4, null);
 				ps.setString(5, OutboxStatus.PENDING.name());
-				ps.setObject(6, scheduledAt);
-				ps.setObject(7, null);
-				ps.setObject(8, createdAt);
+				ps.setInt(6, 0);
+				ps.setObject(7, scheduledAt);
+				ps.setObject(8, null);
 				ps.setObject(9, createdAt);
+				ps.setObject(10, createdAt);
 			}
 
 			@Override
@@ -90,17 +92,19 @@ public class OutboxRepositoryImpl implements OutboxRepository {
 			    event_type,
 			    payload,
 			    status,
+			    retry_count,
 			    scheduled_at,
 			    processed_at,
 			    created_at,
 			    updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			""",
 			OutboxAggregateType.GROUP.value(),
 			groupId,
 			OutboxEventType.NOTIFICATION_CREATED.value(),
 			serializeNotificationIds(notificationIds),
 			OutboxStatus.PENDING.name(),
+			0,
 			scheduledAt,
 			null,
 			createdAt,
