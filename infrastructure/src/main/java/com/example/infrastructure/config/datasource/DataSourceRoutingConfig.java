@@ -18,10 +18,9 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
 /**
- * Master/Slave DataSource 라우팅 설정.
- *
+ * Master/Replica DataSource 라우팅 설정.
  * datasource.routing.enabled=true 일 때만 활성화되며,
- * @Transactional(readOnly=true) 요청은 Slave, 나머지는 Master로 라우팅한다.
+ * @Transactional(readOnly=true) 요청은 Replica, 나머지는 Master로 라우팅한다.
  *
  * false(기본값)이면 Spring Boot 자동 구성 단일 DataSource를 사용한다.
  */
@@ -41,15 +40,15 @@ public class DataSourceRoutingConfig {
 	}
 
 	/**
-	 * Slave DataSource: datasource.slave.* 설정을 사용한다.
+	 * Slave DataSource: datasource.replica.* 설정을 사용한다.
 	 */
-	@Bean("slaveDataSource")
-	public DataSource slaveDataSource(
-		@Value("${datasource.slave.url}") String url,
-		@Value("${datasource.slave.username}") String username,
-		@Value("${datasource.slave.password}") String password,
-		@Value("${datasource.slave.maximum-pool-size:10}") int maxPoolSize,
-		@Value("${datasource.slave.minimum-idle:5}") int minIdle
+	@Bean("replicaDataSource")
+	public DataSource replicaDataSource(
+		@Value("${datasource.replica.url}") String url,
+		@Value("${datasource.replica.username}") String username,
+		@Value("${datasource.replica.password}") String password,
+		@Value("${datasource.replica.maximum-pool-size:10}") int maxPoolSize,
+		@Value("${datasource.replica.minimum-idle:5}") int minIdle
 	) {
 		HikariConfig config = new HikariConfig();
 		config.setJdbcUrl(url);
@@ -59,7 +58,7 @@ public class DataSourceRoutingConfig {
 		config.setMaximumPoolSize(maxPoolSize);
 		config.setMinimumIdle(minIdle);
 		config.setConnectionTimeout(5000);
-		config.setPoolName("slave-pool");
+		config.setPoolName("replica-pool");
 		return new HikariDataSource(config);
 	}
 
@@ -71,10 +70,10 @@ public class DataSourceRoutingConfig {
 	@Primary
 	public DataSource dataSource(
 		@Qualifier("masterDataSource") DataSource master,
-		@Qualifier("slaveDataSource") DataSource slave
+		@Qualifier("replicaDataSource") DataSource replica
 	) {
 		RoutingDataSource routing = new RoutingDataSource();
-		routing.setTargetDataSources(Map.of("master", master, "slave", slave));
+		routing.setTargetDataSources(Map.of("master", master, "replica", replica));
 		routing.setDefaultTargetDataSource(master);
 		routing.afterPropertiesSet();
 		return new LazyConnectionDataSourceProxy(routing);

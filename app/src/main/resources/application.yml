@@ -226,12 +226,12 @@ notification:
       enabled: true
 
 # ─────────────────────────────────────────
-# DataSource 라우팅 (Master/Slave)
+# DataSource 라우팅 (Master/Replica)
 # ─────────────────────────────────────────
 datasource:
   routing:
-    enabled: false          # true: Master/Slave 라우팅, false: 단일 DataSource
-  slave:
+    enabled: false          # true: Master/Replica 라우팅, false: 단일 DataSource
+  replica:
     url: jdbc:mysql://localhost:3307/notification?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
     username: application
     password: application

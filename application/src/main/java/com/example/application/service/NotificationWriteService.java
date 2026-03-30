@@ -59,7 +59,7 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 	@Transactional
 	public Optional<NotificationReadResult> markAsRead(String clientId, Long notificationId) {
 		LocalDateTime now = LocalDateTime.now();
-		var from = NotificationDetailRetentionPolicy.detailFrom(now);
+		LocalDateTime from = NotificationDetailRetentionPolicy.detailFrom(now);
 		return notificationRepository.findById(notificationId)
 			.filter(
 				notification -> NotificationDetailRetentionPolicy.isWithinRetention(notification.getCreatedAt(), from))
@@ -75,7 +75,7 @@ public class NotificationWriteService implements NotificationWriteUseCase {
 	@Transactional
 	public Optional<NotificationGroupReadResult> markGroupAsRead(String clientId, Long groupId) {
 		LocalDateTime now = LocalDateTime.now();
-		var from = NotificationDetailRetentionPolicy.detailFrom(now);
+		LocalDateTime from = NotificationDetailRetentionPolicy.detailFrom(now);
 		return notificationGroupRepository.findByIdWithNotifications(groupId)
 			.filter(group -> NotificationDetailRetentionPolicy.isWithinRetention(group.getCreatedAt(), from))
 			.map(group -> {

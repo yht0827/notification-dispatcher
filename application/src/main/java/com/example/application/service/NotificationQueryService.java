@@ -8,7 +8,6 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.application.service.mapper.NotificationResultMapper;
 import com.example.application.port.in.NotificationQueryUseCase;
 import com.example.application.port.in.result.CursorSlice;
 import com.example.application.port.in.result.NotificationGroupDetailResult;
@@ -18,7 +17,9 @@ import com.example.application.port.in.result.NotificationUnreadCountResult;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationReadStatusRepository;
 import com.example.application.port.out.repository.NotificationRepository;
+import com.example.application.service.mapper.NotificationResultMapper;
 import com.example.domain.notification.Notification;
+import com.example.domain.notification.NotificationGroup;
 
 import lombok.RequiredArgsConstructor;
 
@@ -90,7 +91,7 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 		return NotificationDetailRetentionPolicy.detailFrom(LocalDateTime.now());
 	}
 
-	private NotificationGroupDetailResult toGroupDetail(com.example.domain.notification.NotificationGroup group) {
+	private NotificationGroupDetailResult toGroupDetail(NotificationGroup group) {
 		List<Long> notificationIds = group.getNotifications().stream()
 			.map(Notification::getId)
 			.toList();
@@ -107,7 +108,7 @@ public class NotificationQueryService implements NotificationQueryUseCase {
 			.toList();
 	}
 
-	private NotificationResult toNotificationDetail(com.example.domain.notification.Notification notification) {
+	private NotificationResult toNotificationDetail(Notification notification) {
 		return mapper.toNotificationResult(
 			notification,
 			notificationReadStatusRepository.findReadAtByNotificationId(notification.getId())

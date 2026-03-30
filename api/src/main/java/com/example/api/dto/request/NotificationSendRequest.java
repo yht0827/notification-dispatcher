@@ -11,6 +11,7 @@ import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 @Schema(description = "알림 발송 요청")
 public record NotificationSendRequest(
@@ -31,6 +32,7 @@ public record NotificationSendRequest(
 	ChannelType channelType,
 
 	@Schema(description = "수신자 목록", example = "[\"user1@email.com\", \"user2@email.com\"]")
+	@Size(max = 1000, message = "receivers는 최대 1000명까지 가능합니다")
 	@NotEmpty(message = "receivers는 최소 1명 이상이어야 합니다")
 	List<String> receivers,
 

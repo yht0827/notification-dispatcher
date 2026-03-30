@@ -42,6 +42,7 @@ public class OutboxEventListener {
 			allPublished = false;
 		}
 
+		// 삭제 일괄 처리
 		if (allPublished) {
 			outboxRepository.deleteByAggregateId(event.groupId());
 		}

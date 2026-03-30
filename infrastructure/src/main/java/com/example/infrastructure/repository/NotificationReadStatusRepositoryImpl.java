@@ -1,5 +1,7 @@
 package com.example.infrastructure.repository;
 
+import static java.util.stream.Collectors.*;
+
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -57,7 +59,7 @@ public class NotificationReadStatusRepositoryImpl implements NotificationReadSta
 		return jpaRepository.findAllByNotificationIdIn(notificationIds)
 			.stream()
 			.map(NotificationReadStatus::getNotificationId)
-			.collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+			.collect(toCollection(LinkedHashSet::new));
 	}
 
 	@Override
@@ -66,11 +68,7 @@ public class NotificationReadStatusRepositoryImpl implements NotificationReadSta
 			return Map.of();
 		}
 		return jpaRepository.findAllByNotificationIdIn(notificationIds).stream()
-			.collect(java.util.stream.Collectors.toMap(
-				NotificationReadStatus::getNotificationId,
-				NotificationReadStatus::getReadAt,
-				(left, right) -> left,
-				LinkedHashMap::new
-			));
+			.collect(toMap(NotificationReadStatus::getNotificationId, NotificationReadStatus::getReadAt,
+				(left, right) -> left, LinkedHashMap::new));
 	}
 }

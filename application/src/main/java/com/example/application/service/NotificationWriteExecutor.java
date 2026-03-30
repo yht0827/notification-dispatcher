@@ -8,7 +8,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.application.service.mapper.NotificationCommandResultMapper;
 import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.out.event.AdminStatsChangedEvent;
@@ -17,6 +16,7 @@ import com.example.application.port.out.event.SyncDispatchEvent;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationRepository;
 import com.example.application.port.out.repository.OutboxRepository;
+import com.example.application.service.mapper.NotificationCommandResultMapper;
 import com.example.domain.notification.NotificationGroup;
 
 import lombok.RequiredArgsConstructor;
@@ -43,6 +43,8 @@ public class NotificationWriteExecutor {
 
 		NotificationGroup savedGroup = groupRepository.saveAndFlush(group);
 		LocalDateTime now = LocalDateTime.now();
+
+		// Bulk Insert
 		List<Long> notificationIds = notificationRepository.bulkInsertPending(
 			savedGroup.getId(),
 			command.receivers(),
