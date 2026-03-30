@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -83,9 +82,7 @@ class RabbitMQRecordHandlerTest {
 	void process_returnsSuccessAndReleasesLock() {
 		Notification notification = createNotification(301L, "test@example.com");
 		when(notificationRepository.findById(301L)).thenReturn(Optional.of(notification));
-		when(dispatchService.dispatchBatch(List.of(notification))).thenReturn(List.of(
-			BatchDispatchResult.success(301L)
-		));
+		when(dispatchService.dispatch(notification)).thenReturn(BatchDispatchResult.success(301L));
 
 		RecordProcessResult result = recordHandler.process(new RecordProcessRequest(3L, 301L, 0));
 
@@ -98,9 +95,7 @@ class RabbitMQRecordHandlerTest {
 	void process_returnsRetryableFailureAndReleasesLock() {
 		Notification notification = createNotification(401L, "retry@example.com");
 		when(notificationRepository.findById(401L)).thenReturn(Optional.of(notification));
-		when(dispatchService.dispatchBatch(List.of(notification))).thenReturn(List.of(
-			BatchDispatchResult.failRetryable(401L, "일시 오류")
-		));
+		when(dispatchService.dispatch(notification)).thenReturn(BatchDispatchResult.failRetryable(401L, "일시 오류"));
 
 		RecordProcessResult result = recordHandler.process(new RecordProcessRequest(4L, 401L, 1));
 
@@ -114,9 +109,7 @@ class RabbitMQRecordHandlerTest {
 	void process_callsMarkAsFailedAndKeepsLockOnNonRetryableFailure() {
 		Notification notification = createNotification(501L, "fail@example.com");
 		when(notificationRepository.findById(501L)).thenReturn(Optional.of(notification));
-		when(dispatchService.dispatchBatch(List.of(notification))).thenReturn(List.of(
-			BatchDispatchResult.failNonRetryable(501L, "주소 오류")
-		));
+		when(dispatchService.dispatch(notification)).thenReturn(BatchDispatchResult.failNonRetryable(501L, "주소 오류"));
 
 		RecordProcessResult result = recordHandler.process(new RecordProcessRequest(5L, 501L, 0));
 
@@ -130,7 +123,7 @@ class RabbitMQRecordHandlerTest {
 	void process_returnsSkippedAndReleasesLockOnOptimisticLockingFailure() {
 		Notification notification = createNotification(601L, "opt@example.com");
 		when(notificationRepository.findById(601L)).thenReturn(Optional.of(notification));
-		when(dispatchService.dispatchBatch(List.of(notification)))
+		when(dispatchService.dispatch(notification))
 			.thenThrow(new OptimisticLockingFailureException("version mismatch"));
 
 		RecordProcessResult result = recordHandler.process(new RecordProcessRequest(6L, 601L, 0));

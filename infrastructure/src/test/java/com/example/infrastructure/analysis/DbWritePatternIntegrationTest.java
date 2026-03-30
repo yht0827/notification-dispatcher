@@ -88,20 +88,19 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 		assertEntityStats(NotificationGroup.class, 1, 0, 0);
 		assertEntityStats(Notification.class, 0, 0, 0);
 		assertThat(countRows("notification")).isEqualTo(2);
-		// sync 모드(messaging.enabled=false)에서는 outbox 미저장
 		assertEntityStats(Outbox.class, 0, 0, 0);
-		assertThat(countRows("outbox")).isZero();
+		assertThat(countRows("outbox")).isEqualTo(1);
 	}
 
 	@Test
-	@DisplayName("dispatchBatch 단건 성공은 notification과 group을 갱신한다")
+	@DisplayName("dispatch 단건 성공은 notification과 group을 갱신한다")
 	void dispatch_success_updatesNotificationAndGroup() {
 		Long notificationId = createSingleNotification();
 
 		Notification detached = notificationRepository.findById(notificationId).orElseThrow();
-		java.util.List<BatchDispatchResult> results = dispatchService.dispatchBatch(java.util.List.of(detached));
+		BatchDispatchResult result = dispatchService.dispatch(detached);
 
-		assertThat(results).singleElement().satisfies(result -> assertThat(result.isSuccess()).isTrue());
+		assertThat(result.isSuccess()).isTrue();
 		assertThat(countNotificationsByStatus("SENT")).isEqualTo(1);
 		assertThat(countSentNotifications()).isEqualTo(1);
 	}
@@ -122,8 +121,8 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 	}
 
 	@Test
-	@DisplayName("dispatchBatch 성공은 상태 전이를 batch write로 반영하고 group 카운터를 집계한다")
-	void dispatchBatch_success_appliesStatusTransitionsAndGroupCounts() {
+	@DisplayName("dispatch 단건 성공은 상태 전이를 batch write로 반영하고 group 카운터를 집계한다")
+	void dispatch_success_appliesStatusTransitionsAndGroupCounts() {
 		java.util.List<Long> notificationIds = createNotifications(3);
 		Long groupId = groupRepository.findByIdWithNotifications(createGroupIdForExistingNotifications(notificationIds))
 			.orElseThrow()
@@ -131,10 +130,11 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 		statistics.clear();
 
 		java.util.List<Notification> detachedNotifications = notificationRepository.findAllByIdIn(notificationIds);
-		java.util.List<BatchDispatchResult> results = dispatchService.dispatchBatch(detachedNotifications);
+		for (Notification n : detachedNotifications) {
+			BatchDispatchResult result = dispatchService.dispatch(n);
+			assertThat(result.isSuccess()).isTrue();
+		}
 
-		assertThat(results).hasSize(3);
-		assertThat(results).allMatch(BatchDispatchResult::isSuccess);
 		assertThat(countNotificationsByStatus("SENT")).isEqualTo(3);
 		assertThat(sumAttemptCount()).isEqualTo(3);
 		assertThat(countSentNotifications()).isEqualTo(3);

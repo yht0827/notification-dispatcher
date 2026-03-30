@@ -25,7 +25,6 @@ import com.example.application.port.in.command.SendCommand;
 import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.out.event.AdminStatsChangedEvent;
 import com.example.application.port.out.event.OutboxSavedEvent;
-import com.example.application.port.out.event.SyncDispatchEvent;
 import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationRepository;
 import com.example.application.port.out.repository.OutboxRepository;
@@ -61,7 +60,6 @@ class NotificationWriteExecutorTest {
 			eventPublisher,
 			resultMapper
 		);
-		ReflectionTestUtils.setField(executor, "messagingEnabled", true);
 	}
 
 	@Test
@@ -160,37 +158,4 @@ class NotificationWriteExecutorTest {
 		verify(eventPublisher).publishEvent(new AdminStatsChangedEvent());
 	}
 
-	@Test
-	@DisplayName("messaging 비활성화 시 outbox 대신 sync dispatch 이벤트를 발행한다")
-	void createAndPublish_whenMessagingDisabled_publishesSyncDispatchEvent() {
-		ReflectionTestUtils.setField(executor, "messagingEnabled", false);
-
-		SendCommand command = new SendCommand(
-			"client-a",
-			"sender",
-			"title",
-			"content",
-			ChannelType.EMAIL,
-			List.of("a@test.com", "b@test.com"),
-			"idem-sync",
-			null
-		);
-
-		when(groupRepository.saveAndFlush(any(NotificationGroup.class))).thenAnswer(invocation -> {
-			NotificationGroup savedGroup = invocation.getArgument(0);
-			ReflectionTestUtils.setField(savedGroup, "id", 102L);
-			return savedGroup;
-		});
-		when(notificationRepository.bulkInsertPending(eq(102L), eq(List.of("a@test.com", "b@test.com")), any()))
-			.thenReturn(List.of(301L, 302L));
-		when(resultMapper.toResult(any(NotificationGroup.class))).thenReturn(new NotificationCommandResult(102L, 2));
-
-		NotificationCommandResult result = executor.createAndPublish(command, "idem-sync");
-
-		assertThat(result.groupId()).isEqualTo(102L);
-		assertThat(result.totalCount()).isEqualTo(2);
-		verify(outboxRepository, never()).saveGroupNotificationCreatedEvent(any(), any(), any(), any());
-		verify(eventPublisher).publishEvent(new SyncDispatchEvent(List.of(301L, 302L)));
-		verify(eventPublisher).publishEvent(new AdminStatsChangedEvent());
-	}
 }

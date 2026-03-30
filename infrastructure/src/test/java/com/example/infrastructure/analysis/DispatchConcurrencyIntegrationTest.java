@@ -88,7 +88,7 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 	}
 
 	@Test
-	@DisplayName("분산락 없이 동일 알림을 동시 처리하면 외부 발송이 중복된다")
+	@DisplayName("분산락 없이 동일 알림을 동시 처리하면 외부 발송이 중복되나 낙관적 락으로 하나만 커밋된다")
 	void dispatch_withoutLock_allowsDuplicateExternalSend() throws Exception {
 		Long notificationId = createSingleNotification("optimistic-client", "idem-optimistic");
 
@@ -102,8 +102,11 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 			optimisticDispatchTask(notificationId)
 		));
 
-		assertThat(results).allMatch(NotificationResultPredicates::isDispatchSuccess);
+		// 외부 API는 커밋 전에 호출되므로 두 스레드 모두 발송 시도
 		verify(notificationSender, times(2)).send(any());
+		// 낙관적 락(@Version)으로 하나만 커밋 성공, 하나는 OptimisticLockingFailureException
+		assertThat(results.stream().filter(NotificationResultPredicates::isDispatchSuccess).count()).isEqualTo(1);
+		assertThat(results.stream().filter(r -> r instanceof ObjectOptimisticLockingFailureException).count()).isEqualTo(1);
 
 		Notification reloaded = notificationRepository.findById(notificationId).orElseThrow();
 		assertThat(reloaded.getStatus()).isEqualTo(NotificationStatus.SENT);
@@ -165,7 +168,7 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 	}
 
 	@Test
-	@DisplayName("hot-key 분포에서 분산락 없이는 시도 수만큼 외부 발송이 중복된다")
+	@DisplayName("hot-key 분포에서 분산락 없이는 시도 수만큼 외부 발송이 중복되나 낙관적 락으로 고유 알림 수만큼만 커밋된다")
 	void hotKey_withoutLock_duplicatesExternalSendPerAttempt() throws Exception {
 		List<Long> notificationIds = createNotifications(
 			"hot-optimistic-client",
@@ -181,8 +184,11 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 
 		List<Object> results = executeOptimisticHotKeyAttempts(attempts);
 
-		assertThat(results).allMatch(NotificationResultPredicates::isDispatchSuccess);
+		// 외부 API는 커밋 전에 호출되므로 시도 수만큼 발송
 		verify(notificationSender, times(attempts.size())).send(any());
+		// 낙관적 락으로 고유 알림 수만큼만 커밋 성공
+		assertThat(results.stream().filter(NotificationResultPredicates::isDispatchSuccess).count())
+			.isEqualTo(notificationIds.size());
 		assertNotificationsSent(notificationIds);
 	}
 
@@ -379,18 +385,14 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 	private Callable<Object> optimisticDispatchTask(Long notificationId) {
 		return () -> captureResult(() -> {
 			Notification detached = notificationRepository.findById(notificationId).orElseThrow();
-			List<com.example.application.port.in.result.BatchDispatchResult> results =
-				dispatchService.dispatchBatch(List.of(detached));
-			return results.isEmpty() ? null : results.get(0);
+			return dispatchService.dispatch(detached);
 		});
 	}
 
 	private Callable<Object> pessimisticDispatchTask(Long notificationId) {
 		return () -> captureResult(() -> transactionTemplate.execute(status -> {
 			Notification locked = notificationJpaRepository.findByIdWithPessimisticLock(notificationId).orElseThrow();
-			List<com.example.application.port.in.result.BatchDispatchResult> results =
-				dispatchService.dispatchBatch(List.of(locked));
-			return results.isEmpty() ? null : results.get(0);
+			return dispatchService.dispatch(locked);
 		}));
 	}
 
@@ -400,9 +402,7 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 			.<Callable<Object>>map(notificationId -> () -> captureResult(() -> {
 				Notification detached = notificationRepository.findById(notificationId).orElseThrow();
 				arriveAndAwait(loadedLatch);
-				List<com.example.application.port.in.result.BatchDispatchResult> results =
-					dispatchService.dispatchBatch(List.of(detached));
-				return results.isEmpty() ? null : results.get(0);
+				return dispatchService.dispatch(detached);
 			}))
 			.toList();
 		return executeConcurrently(tasks);

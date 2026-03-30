@@ -27,11 +27,5 @@ public interface NotificationRepository {
 
 	List<Notification> findByStatusAndCreatedAtBefore(NotificationStatus status, LocalDateTime threshold, int limit);
 
-	void bulkStartSending(List<Long> notificationIds, LocalDateTime updatedAt);
-
-	void bulkMarkAsSent(List<Long> notificationIds, LocalDateTime sentAt, LocalDateTime updatedAt);
-
-	void bulkMarkAsFailed(List<NotificationFailureUpdate> failureUpdates, LocalDateTime updatedAt);
-
 	void delete(Notification notification);
 }

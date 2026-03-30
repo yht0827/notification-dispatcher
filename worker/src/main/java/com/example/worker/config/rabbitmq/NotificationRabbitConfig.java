@@ -31,10 +31,10 @@ import com.example.application.port.out.DispatchLockManager;
 import com.example.application.port.out.NotificationEventPublisher;
 import com.example.application.port.out.repository.NotificationRepository;
 import com.example.worker.messaging.inbound.RabbitMQRecordHandler;
+import com.example.worker.messaging.outbound.DeadLetterPublisher;
 import com.example.worker.messaging.outbound.RabbitMQDlqPublisher;
 import com.example.worker.messaging.outbound.RabbitMQPublisher;
 import com.example.worker.messaging.outbound.RabbitMQWaitPublisher;
-import com.example.worker.messaging.outbound.DeadLetterPublisher;
 import com.example.worker.messaging.outbound.WaitPublisher;
 
 @Configuration

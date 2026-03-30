@@ -2,14 +2,10 @@ package com.example.application.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -20,13 +16,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import com.example.application.port.in.result.BatchDispatchResult;
 import com.example.application.port.out.NotificationSender;
 import com.example.application.port.out.SendResult;
 import com.example.application.port.out.event.AdminStatsChangedEvent;
-import com.example.application.port.out.repository.NotificationGroupRepository;
 import com.example.application.port.out.repository.NotificationRepository;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
@@ -39,13 +33,7 @@ class NotificationDispatchServiceTest {
 	private NotificationRepository notificationRepository;
 
 	@Mock
-	private NotificationGroupRepository notificationGroupRepository;
-
-	@Mock
 	private NotificationSender notificationSender;
-
-	@Mock
-	private TransactionTemplate transactionTemplate;
 
 	@Mock
 	private ApplicationEventPublisher eventPublisher;
@@ -54,70 +42,64 @@ class NotificationDispatchServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		lenient().when(transactionTemplate.execute(any())).thenAnswer(invocation -> invocation.getArgument(0,
-			org.springframework.transaction.support.TransactionCallback.class).doInTransaction(null));
-		lenient().when(notificationRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 		dispatchService = new NotificationDispatchService(
 			notificationRepository,
-			notificationGroupRepository,
 			notificationSender,
-			transactionTemplate,
 			eventPublisher
 		);
 	}
 
 	@Test
-	@DisplayName("배치 발송 성공 시 결과를 모아 반환하고 상태를 일괄 반영한다")
-	void dispatchBatch_returnsSuccessResults() {
+	@DisplayName("발송 성공 시 결과를 반환하고 상태를 반영한다")
+	void dispatch_returnsSuccessResults() {
 		Notification first = createNotification(1L, "first@example.com");
 		Notification second = createNotification(2L, "second@example.com");
+		when(notificationRepository.findById(1L)).thenReturn(Optional.of(first));
+		when(notificationRepository.findById(2L)).thenReturn(Optional.of(second));
 		when(notificationSender.send(first)).thenReturn(SendResult.success());
 		when(notificationSender.send(second)).thenReturn(SendResult.success());
 
-		List<BatchDispatchResult> results = dispatchService.dispatchBatch(List.of(first, second));
+		BatchDispatchResult result1 = dispatchService.dispatch(first);
+		BatchDispatchResult result2 = dispatchService.dispatch(second);
 
-		assertThat(results).extracting(BatchDispatchResult::notificationId).containsExactly(1L, 2L);
-		assertThat(results).allMatch(BatchDispatchResult::isSuccess);
-		verify(notificationRepository).bulkStartSending(eq(List.of(1L, 2L)), any());
-		verify(notificationRepository).bulkMarkAsSent(eq(List.of(1L, 2L)), any(), any());
+		assertThat(result1.notificationId()).isEqualTo(1L);
+		assertThat(result1.isSuccess()).isTrue();
+		assertThat(result2.notificationId()).isEqualTo(2L);
+		assertThat(result2.isSuccess()).isTrue();
 		verify(notificationSender, times(2)).send(any(Notification.class));
-		verify(notificationGroupRepository).bulkApplyDispatchCounts(anyList());
 		verify(eventPublisher, times(2)).publishEvent(any(AdminStatsChangedEvent.class));
 	}
 
 	@Test
-	@DisplayName("배치 발송은 terminal 알림을 건너뛰고 나머지만 전송한다")
-	void dispatchBatch_skipsTerminalNotifications() {
+	@DisplayName("terminal 알림은 발송을 건너뛰고 나머지만 전송한다")
+	void dispatch_skipsTerminalNotifications() {
 		Notification terminal = createNotification(1L, "done@example.com");
 		terminal.startSending();
 		terminal.markAsSent();
 		Notification pending = createNotification(2L, "pending@example.com");
+		when(notificationRepository.findById(2L)).thenReturn(Optional.of(pending));
 		when(notificationSender.send(pending)).thenReturn(SendResult.success());
 
-		List<BatchDispatchResult> results = dispatchService.dispatchBatch(List.of(terminal, pending));
+		BatchDispatchResult terminalResult = dispatchService.dispatch(terminal);
+		BatchDispatchResult pendingResult = dispatchService.dispatch(pending);
 
-		assertThat(results).hasSize(2);
-		assertThat(results.get(0).isSuccess()).isTrue();
-		assertThat(results.get(1).isSuccess()).isTrue();
+		assertThat(terminalResult.isSuccess()).isTrue();
+		assertThat(pendingResult.isSuccess()).isTrue();
 		verify(notificationSender, times(1)).send(any(Notification.class));
 	}
 
 	@Test
-	@DisplayName("배치 발송에서 non-retryable 실패는 FAILED 반영 후 결과로 반환한다")
-	void dispatchBatch_marksFailedForNonRetryableFailure() {
+	@DisplayName("non-retryable 실패는 FAILED 반영 후 결과로 반환한다")
+	void dispatch_marksFailedForNonRetryableFailure() {
 		Notification pending = createNotification(10L, "failed@example.com");
-
+		when(notificationRepository.findById(10L)).thenReturn(Optional.of(pending));
 		when(notificationSender.send(pending)).thenReturn(SendResult.failNonRetryable("주소 오류"));
 
-		List<BatchDispatchResult> results = dispatchService.dispatchBatch(List.of(pending));
+		BatchDispatchResult result = dispatchService.dispatch(pending);
 
-		assertThat(results).singleElement().satisfies(result -> {
-			assertThat(result.isNonRetryableFailure()).isTrue();
-			assertThat(result.failReason()).isEqualTo("주소 오류");
-		});
-		verify(notificationRepository).bulkStartSending(eq(List.of(10L)), any());
-		verify(notificationRepository).bulkMarkAsFailed(anyList(), any());
-		verify(eventPublisher, times(2)).publishEvent(any(AdminStatsChangedEvent.class));
+		assertThat(result.isNonRetryableFailure()).isTrue();
+		assertThat(result.failReason()).isEqualTo("주소 오류");
+		verify(eventPublisher, times(1)).publishEvent(any(AdminStatsChangedEvent.class));
 	}
 
 	@Test

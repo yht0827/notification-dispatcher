@@ -73,21 +73,21 @@ class DispatchPathTransactionBoundaryIntegrationTest extends IntegrationTestSupp
 	}
 
 	@Test
-	@DisplayName("현재 dispatch 경로는 bulk SQL을 사용해 entity lifecycle을 거치지 않는다")
-	void dispatchLikeProcessing_usesBulkSqlWithoutEntityLifecycle() {
+	@DisplayName("dispatch 경로는 JPA entity lifecycle을 거쳐 notification과 group을 각각 갱신한다")
+	void dispatchLikeProcessing_usesJpaEntityLifecycle() {
 		List<Long> notificationIds = createNotifications(3);
 		statistics.clear();
 
 		for (Long notificationId : notificationIds) {
 			Notification detached = notificationRepository.findById(notificationId).orElseThrow();
-			List<com.example.application.port.in.result.BatchDispatchResult> results =
-				dispatchService.dispatchBatch(List.of(detached));
-			assertThat(results).singleElement().satisfies(r -> assertThat(r.isSuccess()).isTrue());
+			com.example.application.port.in.result.BatchDispatchResult result =
+				dispatchService.dispatch(detached);
+			assertThat(result.isSuccess()).isTrue();
 		}
 
-		// bulk SQL은 Hibernate entity lifecycle을 거치지 않아 entity stats가 기록되지 않음
-		assertEntityStats(Notification.class, 0, 0, 0);
-		assertEntityStats(NotificationGroup.class, 0, 0, 0);
+		// JPA entity lifecycle을 거치므로 dispatch당 notification 1 update, group 1 update
+		assertEntityStats(Notification.class, 0, 3, 0);
+		assertEntityStats(NotificationGroup.class, 0, 3, 0);
 		assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM notification WHERE status = 'SENT'", Integer.class)).isEqualTo(3);
 	}
 

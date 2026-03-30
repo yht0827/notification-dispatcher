@@ -1,7 +1,5 @@
 package com.example.worker.messaging.inbound;
 
-import java.util.List;
-
 import org.springframework.dao.OptimisticLockingFailureException;
 
 import com.example.application.port.in.NotificationDispatchUseCase;
@@ -42,20 +40,13 @@ public class RabbitMQRecordHandler {
 				"알림을 찾을 수 없음: " + request.notificationId());
 		}
 
-		List<BatchDispatchResult> dispatchResults;
+		BatchDispatchResult dispatchResult;
 		try {
-			dispatchResults = dispatchService.dispatchBatch(List.of(notification));
+			dispatchResult = dispatchService.dispatch(notification);
 		} catch (OptimisticLockingFailureException e) {
 			lockManager.release(request.notificationId());
 			return RecordProcessResult.skipped(
 				request.contextId(), request.notificationId(), request.retryCount(), "낙관적 락 충돌 - 다른 인스턴스가 처리 완료");
-		}
-		BatchDispatchResult dispatchResult = dispatchResults.isEmpty() ? null : dispatchResults.getFirst();
-
-		if (dispatchResult == null) {
-			lockManager.release(request.notificationId());
-			return RecordProcessResult.retryableFailure(
-				request.contextId(), request.notificationId(), request.retryCount(), "처리 결과 누락");
 		}
 
 		RecordProcessResult result = toProcessResult(request, dispatchResult);

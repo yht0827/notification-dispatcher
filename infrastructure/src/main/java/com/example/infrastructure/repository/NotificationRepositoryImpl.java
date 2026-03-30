@@ -6,7 +6,6 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Repository;
 
-import com.example.application.port.out.repository.NotificationFailureUpdate;
 import com.example.application.port.out.repository.NotificationRepository;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationStatus;
@@ -73,21 +72,6 @@ public class NotificationRepositoryImpl implements NotificationRepository {
 		int limit
 	) {
 		return jpaAdapter.findByStatusAndCreatedAtBefore(status, threshold, limit);
-	}
-
-	@Override
-	public void bulkStartSending(List<Long> notificationIds, LocalDateTime updatedAt) {
-		jdbcBulkRepository.bulkStartSending(notificationIds, updatedAt);
-	}
-
-	@Override
-	public void bulkMarkAsSent(List<Long> notificationIds, LocalDateTime sentAt, LocalDateTime updatedAt) {
-		jdbcBulkRepository.bulkMarkAsSent(notificationIds, sentAt, updatedAt);
-	}
-
-	@Override
-	public void bulkMarkAsFailed(List<NotificationFailureUpdate> failureUpdates, LocalDateTime updatedAt) {
-		jdbcBulkRepository.bulkMarkAsFailed(failureUpdates, updatedAt);
 	}
 
 	@Override

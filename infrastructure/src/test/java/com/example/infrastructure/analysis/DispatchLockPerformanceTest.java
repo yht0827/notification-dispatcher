@@ -168,7 +168,7 @@ class DispatchLockPerformanceTest extends IntegrationTestSupportNoTx {
 					.process(new RecordProcessRequest(id, id, 0));
 			} else {
 				Notification n = notificationRepository.findById(id).orElseThrow();
-				dispatchService.dispatchBatch(List.of(n));
+				dispatchService.dispatch(n);
 			}
 		}
 
@@ -199,7 +199,7 @@ class DispatchLockPerformanceTest extends IntegrationTestSupportNoTx {
 				.<Callable<Object>>map(id -> () -> {
 					try {
 						Notification n = notificationRepository.findById(id).orElseThrow();
-						return dispatchService.dispatchBatch(List.of(n));
+						return dispatchService.dispatch(n);
 					} catch (Exception e) {
 						return e;
 					}
