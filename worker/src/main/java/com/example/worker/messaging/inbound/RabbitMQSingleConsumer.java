@@ -48,7 +48,7 @@ public class RabbitMQSingleConsumer {
 		}
 
 		NotificationMessagePayload payload = context.payload();
-		if (payload == null || payload.getNotificationId() == null) {
+		if (payload == null || payload.notificationId() == null) {
 			dlqPublisher.publish(context.sourceRecordId(), payload, null, "payload 또는 notificationId 값이 비어 있습니다.");
 			channel.basicAck(context.deliveryTag(), false);
 			meterRegistry.counter(METRIC_DISPATCH_RESULT, TAG_OUTCOME, "dlq").increment();
@@ -57,8 +57,8 @@ public class RabbitMQSingleConsumer {
 
 		RecordProcessRequest request = new RecordProcessRequest(
 			context.deliveryTag(),
-			payload.getNotificationId(),
-			payload.getRetryCount()
+			payload.notificationId(),
+			payload.retryCount()
 		);
 
 		try {

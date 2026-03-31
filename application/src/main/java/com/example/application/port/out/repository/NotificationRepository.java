@@ -21,7 +21,8 @@ public interface NotificationRepository {
 
 	long countUnreadByClientIdAndReceiver(String clientId, String receiver, LocalDateTime from);
 
-	List<Notification> findByClientIdAndReceiverWithCursor(String clientId, String receiver, LocalDateTime from, Long cursorId, int limit);
+	List<Notification> findByClientIdAndReceiverWithCursor(String clientId, String receiver, LocalDateTime from,
+		Long cursorId, int limit);
 
 	List<Notification> findByStatus(NotificationStatus status);
 

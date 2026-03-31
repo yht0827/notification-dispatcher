@@ -1,11 +1,10 @@
 package com.example.application.port.in;
 
-import com.example.application.port.in.result.BatchDispatchResult;
-import com.example.domain.notification.Notification;
+import com.example.application.port.in.result.DispatchResult;
 
 public interface NotificationDispatchUseCase {
 
-	BatchDispatchResult dispatch(Notification notification);
+	DispatchResult dispatch(Long notificationId);
 
 	void markAsFailed(Long notificationId, String reason);
 }

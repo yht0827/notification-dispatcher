@@ -158,9 +158,6 @@ class RabbitMQSingleConsumerTest {
 	}
 
 	private NotificationMessagePayload payloadOf(Long notificationId) {
-		NotificationMessagePayload payload = new NotificationMessagePayload();
-		payload.setNotificationId(notificationId);
-		payload.setRetryCount(0);
-		return payload;
+		return new NotificationMessagePayload(notificationId, 0);
 	}
 }

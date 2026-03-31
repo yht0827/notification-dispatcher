@@ -3,10 +3,8 @@ package com.example.worker.messaging.inbound;
 import org.springframework.dao.OptimisticLockingFailureException;
 
 import com.example.application.port.in.NotificationDispatchUseCase;
-import com.example.application.port.in.result.BatchDispatchResult;
+import com.example.application.port.in.result.DispatchResult;
 import com.example.application.port.out.DispatchLockManager;
-import com.example.application.port.out.repository.NotificationRepository;
-import com.example.domain.notification.Notification;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +15,6 @@ public class RabbitMQRecordHandler {
 
 	private static final String UNKNOWN_ERROR_REASON = "알 수 없는 오류";
 
-	private final NotificationRepository notificationRepository;
 	private final NotificationDispatchUseCase dispatchService;
 	private final DispatchLockManager lockManager;
 
@@ -32,17 +29,9 @@ public class RabbitMQRecordHandler {
 				request.contextId(), request.notificationId(), request.retryCount(), "이미 처리 중인 알림 스킵");
 		}
 
-		Notification notification = notificationRepository.findById(request.notificationId()).orElse(null);
-		if (notification == null) {
-			lockManager.release(request.notificationId());
-			return RecordProcessResult.nonRetryableFailure(
-				request.contextId(), request.notificationId(), request.retryCount(),
-				"알림을 찾을 수 없음: " + request.notificationId());
-		}
-
-		BatchDispatchResult dispatchResult;
+		DispatchResult dispatchResult;
 		try {
-			dispatchResult = dispatchService.dispatch(notification);
+			dispatchResult = dispatchService.dispatch(request.notificationId());
 		} catch (OptimisticLockingFailureException e) {
 			lockManager.release(request.notificationId());
 			return RecordProcessResult.skipped(
@@ -59,7 +48,7 @@ public class RabbitMQRecordHandler {
 		return result;
 	}
 
-	private RecordProcessResult toProcessResult(RecordProcessRequest request, BatchDispatchResult dispatchResult) {
+	private RecordProcessResult toProcessResult(RecordProcessRequest request, DispatchResult dispatchResult) {
 		if (dispatchResult.isSuccess()) {
 			return RecordProcessResult.success(request.contextId(), request.notificationId(), request.retryCount());
 		}

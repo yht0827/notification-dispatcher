@@ -65,8 +65,8 @@ class RabbitMQWaitPublisherTest {
 		);
 
 		NotificationMessagePayload streamPayload = payloadCaptor.getValue();
-		assertThat(streamPayload.getNotificationId()).isEqualTo(42L);
-		assertThat(streamPayload.getRetryCount()).isEqualTo(2);
+		assertThat(streamPayload.notificationId()).isEqualTo(42L);
+		assertThat(streamPayload.retryCount()).isEqualTo(2);
 
 		Message message = new Message(new byte[0], new MessageProperties());
 		postProcessorCaptor.getValue().postProcessMessage(message);
@@ -87,7 +87,7 @@ class RabbitMQWaitPublisherTest {
 		);
 
 		NotificationMessagePayload streamPayload = payloadCaptor.getValue();
-		assertThat(streamPayload.getRetryCount()).isEqualTo(1);
+		assertThat(streamPayload.retryCount()).isEqualTo(1);
 	}
 
 	@Test

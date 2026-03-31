@@ -5,7 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.application.port.in.NotificationDispatchUseCase;
-import com.example.application.port.in.result.BatchDispatchResult;
+import com.example.application.port.in.result.DispatchResult;
 import com.example.application.port.out.NotificationSender;
 import com.example.application.port.out.SendResult;
 import com.example.application.port.out.event.AdminStatsChangedEvent;
@@ -27,31 +27,33 @@ public class NotificationDispatchService implements NotificationDispatchUseCase 
 
 	@Override
 	@Transactional
-	public BatchDispatchResult dispatch(Notification notification) {
+	public DispatchResult dispatch(Long notificationId) {
+		Notification notification = notificationRepository.findById(notificationId).orElse(null);
+		if (notification == null) {
+			return DispatchResult.failNonRetryable(notificationId, "알림을 찾을 수 없음: " + notificationId);
+		}
 		// 이미 처리 완료(SENT/FAILED)된 알림은 재발송 없이 success 반환
 		if (notification.isTerminal()) {
-			return BatchDispatchResult.success(notification.getId());
+			return DispatchResult.success(notification.getId());
 		}
 
-		Notification managed = notificationRepository.findById(notification.getId()).orElseThrow();
-
 		// 1단계: PENDING → SENDING 상태 전환
-		managed.startSending();
+		notification.startSending();
 
 		// 2단계: 외부 API 호출
-		SendResult sendResult = sendNotification(managed);
+		SendResult sendResult = sendNotification(notification);
 
 		// 3단계: 결과에 따라 SENT/FAILED 상태 반영
 		if (sendResult.isSuccess()) {
-			managed.markAsSent();
+			notification.markAsSent();
 			eventPublisher.publishEvent(new AdminStatsChangedEvent());
-			return BatchDispatchResult.success(managed.getId());
+			return DispatchResult.success(notification.getId());
 		} else if (sendResult.isNonRetryableFailure()) {
-			managed.markAsFailed(sendResult.failReason());
+			notification.markAsFailed(sendResult.failReason());
 			eventPublisher.publishEvent(new AdminStatsChangedEvent());
-			return BatchDispatchResult.failNonRetryable(managed.getId(), sendResult.failReason());
+			return DispatchResult.failNonRetryable(notification.getId(), sendResult.failReason());
 		} else {
-			return BatchDispatchResult.failRetryable(managed.getId(), sendResult.failReason(),
+			return DispatchResult.failRetryable(notification.getId(), sendResult.failReason(),
 				sendResult.retryDelayMillis());
 		}
 	}

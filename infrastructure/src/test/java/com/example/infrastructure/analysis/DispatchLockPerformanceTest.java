@@ -28,7 +28,6 @@ import com.example.application.port.out.DispatchLockManager;
 import com.example.application.port.out.NotificationSender;
 import com.example.application.port.out.SendResult;
 import com.example.application.port.out.repository.NotificationGroupRepository;
-import com.example.application.port.out.repository.NotificationRepository;
 import com.example.application.service.NotificationDispatchService;
 import com.example.application.service.NotificationWriteService;
 import com.example.domain.notification.ChannelType;
@@ -58,9 +57,6 @@ class DispatchLockPerformanceTest extends IntegrationTestSupportNoTx {
 
 	@Autowired
 	private DispatchLockManager dispatchLockManager;
-
-	@Autowired
-	private NotificationRepository notificationRepository;
 
 	@Autowired
 	private NotificationGroupRepository groupRepository;
@@ -116,7 +112,6 @@ class DispatchLockPerformanceTest extends IntegrationTestSupportNoTx {
 		AtomicLong skippedCount = new AtomicLong(0);
 
 		RabbitMQRecordHandler handler = new RabbitMQRecordHandler(
-			notificationRepository,
 			dispatchService,
 			new DispatchLockManagerImpl(redissonClient)
 		);
@@ -163,12 +158,10 @@ class DispatchLockPerformanceTest extends IntegrationTestSupportNoTx {
 		for (int i = 0; i < WARMUP_COUNT && i < notificationIds.size(); i++) {
 			Long id = notificationIds.get(i);
 			if (useLock) {
-				new RabbitMQRecordHandler(notificationRepository, dispatchService,
-					new DispatchLockManagerImpl(redissonClient))
+				new RabbitMQRecordHandler(dispatchService, new DispatchLockManagerImpl(redissonClient))
 					.process(new RecordProcessRequest(id, id, 0));
 			} else {
-				Notification n = notificationRepository.findById(id).orElseThrow();
-				dispatchService.dispatch(n);
+				dispatchService.dispatch(id);
 			}
 		}
 
@@ -185,7 +178,7 @@ class DispatchLockPerformanceTest extends IntegrationTestSupportNoTx {
 		List<Callable<Object>> tasks;
 		if (useLock) {
 			RabbitMQRecordHandler handler = new RabbitMQRecordHandler(
-				notificationRepository, dispatchService, new DispatchLockManagerImpl(redissonClient));
+				dispatchService, new DispatchLockManagerImpl(redissonClient));
 			tasks = measureIds.stream()
 				.<Callable<Object>>map(id -> () -> {
 					try {
@@ -198,8 +191,7 @@ class DispatchLockPerformanceTest extends IntegrationTestSupportNoTx {
 			tasks = measureIds.stream()
 				.<Callable<Object>>map(id -> () -> {
 					try {
-						Notification n = notificationRepository.findById(id).orElseThrow();
-						return dispatchService.dispatch(n);
+						return dispatchService.dispatch(id);
 					} catch (Exception e) {
 						return e;
 					}

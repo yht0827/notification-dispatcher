@@ -1,6 +1,6 @@
 package com.example.application.port.in.result;
 
-public record BatchDispatchResult(
+public record DispatchResult(
 	Long notificationId,
 	boolean succeeded,
 	String failReason,
@@ -8,7 +8,7 @@ public record BatchDispatchResult(
 	Long retryDelayMillis
 ) {
 
-	public BatchDispatchResult {
+	public DispatchResult {
 		if (succeeded) {
 			failReason = null;
 			failureType = null;
@@ -24,22 +24,22 @@ public record BatchDispatchResult(
 		}
 	}
 
-	public static BatchDispatchResult success(Long notificationId) {
-		return new BatchDispatchResult(notificationId, true, null, null, null);
+	public static DispatchResult success(Long notificationId) {
+		return new DispatchResult(notificationId, true, null, null, null);
 	}
 
-	public static BatchDispatchResult failRetryable(Long notificationId, String reason) {
-		return new BatchDispatchResult(notificationId, false, reason,
+	public static DispatchResult failRetryable(Long notificationId, String reason) {
+		return new DispatchResult(notificationId, false, reason,
 			NotificationDispatchResult.FailureType.RETRYABLE, null);
 	}
 
-	public static BatchDispatchResult failRetryable(Long notificationId, String reason, Long retryDelayMillis) {
-		return new BatchDispatchResult(notificationId, false, reason,
+	public static DispatchResult failRetryable(Long notificationId, String reason, Long retryDelayMillis) {
+		return new DispatchResult(notificationId, false, reason,
 			NotificationDispatchResult.FailureType.RETRYABLE, retryDelayMillis);
 	}
 
-	public static BatchDispatchResult failNonRetryable(Long notificationId, String reason) {
-		return new BatchDispatchResult(notificationId, false, reason,
+	public static DispatchResult failNonRetryable(Long notificationId, String reason) {
+		return new DispatchResult(notificationId, false, reason,
 			NotificationDispatchResult.FailureType.NON_RETRYABLE, null);
 	}
 

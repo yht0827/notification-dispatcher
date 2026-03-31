@@ -29,7 +29,6 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import com.example.application.port.in.NotificationDispatchUseCase;
 import com.example.application.port.out.DispatchLockManager;
 import com.example.application.port.out.NotificationEventPublisher;
-import com.example.application.port.out.repository.NotificationRepository;
 import com.example.worker.messaging.inbound.RabbitMQRecordHandler;
 import com.example.worker.messaging.outbound.DeadLetterPublisher;
 import com.example.worker.messaging.outbound.RabbitMQDlqPublisher;
@@ -243,10 +242,9 @@ public class NotificationRabbitConfig {
 	@Bean
 	@ConditionalOnProperty(name = "app.consumer.enabled", havingValue = "true", matchIfMissing = true)
 	public RabbitMQRecordHandler rabbitMQRecordHandler(
-		NotificationRepository notificationRepository,
 		NotificationDispatchUseCase dispatchService,
 		DispatchLockManager lockManager) {
-		return new RabbitMQRecordHandler(notificationRepository, dispatchService, lockManager);
+		return new RabbitMQRecordHandler(dispatchService, lockManager);
 	}
 
 }

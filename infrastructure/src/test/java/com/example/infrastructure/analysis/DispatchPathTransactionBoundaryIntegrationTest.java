@@ -19,6 +19,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.example.application.port.in.command.SendCommand;
+import com.example.application.port.in.result.DispatchResult;
 import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.out.NotificationSender;
 import com.example.application.port.out.SendResult;
@@ -79,9 +80,7 @@ class DispatchPathTransactionBoundaryIntegrationTest extends IntegrationTestSupp
 		statistics.clear();
 
 		for (Long notificationId : notificationIds) {
-			Notification detached = notificationRepository.findById(notificationId).orElseThrow();
-			com.example.application.port.in.result.BatchDispatchResult result =
-				dispatchService.dispatch(detached);
+			DispatchResult result = dispatchService.dispatch(notificationId);
 			assertThat(result.isSuccess()).isTrue();
 		}
 

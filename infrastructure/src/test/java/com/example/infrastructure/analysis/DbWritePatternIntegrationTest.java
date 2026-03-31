@@ -16,7 +16,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import com.example.application.port.in.command.SendCommand;
-import com.example.application.port.in.result.BatchDispatchResult;
+import com.example.application.port.in.result.DispatchResult;
 import com.example.application.port.in.result.NotificationCommandResult;
 import com.example.application.port.out.NotificationSender;
 import com.example.application.port.out.repository.NotificationGroupRepository;
@@ -97,8 +97,7 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 	void dispatch_success_updatesNotificationAndGroup() {
 		Long notificationId = createSingleNotification();
 
-		Notification detached = notificationRepository.findById(notificationId).orElseThrow();
-		BatchDispatchResult result = dispatchService.dispatch(detached);
+		DispatchResult result = dispatchService.dispatch(notificationId);
 
 		assertThat(result.isSuccess()).isTrue();
 		assertThat(countNotificationsByStatus("SENT")).isEqualTo(1);
@@ -129,9 +128,8 @@ class DbWritePatternIntegrationTest extends IntegrationTestSupportNoTx {
 			.getId();
 		statistics.clear();
 
-		java.util.List<Notification> detachedNotifications = notificationRepository.findAllByIdIn(notificationIds);
-		for (Notification n : detachedNotifications) {
-			BatchDispatchResult result = dispatchService.dispatch(n);
+		for (Long id : notificationIds) {
+			DispatchResult result = dispatchService.dispatch(id);
 			assertThat(result.isSuccess()).isTrue();
 		}
 

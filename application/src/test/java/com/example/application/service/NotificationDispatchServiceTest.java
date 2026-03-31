@@ -17,7 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.example.application.port.in.result.BatchDispatchResult;
+import com.example.application.port.in.result.DispatchResult;
 import com.example.application.port.out.NotificationSender;
 import com.example.application.port.out.SendResult;
 import com.example.application.port.out.event.AdminStatsChangedEvent;
@@ -59,8 +59,8 @@ class NotificationDispatchServiceTest {
 		when(notificationSender.send(first)).thenReturn(SendResult.success());
 		when(notificationSender.send(second)).thenReturn(SendResult.success());
 
-		BatchDispatchResult result1 = dispatchService.dispatch(first);
-		BatchDispatchResult result2 = dispatchService.dispatch(second);
+		DispatchResult result1 = dispatchService.dispatch(1L);
+		DispatchResult result2 = dispatchService.dispatch(2L);
 
 		assertThat(result1.notificationId()).isEqualTo(1L);
 		assertThat(result1.isSuccess()).isTrue();
@@ -77,11 +77,12 @@ class NotificationDispatchServiceTest {
 		terminal.startSending();
 		terminal.markAsSent();
 		Notification pending = createNotification(2L, "pending@example.com");
+		when(notificationRepository.findById(1L)).thenReturn(Optional.of(terminal));
 		when(notificationRepository.findById(2L)).thenReturn(Optional.of(pending));
 		when(notificationSender.send(pending)).thenReturn(SendResult.success());
 
-		BatchDispatchResult terminalResult = dispatchService.dispatch(terminal);
-		BatchDispatchResult pendingResult = dispatchService.dispatch(pending);
+		DispatchResult terminalResult = dispatchService.dispatch(1L);
+		DispatchResult pendingResult = dispatchService.dispatch(2L);
 
 		assertThat(terminalResult.isSuccess()).isTrue();
 		assertThat(pendingResult.isSuccess()).isTrue();
@@ -95,7 +96,7 @@ class NotificationDispatchServiceTest {
 		when(notificationRepository.findById(10L)).thenReturn(Optional.of(pending));
 		when(notificationSender.send(pending)).thenReturn(SendResult.failNonRetryable("주소 오류"));
 
-		BatchDispatchResult result = dispatchService.dispatch(pending);
+		DispatchResult result = dispatchService.dispatch(10L);
 
 		assertThat(result.isNonRetryableFailure()).isTrue();
 		assertThat(result.failReason()).isEqualTo("주소 오류");

@@ -80,11 +80,7 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 	@BeforeEach
 	void setUp() {
 		truncateTables();
-        recordHandler = new RabbitMQRecordHandler(
-                        notificationRepository,
-                        dispatchService,
-                        dispatchLockManager
-        );
+		recordHandler = new RabbitMQRecordHandler(dispatchService, dispatchLockManager);
 	}
 
 	@Test
@@ -259,16 +255,14 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 		Long notificationId = createSingleNotification("multi-instance-client", "idem-multi-instance");
 		CountDownLatch senderEntered = new CountDownLatch(1);
 
-        RabbitMQRecordHandler firstHandler = new RabbitMQRecordHandler(
-                        notificationRepository,
-                        dispatchService,
-                        new com.example.infrastructure.repository.DispatchLockManagerImpl(redissonClient)
-        );
-        RabbitMQRecordHandler secondHandler = new RabbitMQRecordHandler(
-                        notificationRepository,
-                        dispatchService,
-                        new com.example.infrastructure.repository.DispatchLockManagerImpl(redissonClient)
-        );
+		RabbitMQRecordHandler firstHandler = new RabbitMQRecordHandler(
+			dispatchService,
+			new com.example.infrastructure.repository.DispatchLockManagerImpl(redissonClient)
+		);
+		RabbitMQRecordHandler secondHandler = new RabbitMQRecordHandler(
+			dispatchService,
+			new com.example.infrastructure.repository.DispatchLockManagerImpl(redissonClient)
+		);
 
 		when(notificationSender.send(any())).thenAnswer(invocation -> {
 			senderEntered.countDown();
@@ -383,27 +377,21 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 	}
 
 	private Callable<Object> optimisticDispatchTask(Long notificationId) {
-		return () -> captureResult(() -> {
-			Notification detached = notificationRepository.findById(notificationId).orElseThrow();
-			return dispatchService.dispatch(detached);
-		});
+		return () -> captureResult(() -> dispatchService.dispatch(notificationId));
 	}
 
 	private Callable<Object> pessimisticDispatchTask(Long notificationId) {
 		return () -> captureResult(() -> transactionTemplate.execute(status -> {
-			Notification locked = notificationJpaRepository.findByIdWithPessimisticLock(notificationId).orElseThrow();
-			return dispatchService.dispatch(locked);
+			notificationJpaRepository.findByIdWithPessimisticLock(notificationId).orElseThrow();
+			return dispatchService.dispatch(notificationId);
 		}));
 	}
 
 	private List<Object> executeOptimisticHotKeyAttempts(List<Long> attempts) throws Exception {
-		CountDownLatch loadedLatch = new CountDownLatch(attempts.size());
 		List<Callable<Object>> tasks = attempts.stream()
-			.<Callable<Object>>map(notificationId -> () -> captureResult(() -> {
-				Notification detached = notificationRepository.findById(notificationId).orElseThrow();
-				arriveAndAwait(loadedLatch);
-				return dispatchService.dispatch(detached);
-			}))
+			.<Callable<Object>>map(notificationId -> () -> captureResult(
+				() -> dispatchService.dispatch(notificationId)
+			))
 			.toList();
 		return executeConcurrently(tasks);
 	}
@@ -433,18 +421,6 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 			return action.call();
 		} catch (Exception e) {
 			return e;
-		}
-	}
-
-	private void arriveAndAwait(CountDownLatch latch) {
-		latch.countDown();
-		try {
-			if (!latch.await(3, TimeUnit.SECONDS)) {
-				throw new IllegalStateException("동시 시작 대기 시간이 초과되었습니다.");
-			}
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-			throw new IllegalStateException("동시 시작 대기 중 인터럽트가 발생했습니다.", e);
 		}
 	}
 
@@ -494,7 +470,7 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 		}
 
 		private static boolean isDispatchSuccess(Object value) {
-			return value instanceof com.example.application.port.in.result.BatchDispatchResult result
+			return value instanceof com.example.application.port.in.result.DispatchResult result
 				&& result.isSuccess();
 		}
 

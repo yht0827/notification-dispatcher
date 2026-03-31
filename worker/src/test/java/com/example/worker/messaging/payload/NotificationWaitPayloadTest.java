@@ -19,7 +19,7 @@ class NotificationWaitPayloadTest {
 		assertThat(payload.lastError()).isEmpty();
 
 		NotificationMessagePayload streamPayload = payload.toMessagePayload();
-		assertThat(streamPayload.getNotificationId()).isEqualTo(10L);
-		assertThat(streamPayload.getRetryCount()).isEqualTo(1);
+		assertThat(streamPayload.notificationId()).isEqualTo(10L);
+		assertThat(streamPayload.retryCount()).isEqualTo(1);
 	}
 }
