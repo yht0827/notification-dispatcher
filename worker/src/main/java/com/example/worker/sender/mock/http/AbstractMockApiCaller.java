@@ -45,28 +45,25 @@ abstract class AbstractMockApiCaller implements ChannelMockApiCaller {
 		}
 	}
 
-	// CircuitBreaker fallback - 예외 타입별 오버로딩
-	protected SendResult circuitFallback(MockApiSendRequest request, CallNotPermittedException e) {
-		log.warn("서킷 브레이커 OPEN: channel={}, requestId={}", request.channelType(), request.requestId());
-		return SendResult.failRetryable("서킷 브레이커 OPEN - " + request.channelType() + " 외부 API 연속 장애");
-	}
-
-	protected SendResult circuitFallback(MockApiSendRequest request, MockApiRetryableException e) {
+	// CircuitBreaker fallback
+	protected SendResult circuitFallback(MockApiSendRequest request, Throwable t) {
+		if (t instanceof CallNotPermittedException) {
+			log.warn("서킷 브레이커 OPEN: channel={}, requestId={}", request.channelType(), request.requestId());
+			return SendResult.failRetryable("서킷 브레이커 OPEN - " + request.channelType() + " 외부 API 연속 장애");
+		}
+		if (t instanceof MockApiRateLimitException e) {
+			meterRegistry.counter("notification.mockapi.failures", "type", "rate_limit").increment();
+			log.info("mock API rate limit: requestId={}, retryAfterMs={}", request.requestId(), e.retryAfterMillis());
+			return SendResult.failRetryable(e.getMessage(), e.retryAfterMillis());
+		}
+		if (t instanceof MockApiNonRetryableException) {
+			meterRegistry.counter("notification.mockapi.failures", "type", "non_retryable").increment();
+			log.debug("mock API 재시도 불가 실패: requestId={}, reason={}", request.requestId(), t.getMessage());
+			return SendResult.failNonRetryable(t.getMessage());
+		}
 		meterRegistry.counter("notification.mockapi.failures", "type", "retryable").increment();
-		log.debug("mock API 재시도 가능 실패: requestId={}, reason={}", request.requestId(), e.getMessage());
-		return SendResult.failRetryable(e.getMessage());
-	}
-
-	protected SendResult circuitFallback(MockApiSendRequest request, MockApiNonRetryableException e) {
-		meterRegistry.counter("notification.mockapi.failures", "type", "non_retryable").increment();
-		log.debug("mock API 재시도 불가 실패: requestId={}, reason={}", request.requestId(), e.getMessage());
-		return SendResult.failNonRetryable(e.getMessage());
-	}
-
-	protected SendResult circuitFallback(MockApiSendRequest request, MockApiRateLimitException e) {
-		meterRegistry.counter("notification.mockapi.failures", "type", "rate_limit").increment();
-		log.info("mock API rate limit: requestId={}, retryAfterMs={}", request.requestId(), e.retryAfterMillis());
-		return SendResult.failRetryable(e.getMessage(), e.retryAfterMillis());
+		log.debug("mock API 재시도 가능 실패: requestId={}, reason={}", request.requestId(), t.getMessage());
+		return SendResult.failRetryable(t.getMessage());
 	}
 
 	// RateLimiter fallback
