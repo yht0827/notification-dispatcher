@@ -18,12 +18,17 @@ public record NotificationRabbitProperties(
 	double retryJitterFactor       // 재시도 지연 랜덤화 비율
 ) {
 
+	public static final int DEFAULT_MAX_RETRY_COUNT = 3;
 	private static final int DEFAULT_RETRY_BASE_DELAY_MILLIS = 5000;
 	private static final int DEFAULT_CONCURRENCY = 1;
 	private static final int DEFAULT_MAX_CONCURRENCY = 10;
 	private static final double DEFAULT_RETRY_JITTER_FACTOR = 0.0d;
 	private static final int MAX_RETRY_BACKOFF_SHIFT = 10;
 	private static final String WAIT_EXCHANGE_SUFFIX = ".exchange";
+
+	public int resolveMaxRetryCount() {
+		return maxRetryCount > 0 ? maxRetryCount : DEFAULT_MAX_RETRY_COUNT;
+	}
 
 	public int resolveRetryBaseDelayMillis() {
 		return retryBaseDelayMillis > 0 ? retryBaseDelayMillis : DEFAULT_RETRY_BASE_DELAY_MILLIS;

@@ -27,6 +27,7 @@ dependencies {
 
     // Worker (integration tests that validate lock + consumer behavior)
     testImplementation project(':worker')
+    testImplementation testFixtures(project(':worker'))
     testImplementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
 
     // Testcontainers

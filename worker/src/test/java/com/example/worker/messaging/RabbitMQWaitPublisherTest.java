@@ -18,9 +18,9 @@ import org.springframework.amqp.core.MessagePostProcessor;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
-import com.example.worker.config.rabbitmq.NotificationRabbitProperties;
 import com.example.worker.messaging.outbound.RabbitMQWaitPublisher;
 import com.example.worker.messaging.payload.NotificationMessagePayload;
+import com.example.worker.support.NotificationRabbitPropertiesFixtures;
 
 @ExtendWith(MockitoExtension.class)
 class RabbitMQWaitPublisherTest {
@@ -32,21 +32,7 @@ class RabbitMQWaitPublisherTest {
 
 	@BeforeEach
 	void setUp() {
-		NotificationRabbitProperties properties = new NotificationRabbitProperties(
-			"notification.work",
-			"notification.work.exchange",
-			"notification.wait",
-			"notification.dlq",
-			"notification.dlq.exchange",
-			3,
-			5000,
-			1,
-			10,
-			1,
-			null,
-			0.0d
-		);
-		waitPublisher = new RabbitMQWaitPublisher(rabbitTemplate, properties);
+		waitPublisher = new RabbitMQWaitPublisher(rabbitTemplate, NotificationRabbitPropertiesFixtures.defaultProperties());
 	}
 
 	@Test
@@ -111,20 +97,7 @@ class RabbitMQWaitPublisherTest {
 	@Test
 	@DisplayName("지터가 설정되면 재시도 TTL이 범위 내에서 랜덤화된다")
 	void publish_appliesJitterWhenConfigured() {
-		NotificationRabbitProperties jitterProperties = new NotificationRabbitProperties(
-			"notification.work",
-			"notification.work.exchange",
-			"notification.wait",
-			"notification.dlq",
-			"notification.dlq.exchange",
-			3,
-			5000,
-			1,
-			10,
-			1,
-			null,
-			0.2d
-		);
+		var jitterProperties = NotificationRabbitPropertiesFixtures.properties(null, 0.2d);
 		RabbitMQWaitPublisher jitterPublisher = new RabbitMQWaitPublisher(rabbitTemplate, jitterProperties);
 
 		AtomicLong expiration = new AtomicLong();

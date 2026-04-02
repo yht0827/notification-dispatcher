@@ -5,6 +5,7 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import com.example.application.port.in.NotificationDispatchUseCase;
 import com.example.application.port.in.result.DispatchResult;
 import com.example.application.port.out.DispatchLockManager;
+import com.example.worker.config.rabbitmq.NotificationRabbitProperties;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,7 @@ public class RabbitMQRecordHandler {
 
 	private final NotificationDispatchUseCase dispatchService;
 	private final DispatchLockManager lockManager;
+	private final NotificationRabbitProperties properties;
 
 	public RecordProcessResult process(RecordProcessRequest request) {
 		if (request.notificationId() == null) {
@@ -52,14 +54,24 @@ public class RabbitMQRecordHandler {
 		if (dispatchResult.isSuccess()) {
 			return RecordProcessResult.success(request.contextId(), request.notificationId(), request.retryCount());
 		}
+		String normalizedReason = normalizeReason(dispatchResult.failReason());
 		if (dispatchResult.isNonRetryableFailure()) {
 			return RecordProcessResult.nonRetryableFailure(
 				request.contextId(), request.notificationId(), request.retryCount(),
-				normalizeReason(dispatchResult.failReason()));
+				normalizedReason);
+		}
+		if (request.retryCount() >= properties.resolveMaxRetryCount()) {
+			return RecordProcessResult.nonRetryableFailure(
+				request.contextId(), request.notificationId(), request.retryCount(),
+				buildMaxRetryExceededReason(normalizedReason));
 		}
 		return RecordProcessResult.retryableFailure(
 			request.contextId(), request.notificationId(), request.retryCount(),
-			normalizeReason(dispatchResult.failReason()), dispatchResult.retryDelayMillis());
+			normalizedReason, dispatchResult.retryDelayMillis());
+	}
+
+	private String buildMaxRetryExceededReason(String normalizedReason) {
+		return "재시도 한도 도달(" + properties.resolveMaxRetryCount() + "회) - 마지막 오류: " + normalizedReason;
 	}
 
 	private String normalizeReason(String reason) {

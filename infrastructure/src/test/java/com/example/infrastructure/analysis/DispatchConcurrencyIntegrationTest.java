@@ -38,6 +38,7 @@ import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
 import com.example.domain.notification.NotificationStatus;
+import com.example.worker.support.NotificationRabbitPropertiesFixtures;
 import com.example.worker.messaging.inbound.RabbitMQRecordHandler;
 import com.example.worker.messaging.inbound.RecordProcessRequest;
 import com.example.infrastructure.repository.NotificationJpaRepository;
@@ -80,7 +81,8 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 	@BeforeEach
 	void setUp() {
 		truncateTables();
-		recordHandler = new RabbitMQRecordHandler(dispatchService, dispatchLockManager);
+		recordHandler = new RabbitMQRecordHandler(dispatchService, dispatchLockManager,
+			NotificationRabbitPropertiesFixtures.defaultProperties());
 	}
 
 	@Test
@@ -257,11 +259,13 @@ class DispatchConcurrencyIntegrationTest extends IntegrationTestSupportNoTx {
 
 		RabbitMQRecordHandler firstHandler = new RabbitMQRecordHandler(
 			dispatchService,
-			new com.example.infrastructure.repository.DispatchLockManagerImpl(redissonClient)
+			new com.example.infrastructure.repository.DispatchLockManagerImpl(redissonClient),
+			NotificationRabbitPropertiesFixtures.defaultProperties()
 		);
 		RabbitMQRecordHandler secondHandler = new RabbitMQRecordHandler(
 			dispatchService,
-			new com.example.infrastructure.repository.DispatchLockManagerImpl(redissonClient)
+			new com.example.infrastructure.repository.DispatchLockManagerImpl(redissonClient),
+			NotificationRabbitPropertiesFixtures.defaultProperties()
 		);
 
 		when(notificationSender.send(any())).thenAnswer(invocation -> {

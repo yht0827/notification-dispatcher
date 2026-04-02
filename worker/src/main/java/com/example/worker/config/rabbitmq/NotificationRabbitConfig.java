@@ -243,8 +243,9 @@ public class NotificationRabbitConfig {
 	@ConditionalOnProperty(name = "app.consumer.enabled", havingValue = "true", matchIfMissing = true)
 	public RabbitMQRecordHandler rabbitMQRecordHandler(
 		NotificationDispatchUseCase dispatchService,
-		DispatchLockManager lockManager) {
-		return new RabbitMQRecordHandler(dispatchService, lockManager);
+		DispatchLockManager lockManager,
+		NotificationRabbitProperties properties) {
+		return new RabbitMQRecordHandler(dispatchService, lockManager, properties);
 	}
 
 }

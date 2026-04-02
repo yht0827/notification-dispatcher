@@ -1,5 +1,7 @@
 // Worker 모듈: RabbitMQ Consumer, Sender, Polling 구현체
 
+apply plugin: 'java-test-fixtures'
+
 dependencies {
     implementation project(':domain')
     implementation project(':application')

@@ -22,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @RequiredArgsConstructor
 @ConditionalOnProperty(name = "app.consumer.enabled", havingValue = "true", matchIfMissing = true)
-public class RabbitMQSingleConsumer {
+public class RabbitMQConsumer {
 
 	private static final String METRIC_DISPATCH_RESULT = "notification.dispatch.result";
 	private static final String TAG_OUTCOME = "outcome";
@@ -71,20 +71,25 @@ public class RabbitMQSingleConsumer {
 		}
 	}
 
-	private void applyDecision(Channel channel, MessageProcessContext context, RecordProcessResult result)
+	private void applyDecision(Channel channel, MessageProcessContext context, RecordProcessResult r)
 		throws IOException {
-		if (result.isSuccess() || result.isSkipped()) {
+		if (r.isSuccess() || r.isSkipped()) {
+
 			channel.basicAck(context.deliveryTag(), false);
 			meterRegistry.counter(METRIC_DISPATCH_RESULT, TAG_OUTCOME, "success").increment();
-		} else if (result.isNonRetryableFailure()) {
-			dlqPublisher.publish(context.sourceRecordId(), context.payload(), result.notificationId(), result.reason());
+
+		} else if (r.isNonRetryableFailure()) {
+			dlqPublisher.publish(context.sourceRecordId(), context.payload(), r.notificationId(), r.reason());
+
 			channel.basicAck(context.deliveryTag(), false);
 			meterRegistry.counter(METRIC_DISPATCH_RESULT, TAG_OUTCOME, "dlq").increment();
-		} else if (result.isRetryableFailure()) {
-			waitPublisher.publish(result.notificationId(), result.retryCount(), result.reason(),
-				result.retryDelayMillis());
+
+		} else if (r.isRetryableFailure()) {
+			waitPublisher.publish(r.notificationId(), r.retryCount(), r.reason(), r.retryDelayMillis());
+
 			channel.basicAck(context.deliveryTag(), false);
 			meterRegistry.counter(METRIC_DISPATCH_RESULT, TAG_OUTCOME, "wait").increment();
+
 		} else {
 			channel.basicNack(context.deliveryTag(), false, false);
 			meterRegistry.counter(METRIC_DISPATCH_RESULT, TAG_OUTCOME, "nack").increment();

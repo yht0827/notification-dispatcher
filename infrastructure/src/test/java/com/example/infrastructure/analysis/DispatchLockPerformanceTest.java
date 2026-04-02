@@ -33,6 +33,7 @@ import com.example.application.service.NotificationWriteService;
 import com.example.domain.notification.ChannelType;
 import com.example.domain.notification.Notification;
 import com.example.domain.notification.NotificationGroup;
+import com.example.worker.support.NotificationRabbitPropertiesFixtures;
 import com.example.worker.messaging.inbound.RabbitMQRecordHandler;
 import com.example.worker.messaging.inbound.RecordProcessRequest;
 import com.example.infrastructure.repository.DispatchLockManagerImpl;
@@ -113,7 +114,8 @@ class DispatchLockPerformanceTest extends IntegrationTestSupportNoTx {
 
 		RabbitMQRecordHandler handler = new RabbitMQRecordHandler(
 			dispatchService,
-			new DispatchLockManagerImpl(redissonClient)
+			new DispatchLockManagerImpl(redissonClient),
+			NotificationRabbitPropertiesFixtures.defaultProperties()
 		);
 
 		when(notificationSender.send(any())).thenAnswer(inv -> {
@@ -158,7 +160,8 @@ class DispatchLockPerformanceTest extends IntegrationTestSupportNoTx {
 		for (int i = 0; i < WARMUP_COUNT && i < notificationIds.size(); i++) {
 			Long id = notificationIds.get(i);
 			if (useLock) {
-				new RabbitMQRecordHandler(dispatchService, new DispatchLockManagerImpl(redissonClient))
+				new RabbitMQRecordHandler(dispatchService, new DispatchLockManagerImpl(redissonClient),
+					NotificationRabbitPropertiesFixtures.defaultProperties())
 					.process(new RecordProcessRequest(id, id, 0));
 			} else {
 				dispatchService.dispatch(id);
@@ -178,7 +181,8 @@ class DispatchLockPerformanceTest extends IntegrationTestSupportNoTx {
 		List<Callable<Object>> tasks;
 		if (useLock) {
 			RabbitMQRecordHandler handler = new RabbitMQRecordHandler(
-				dispatchService, new DispatchLockManagerImpl(redissonClient));
+				dispatchService, new DispatchLockManagerImpl(redissonClient),
+				NotificationRabbitPropertiesFixtures.defaultProperties());
 			tasks = measureIds.stream()
 				.<Callable<Object>>map(id -> () -> {
 					try {
@@ -247,4 +251,5 @@ class DispatchLockPerformanceTest extends IntegrationTestSupportNoTx {
 		jdbcTemplate.execute("TRUNCATE TABLE notification_group");
 		jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS=1");
 	}
+
 }

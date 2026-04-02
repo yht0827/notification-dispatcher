@@ -17,11 +17,8 @@ public record RecordProcessResult(
 		return new RecordProcessResult(contextId, notificationId, retryCount, Status.SKIPPED, reason, null);
 	}
 
-	public static RecordProcessResult retryableFailure(long contextId, Long notificationId, int retryCount, String reason) {
-		return new RecordProcessResult(contextId, notificationId, retryCount, Status.RETRYABLE_FAILURE, reason, null);
-	}
-
-	public static RecordProcessResult retryableFailure(long contextId, Long notificationId, int retryCount, String reason,
+	public static RecordProcessResult retryableFailure(long contextId, Long notificationId, int retryCount,
+		String reason,
 		Long retryDelayMillis) {
 		return new RecordProcessResult(contextId, notificationId, retryCount, Status.RETRYABLE_FAILURE, reason,
 			retryDelayMillis);

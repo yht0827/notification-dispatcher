@@ -10,9 +10,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
-import com.example.worker.config.rabbitmq.NotificationRabbitProperties;
 import com.example.worker.messaging.outbound.RabbitMQPublisher;
 import com.example.worker.messaging.payload.NotificationMessagePayload;
+import com.example.worker.support.NotificationRabbitPropertiesFixtures;
 
 @ExtendWith(MockitoExtension.class)
 class RabbitMQPublisherTest {
@@ -24,17 +24,7 @@ class RabbitMQPublisherTest {
 
 	@BeforeEach
 	void setUp() {
-		NotificationRabbitProperties properties = new NotificationRabbitProperties(
-			"notification.work",
-			"notification.work.exchange",
-			"notification.wait",
-			"notification.dlq",
-			"notification.dlq.exchange",
-			3, 5000, 1, 10, 1,
-			null,
-			0.0d
-		);
-		publisher = new RabbitMQPublisher(rabbitTemplate, properties);
+		publisher = new RabbitMQPublisher(rabbitTemplate, NotificationRabbitPropertiesFixtures.defaultProperties());
 	}
 
 	@Test

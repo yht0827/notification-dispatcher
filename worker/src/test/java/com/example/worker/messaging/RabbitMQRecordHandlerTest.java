@@ -18,6 +18,7 @@ import com.example.application.port.out.DispatchLockManager;
 import com.example.worker.messaging.inbound.RabbitMQRecordHandler;
 import com.example.worker.messaging.inbound.RecordProcessRequest;
 import com.example.worker.messaging.inbound.RecordProcessResult;
+import com.example.worker.support.NotificationRabbitPropertiesFixtures;
 
 @ExtendWith(MockitoExtension.class)
 class RabbitMQRecordHandlerTest {
@@ -33,7 +34,8 @@ class RabbitMQRecordHandlerTest {
 	@BeforeEach
 	void setUp() {
 		lenient().when(lockManager.tryAcquire(any())).thenReturn(true);
-		recordHandler = new RabbitMQRecordHandler(dispatchService, lockManager);
+		recordHandler = new RabbitMQRecordHandler(dispatchService, lockManager,
+			NotificationRabbitPropertiesFixtures.defaultProperties());
 	}
 
 	@Test
@@ -87,6 +89,32 @@ class RabbitMQRecordHandlerTest {
 		assertThat(result.isRetryableFailure()).isTrue();
 		assertThat(result.reason()).isEqualTo("일시 오류");
 		verify(lockManager).release(401L);
+	}
+
+	@Test
+	@DisplayName("최대 재시도 횟수에 도달한 retryable 실패는 non-retryable로 전환한다")
+	void process_convertsRetryableFailureToNonRetryableWhenMaxRetryCountReached() {
+		when(dispatchService.dispatch(451L)).thenReturn(DispatchResult.failRetryable(451L, "일시 오류"));
+
+		RecordProcessResult result = recordHandler.process(new RecordProcessRequest(4L, 451L, 3));
+
+		assertThat(result.isNonRetryableFailure()).isTrue();
+		assertThat(result.reason()).isEqualTo("재시도 한도 도달(3회) - 마지막 오류: 일시 오류");
+		verify(dispatchService).markAsFailed(451L, result.reason());
+		verify(lockManager, never()).release(451L);
+	}
+
+	@Test
+	@DisplayName("최대 재시도 횟수 초과 사유는 비어 있는 마지막 오류를 기본 문구로 정규화한다")
+	void process_usesFallbackReasonWhenLastErrorBlankAtRetryLimit() {
+		when(dispatchService.dispatch(452L)).thenReturn(DispatchResult.failRetryable(452L, "   "));
+
+		RecordProcessResult result = recordHandler.process(new RecordProcessRequest(4L, 452L, 3));
+
+		assertThat(result.isNonRetryableFailure()).isTrue();
+		assertThat(result.reason()).isEqualTo("재시도 한도 도달(3회) - 마지막 오류: 알 수 없는 오류");
+		verify(dispatchService).markAsFailed(452L, result.reason());
+		verify(lockManager, never()).release(452L);
 	}
 
 	@Test

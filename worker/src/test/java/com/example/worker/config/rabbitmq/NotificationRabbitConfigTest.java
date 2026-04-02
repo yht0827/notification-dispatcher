@@ -15,6 +15,8 @@ import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.example.worker.support.NotificationRabbitPropertiesFixtures;
+
 class NotificationRabbitConfigTest {
 
 	private final NotificationRabbitConfig config = new NotificationRabbitConfig();
@@ -66,20 +68,7 @@ class NotificationRabbitConfigTest {
 	}
 
 	private NotificationRabbitProperties createProperties(Boolean listenerVirtualThreads) {
-		return new NotificationRabbitProperties(
-			"notification.work",
-			"notification.work.exchange",
-			"notification.wait",
-			"notification.dlq",
-			"notification.dlq.exchange",
-			3,
-			5000,
-			1,
-			10,
-			1,
-			listenerVirtualThreads,
-			0.0d
-		);
+		return NotificationRabbitPropertiesFixtures.properties(listenerVirtualThreads, 0.0d);
 	}
 
 	private boolean isVirtualThread(Executor executor) throws InterruptedException {
