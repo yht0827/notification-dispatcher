@@ -7,6 +7,7 @@ public record NotificationRabbitProperties(
 	String workQueue,              // "notification.work"
 	String workExchange,           // "notification.work.exchange"
 	String waitQueue,              // "notification.wait"
+	String waitExchange,           // "notification.wait.exchange"
 	String dlqQueue,               // "notification.dlq"
 	String dlqExchange,            // "notification.dlq.exchange"
 	int maxRetryCount,             // 최대 3회
@@ -23,8 +24,6 @@ public record NotificationRabbitProperties(
 	private static final int DEFAULT_CONCURRENCY = 1;
 	private static final int DEFAULT_MAX_CONCURRENCY = 10;
 	private static final double DEFAULT_RETRY_JITTER_FACTOR = 0.0d;
-	private static final int MAX_RETRY_BACKOFF_SHIFT = 10;
-	private static final String WAIT_EXCHANGE_SUFFIX = ".exchange";
 
 	public int resolveMaxRetryCount() {
 		return maxRetryCount > 0 ? maxRetryCount : DEFAULT_MAX_RETRY_COUNT;
@@ -32,18 +31,6 @@ public record NotificationRabbitProperties(
 
 	public int resolveRetryBaseDelayMillis() {
 		return retryBaseDelayMillis > 0 ? retryBaseDelayMillis : DEFAULT_RETRY_BASE_DELAY_MILLIS;
-	}
-
-	public long calculateRetryDelayMillis(int retryCount, Long retryDelayMillis) {
-		if (retryDelayMillis != null && retryDelayMillis > 0) {
-			return retryDelayMillis;
-		}
-
-		int normalizedRetryCount = Math.max(retryCount, 0);
-		int cappedShift = Math.min(normalizedRetryCount, MAX_RETRY_BACKOFF_SHIFT);
-		long baseDelayMillis =
-			(long)resolveRetryBaseDelayMillis() * (1L << cappedShift); // delay = baseDelay × (2 ^ retryCount)
-		return applyJitter(baseDelayMillis);
 	}
 
 	public int resolveConcurrency() {
@@ -71,29 +58,5 @@ public record NotificationRabbitProperties(
 			return DEFAULT_RETRY_JITTER_FACTOR;
 		}
 		return Math.min(retryJitterFactor, 1.0d);
-	}
-
-	public String workRoutingKey() {
-		return workQueue;
-	}
-
-	public String waitRoutingKey() {
-		return waitQueue;
-	}
-
-	public String waitExchange() {
-		return waitQueue + WAIT_EXCHANGE_SUFFIX;
-	}
-
-	private long applyJitter(long delayMillis) {
-		double jitterFactor = resolveRetryJitterFactor();
-		if (jitterFactor <= 0.0d) {
-			return delayMillis;
-		}
-
-		double minMultiplier = Math.max(0.0d, 1.0d - jitterFactor);
-		double maxMultiplier = 1.0d + jitterFactor;
-		double multiplier = java.util.concurrent.ThreadLocalRandom.current().nextDouble(minMultiplier, maxMultiplier);
-		return Math.max(1L, Math.round(delayMillis * multiplier));
 	}
 }

@@ -14,21 +14,18 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class RabbitMQRecordHandler {
 
-	private static final String UNKNOWN_ERROR_REASON = "알 수 없는 오류";
-
 	private final NotificationDispatchUseCase dispatchService;
 	private final DispatchLockManager lockManager;
 	private final NotificationRabbitProperties properties;
 
 	public RecordProcessResult process(RecordProcessRequest request) {
 		if (request.notificationId() == null) {
-			return RecordProcessResult.nonRetryableFailure(
-				request.contextId(), null, request.retryCount(), "notificationId 값이 비어 있습니다.");
+			return RecordProcessResult.missingNotificationId(request.contextId(), request.retryCount());
 		}
 
 		if (!lockManager.tryAcquire(request.notificationId())) {
-			return RecordProcessResult.skipped(
-				request.contextId(), request.notificationId(), request.retryCount(), "이미 처리 중인 알림 스킵");
+			return RecordProcessResult.skippedForConcurrentProcessing(
+				request.contextId(), request.notificationId(), request.retryCount());
 		}
 
 		DispatchResult dispatchResult;
@@ -36,8 +33,8 @@ public class RabbitMQRecordHandler {
 			dispatchResult = dispatchService.dispatch(request.notificationId());
 		} catch (OptimisticLockingFailureException e) {
 			lockManager.release(request.notificationId());
-			return RecordProcessResult.skipped(
-				request.contextId(), request.notificationId(), request.retryCount(), "낙관적 락 충돌 - 다른 인스턴스가 처리 완료");
+			return RecordProcessResult.skippedForLockConflict(
+				request.contextId(), request.notificationId(), request.retryCount());
 		}
 
 		RecordProcessResult result = toProcessResult(request, dispatchResult);
@@ -54,30 +51,17 @@ public class RabbitMQRecordHandler {
 		if (dispatchResult.isSuccess()) {
 			return RecordProcessResult.success(request.contextId(), request.notificationId(), request.retryCount());
 		}
-		String normalizedReason = normalizeReason(dispatchResult.failReason());
 		if (dispatchResult.isNonRetryableFailure()) {
 			return RecordProcessResult.nonRetryableFailure(
-				request.contextId(), request.notificationId(), request.retryCount(),
-				normalizedReason);
+				request.contextId(), request.notificationId(), request.retryCount(), dispatchResult.failReason());
 		}
 		if (request.retryCount() >= properties.resolveMaxRetryCount()) {
-			return RecordProcessResult.nonRetryableFailure(
+			return RecordProcessResult.maxRetryExceeded(
 				request.contextId(), request.notificationId(), request.retryCount(),
-				buildMaxRetryExceededReason(normalizedReason));
+				properties.resolveMaxRetryCount(), dispatchResult.failReason());
 		}
 		return RecordProcessResult.retryableFailure(
 			request.contextId(), request.notificationId(), request.retryCount(),
-			normalizedReason, dispatchResult.retryDelayMillis());
-	}
-
-	private String buildMaxRetryExceededReason(String normalizedReason) {
-		return "재시도 한도 도달(" + properties.resolveMaxRetryCount() + "회) - 마지막 오류: " + normalizedReason;
-	}
-
-	private String normalizeReason(String reason) {
-		if (reason == null || reason.isBlank()) {
-			return UNKNOWN_ERROR_REASON;
-		}
-		return reason.replaceAll("\\s+", " ").trim();
+			dispatchResult.failReason(), dispatchResult.retryDelayMillis());
 	}
 }

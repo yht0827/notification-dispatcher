@@ -213,6 +213,7 @@ notification:
     work-queue: notification.work              # Work 큐 이름
     work-exchange: notification.work.exchange  # Work Exchange
     wait-queue: notification.wait              # Wait 큐 이름
+    wait-exchange: notification.wait.exchange  # Wait Exchange
     dlq-queue: notification.dlq                # DLQ 큐 이름
     dlq-exchange: notification.dlq.exchange    # DLQ Exchange
     max-retry-count: 3                         # 최대 재시도 횟수

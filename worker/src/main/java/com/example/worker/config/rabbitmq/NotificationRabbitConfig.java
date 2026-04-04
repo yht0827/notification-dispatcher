@@ -170,7 +170,7 @@ public class NotificationRabbitConfig {
 		return BindingBuilder
 			.bind(workQueue)
 			.to(workExchange)
-			.with(p.workRoutingKey());
+			.with(p.workQueue());
 	}
 
 	// waitQueue ← waitExchange (key: notification.wait)
@@ -183,7 +183,7 @@ public class NotificationRabbitConfig {
 		return BindingBuilder
 			.bind(waitQueue)
 			.to(waitExchange)
-			.with(p.waitRoutingKey());
+			.with(p.waitQueue());
 	}
 
 	// dlqQueue ← dlqExchange (fanout)
@@ -206,7 +206,7 @@ public class NotificationRabbitConfig {
 	private Map<String, Object> waitQueueArguments(NotificationRabbitProperties properties) {
 		Map<String, Object> args = new HashMap<>();
 		args.put(ARG_DEAD_LETTER_EXCHANGE, properties.workExchange());
-		args.put(ARG_DEAD_LETTER_ROUTING_KEY, properties.workRoutingKey());
+		args.put(ARG_DEAD_LETTER_ROUTING_KEY, properties.workQueue());
 		return args;
 	}
 

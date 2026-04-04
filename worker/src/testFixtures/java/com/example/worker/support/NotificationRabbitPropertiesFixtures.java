@@ -25,6 +25,7 @@ public final class NotificationRabbitPropertiesFixtures {
 			"notification.work",
 			"notification.work.exchange",
 			"notification.wait",
+			"notification.wait.exchange",
 			"notification.dlq",
 			"notification.dlq.exchange",
 			maxRetryCount,

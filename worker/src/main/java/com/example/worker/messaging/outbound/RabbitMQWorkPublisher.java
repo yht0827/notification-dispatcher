@@ -22,7 +22,7 @@ public class RabbitMQWorkPublisher implements NotificationEventPublisher {
 		NotificationMessagePayload payload = new NotificationMessagePayload(notificationId);
 
 		// work.exchange로 발행
-		rabbitTemplate.convertAndSend(properties.workExchange(), properties.workRoutingKey(), payload);
+		rabbitTemplate.convertAndSend(properties.workExchange(), properties.workQueue(), payload);
 		log.info("RabbitMQ 발행: notificationId={}", notificationId);
 	}
 }
