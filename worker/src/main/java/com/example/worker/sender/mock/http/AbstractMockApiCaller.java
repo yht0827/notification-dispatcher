@@ -9,6 +9,8 @@ import com.example.worker.sender.mock.exception.MockApiNonRetryableException;
 import com.example.worker.sender.mock.exception.MockApiRateLimitException;
 import com.example.worker.sender.mock.exception.MockApiRetryableException;
 
+import com.example.worker.NotificationMetrics;
+
 import feign.RetryableException;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.ratelimiter.RequestNotPermitted;
@@ -52,24 +54,24 @@ abstract class AbstractMockApiCaller implements ChannelMockApiCaller {
 			return SendResult.failRetryable("서킷 브레이커 OPEN - " + request.channelType() + " 외부 API 연속 장애");
 		}
 		if (t instanceof MockApiRateLimitException e) {
-			meterRegistry.counter("notification.mockapi.failures", "type", "rate_limit").increment();
+			meterRegistry.counter(NotificationMetrics.MOCKAPI_FAILURES, NotificationMetrics.TAG_TYPE, "rate_limit").increment();
 			log.info("mock API rate limit: requestId={}, retryAfterMs={}", request.requestId(), e.retryAfterMillis());
 			return SendResult.failRetryable(e.getMessage(), e.retryAfterMillis());
 		}
 		if (t instanceof MockApiNonRetryableException) {
-			meterRegistry.counter("notification.mockapi.failures", "type", "non_retryable").increment();
+			meterRegistry.counter(NotificationMetrics.MOCKAPI_FAILURES, NotificationMetrics.TAG_TYPE, "non_retryable").increment();
 			log.debug("mock API 재시도 불가 실패: requestId={}, reason={}", request.requestId(), t.getMessage());
 			return SendResult.failNonRetryable(t.getMessage());
 		}
-		meterRegistry.counter("notification.mockapi.failures", "type", "retryable").increment();
+		meterRegistry.counter(NotificationMetrics.MOCKAPI_FAILURES, NotificationMetrics.TAG_TYPE, "retryable").increment();
 		log.debug("mock API 재시도 가능 실패: requestId={}, reason={}", request.requestId(), t.getMessage());
 		return SendResult.failRetryable(t.getMessage());
 	}
 
 	// RateLimiter fallback
 	protected SendResult rateLimitFallback(MockApiSendRequest request, RequestNotPermitted e) {
-		meterRegistry.counter("notification.outbound.rate_limit_blocked",
-			"channel", request.channelType().name().toLowerCase()).increment();
+		meterRegistry.counter(NotificationMetrics.RATE_LIMIT_BLOCKED,
+			NotificationMetrics.TAG_CHANNEL, request.channelType().name().toLowerCase()).increment();
 		log.warn("발신 처리율 초과: channel={}, requestId={}", request.channelType(), request.requestId());
 		return SendResult.failRetryable("발신 처리율 초과 - " + request.channelType() + " 채널");
 	}

@@ -15,6 +15,7 @@ import com.example.application.port.out.repository.OutboxRepository;
 import com.example.domain.outbox.Outbox;
 import com.example.domain.outbox.OutboxAggregateType;
 import com.example.domain.outbox.OutboxStatus;
+import com.example.worker.NotificationMetrics;
 import com.example.worker.config.rabbitmq.RabbitMQConstants;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -58,7 +59,7 @@ public class OutboxPoller {
 				outbox.incrementRetry();
 				if (outbox.isExhausted(MAX_RETRY)) {
 					outbox.markAsFailed();
-					meterRegistry.counter("notification.outbox.failed").increment();
+					meterRegistry.counter(NotificationMetrics.OUTBOX_FAILED).increment();
 					log.error("Outbox 최대 재시도 초과 - FAILED 처리: outboxId={}, aggregateId={}", outbox.getId(), outbox.getAggregateId());
 				}
 			}
@@ -67,7 +68,7 @@ public class OutboxPoller {
 		// 3. 성공한 것만 삭제
 		if (!processed.isEmpty()) {
 			outboxRepository.deleteAll(processed);
-			meterRegistry.counter("notification.outbox.published").increment(processed.size());
+			meterRegistry.counter(NotificationMetrics.OUTBOX_PUBLISHED).increment(processed.size());
 			log.info("Outbox 처리 완료: count={}", processed.size());
 		}
 	}
@@ -83,7 +84,7 @@ public class OutboxPoller {
 			}
 			return true;
 		} catch (Exception e) {
-			meterRegistry.counter("notification.outbox.publish_failed").increment();
+			meterRegistry.counter(NotificationMetrics.OUTBOX_PUBLISH_FAILED).increment();
 			log.error("메시징 발행 실패: outboxId={}, aggregateId={}, reason={}",
 				outbox.getId(), outbox.getAggregateId(), e.getMessage());
 			return false;
