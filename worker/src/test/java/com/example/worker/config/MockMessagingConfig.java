@@ -5,10 +5,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import com.example.application.port.out.NotificationEventPublisher;
-import com.example.worker.config.rabbitmq.RabbitPropertyKeys;
+import com.example.worker.config.rabbitmq.RabbitMQConstants;
 
 @Configuration
-@ConditionalOnProperty(name = RabbitPropertyKeys.MESSAGING_ENABLED, havingValue = "false")
+@ConditionalOnProperty(name = RabbitMQConstants.MESSAGING_ENABLED, havingValue = "false")
 public class MockMessagingConfig {
 
 	@Bean

@@ -37,7 +37,7 @@ import com.example.worker.messaging.outbound.RabbitMQWaitPublisher;
 import com.example.worker.messaging.outbound.WaitPublisher;
 
 @Configuration
-@ConditionalOnProperty(name = RabbitPropertyKeys.MESSAGING_ENABLED, havingValue = "true")
+@ConditionalOnProperty(name = RabbitMQConstants.MESSAGING_ENABLED, havingValue = "true")
 @EnableConfigurationProperties(NotificationRabbitProperties.class)
 public class NotificationRabbitConfig {
 
@@ -58,18 +58,18 @@ public class NotificationRabbitConfig {
 		return template;
 	}
 
-	@Bean(name = RabbitBeanNames.SINGLE_LISTENER_CONTAINER_FACTORY)
+	@Bean(name = RabbitMQConstants.SINGLE_LISTENER_CONTAINER_FACTORY)
 	@ConditionalOnProperty(name = "app.consumer.enabled", havingValue = "true", matchIfMissing = true)
 	public SimpleRabbitListenerContainerFactory rabbitSingleListenerContainerFactory(
 		ConnectionFactory cf,
 		MessageConverter mc,
 		NotificationRabbitProperties p,
-		@Qualifier(RabbitBeanNames.LISTENER_TASK_EXECUTOR) Executor listenerTaskExecutor
+		@Qualifier(RabbitMQConstants.LISTENER_TASK_EXECUTOR) Executor listenerTaskExecutor
 	) {
 		return createBaseListenerContainerFactory(cf, mc, p, listenerTaskExecutor);
 	}
 
-	@Bean(name = RabbitBeanNames.LISTENER_TASK_EXECUTOR)
+	@Bean(name = RabbitMQConstants.LISTENER_TASK_EXECUTOR)
 	@ConditionalOnProperty(name = "app.consumer.enabled", havingValue = "true", matchIfMissing = true)
 	public Executor rabbitListenerTaskExecutor(
 		NotificationRabbitProperties properties,

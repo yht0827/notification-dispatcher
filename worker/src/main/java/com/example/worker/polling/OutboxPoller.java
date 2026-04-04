@@ -15,7 +15,7 @@ import com.example.application.port.out.repository.OutboxRepository;
 import com.example.domain.outbox.Outbox;
 import com.example.domain.outbox.OutboxAggregateType;
 import com.example.domain.outbox.OutboxStatus;
-import com.example.worker.config.rabbitmq.RabbitPropertyKeys;
+import com.example.worker.config.rabbitmq.RabbitMQConstants;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @RequiredArgsConstructor
 @EnableConfigurationProperties(OutboxProperties.class)
-@ConditionalOnProperty(name = RabbitPropertyKeys.MESSAGING_ENABLED, havingValue = "true")
+@ConditionalOnProperty(name = RabbitMQConstants.MESSAGING_ENABLED, havingValue = "true")
 @ConditionalOnProperty(name = "app.consumer.enabled", havingValue = "true", matchIfMissing = true)
 public class OutboxPoller {
 

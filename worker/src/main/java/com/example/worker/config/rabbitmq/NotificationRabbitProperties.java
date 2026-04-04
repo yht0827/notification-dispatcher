@@ -41,7 +41,8 @@ public record NotificationRabbitProperties(
 
 		int normalizedRetryCount = Math.max(retryCount, 0);
 		int cappedShift = Math.min(normalizedRetryCount, MAX_RETRY_BACKOFF_SHIFT);
-		long baseDelayMillis = (long)resolveRetryBaseDelayMillis() * (1L << cappedShift);
+		long baseDelayMillis =
+			(long)resolveRetryBaseDelayMillis() * (1L << cappedShift); // delay = baseDelay × (2 ^ retryCount)
 		return applyJitter(baseDelayMillis);
 	}
 

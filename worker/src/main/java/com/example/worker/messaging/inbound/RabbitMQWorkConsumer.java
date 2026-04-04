@@ -8,7 +8,7 @@ import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-import com.example.worker.config.rabbitmq.RabbitBeanNames;
+import com.example.worker.config.rabbitmq.RabbitMQConstants;
 import com.example.worker.messaging.outbound.DeadLetterPublisher;
 import com.example.worker.messaging.outbound.WaitPublisher;
 import com.example.worker.messaging.payload.NotificationMessagePayload;
@@ -35,7 +35,7 @@ public class RabbitMQWorkConsumer {
 
 	@RabbitListener(
 		queues = "${notification.rabbitmq.work-queue}",
-		containerFactory = RabbitBeanNames.SINGLE_LISTENER_CONTAINER_FACTORY
+		containerFactory = RabbitMQConstants.SINGLE_LISTENER_CONTAINER_FACTORY
 	)
 	public void onMessage(Message message, Channel channel) throws IOException {
 		MessageProcessContext context = MessageProcessContext.fromAmqpMessage(message, messageConverter);
