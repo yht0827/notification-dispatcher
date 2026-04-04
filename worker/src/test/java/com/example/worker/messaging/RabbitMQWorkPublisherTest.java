@@ -10,21 +10,21 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
-import com.example.worker.messaging.outbound.RabbitMQPublisher;
+import com.example.worker.messaging.outbound.RabbitMQWorkPublisher;
 import com.example.worker.messaging.payload.NotificationMessagePayload;
 import com.example.worker.support.NotificationRabbitPropertiesFixtures;
 
 @ExtendWith(MockitoExtension.class)
-class RabbitMQPublisherTest {
+class RabbitMQWorkPublisherTest {
 
 	@Mock
 	private RabbitTemplate rabbitTemplate;
 
-	private RabbitMQPublisher publisher;
+	private RabbitMQWorkPublisher publisher;
 
 	@BeforeEach
 	void setUp() {
-		publisher = new RabbitMQPublisher(rabbitTemplate, NotificationRabbitPropertiesFixtures.defaultProperties());
+		publisher = new RabbitMQWorkPublisher(rabbitTemplate, NotificationRabbitPropertiesFixtures.defaultProperties());
 	}
 
 	@Test

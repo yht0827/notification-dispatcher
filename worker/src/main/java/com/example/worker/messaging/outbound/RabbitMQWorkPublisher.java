@@ -11,7 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RequiredArgsConstructor
-public class RabbitMQPublisher implements NotificationEventPublisher {
+public class RabbitMQWorkPublisher implements NotificationEventPublisher {
 
 	private final RabbitTemplate rabbitTemplate;
 	private final NotificationRabbitProperties properties;

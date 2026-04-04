@@ -22,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @RequiredArgsConstructor
 @ConditionalOnProperty(name = "app.consumer.enabled", havingValue = "true", matchIfMissing = true)
-public class RabbitMQConsumer {
+public class RabbitMQWorkConsumer {
 
 	private static final String METRIC_DISPATCH_RESULT = "notification.dispatch.result";
 	private static final String TAG_OUTCOME = "outcome";

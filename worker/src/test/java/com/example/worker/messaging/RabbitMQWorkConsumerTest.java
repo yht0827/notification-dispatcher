@@ -21,7 +21,7 @@ import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.support.converter.MessageConverter;
 
 import com.example.worker.messaging.inbound.RabbitMQRecordHandler;
-import com.example.worker.messaging.inbound.RabbitMQConsumer;
+import com.example.worker.messaging.inbound.RabbitMQWorkConsumer;
 import com.example.worker.messaging.inbound.RecordProcessResult;
 import com.example.worker.messaging.outbound.DeadLetterPublisher;
 import com.example.worker.messaging.outbound.WaitPublisher;
@@ -32,7 +32,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 
 @ExtendWith(MockitoExtension.class)
-class RabbitMQConsumerTest {
+class RabbitMQWorkConsumerTest {
 
 	@Mock
 	private RabbitMQRecordHandler recordHandler;
@@ -55,12 +55,12 @@ class RabbitMQConsumerTest {
 	@Mock
 	private Channel channel;
 
-	private RabbitMQConsumer consumer;
+	private RabbitMQWorkConsumer consumer;
 
 	@BeforeEach
 	void setUp() {
 		when(meterRegistry.counter(any(), any(String[].class))).thenReturn(counter);
-		consumer = new RabbitMQConsumer(recordHandler, dlqPublisher, waitPublisher, meterRegistry,
+		consumer = new RabbitMQWorkConsumer(recordHandler, dlqPublisher, waitPublisher, meterRegistry,
 			messageConverter);
 	}
 

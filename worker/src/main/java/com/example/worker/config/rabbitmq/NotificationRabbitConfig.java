@@ -32,7 +32,7 @@ import com.example.application.port.out.NotificationEventPublisher;
 import com.example.worker.messaging.inbound.RabbitMQRecordHandler;
 import com.example.worker.messaging.outbound.DeadLetterPublisher;
 import com.example.worker.messaging.outbound.RabbitMQDlqPublisher;
-import com.example.worker.messaging.outbound.RabbitMQPublisher;
+import com.example.worker.messaging.outbound.RabbitMQWorkPublisher;
 import com.example.worker.messaging.outbound.RabbitMQWaitPublisher;
 import com.example.worker.messaging.outbound.WaitPublisher;
 
@@ -224,7 +224,7 @@ public class NotificationRabbitConfig {
 	@Bean
 	public NotificationEventPublisher rabbitMQPublisher(RabbitTemplate rabbitTemplate,
 		NotificationRabbitProperties properties) {
-		return new RabbitMQPublisher(rabbitTemplate, properties);
+		return new RabbitMQWorkPublisher(rabbitTemplate, properties);
 	}
 
 	@Bean
