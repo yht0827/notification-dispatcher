@@ -2,7 +2,6 @@ package com.example.mock.api;
 
 import com.example.mock.service.MockSendService;
 import jakarta.validation.Valid;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,7 +18,7 @@ public class MockSendController {
     }
 
     @PostMapping("/send")
-    public ResponseEntity<MockSendSuccessResponse> send(@Valid @RequestBody MockSendRequest request) {
-        return ResponseEntity.ok(mockSendService.handleSend(request));
+    public MockSendSuccessResponse send(@Valid @RequestBody MockSendRequest request) {
+        return mockSendService.handleSend(request);
     }
 }
